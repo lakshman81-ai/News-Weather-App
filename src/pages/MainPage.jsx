@@ -27,20 +27,11 @@ import {
  * - DT Next (morning only)
  */
 function MainPage() {
-    const [segment, setSegment] = useState(null);
-    const [settings, setSettings] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [segment, setSegment] = useState(() => getCurrentSegment());
+    const [settings, setSettings] = useState(() => getSettings());
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // Get current segment and settings
-        const currentSegment = getCurrentSegment();
-        setSegment(currentSegment);
-
-        const savedSettings = getSettings();
-        setSettings(savedSettings);
-
-        setLoading(false);
-
         // Update segment every minute
         const interval = setInterval(() => {
             setSegment(getCurrentSegment());

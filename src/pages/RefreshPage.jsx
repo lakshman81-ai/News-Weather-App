@@ -15,32 +15,17 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  */
 function RefreshPage() {
     const navigate = useNavigate();
-    const [settings, setSettings] = useState(null);
-    const [refreshToggles, setRefreshToggles] = useState({
-        world: true,
-        india: true,
-        chennai: true,
-        trichy: true,
-        local: true,
-        social: false,
-        weather: true,
-        market: true
-    });
+    const [settings, setSettings] = useState(() => getSettings());
     const [loading, setLoading] = useState(false);
-    const [lastRefresh, setLastRefreshTime] = useState('Never');
-    const [recommended, setRecommended] = useState({});
-
-    useEffect(() => {
-        const saved = getSettings();
-        setSettings(saved);
-        setLastRefreshTime(getTimeSinceRefresh());
-
-        // Get recommended toggles and apply them
+    const [lastRefresh, setLastRefreshTime] = useState(() => getTimeSinceRefresh());
+    const [recommended, setRecommended] = useState(() => {
         const segment = getCurrentSegment();
-        const rec = getRecommendedToggles(segment);
-        setRecommended(rec);
-        setRefreshToggles(rec);
-    }, []);
+        return getRecommendedToggles(segment);
+    });
+    const [refreshToggles, setRefreshToggles] = useState(() => {
+        const segment = getCurrentSegment();
+        return getRecommendedToggles(segment);
+    });
 
     const handleRefresh = async () => {
         setLoading(true);

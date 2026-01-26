@@ -17,23 +17,16 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  */
 function SettingsPage() {
     const navigate = useNavigate();
-    const [settings, setSettings] = useState(null);
+    const [settings, setSettings] = useState(() => getSettings());
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showDuckKey, setShowDuckKey] = useState(false);
     const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [testStatus, setTestStatus] = useState({});
     const [saved, setSaved] = useState(false);
-    const [recommended, setRecommended] = useState({});
-
-    useEffect(() => {
-        const saved = getSettings();
-        setSettings(saved);
-
-        // Get recommended toggles based on current segment
+    const [recommended, setRecommended] = useState(() => {
         const segment = getCurrentSegment();
-        const rec = getRecommendedToggles(segment);
-        setRecommended(rec);
-    }, []);
+        return getRecommendedToggles(segment);
+    });
 
     const handleSave = () => {
         if (settings) {
