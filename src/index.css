@@ -146,6 +146,28 @@ body {
   top: 0;
   z-index: 100;
   border-bottom: 1px solid var(--border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header__actions {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.header__action-btn {
+  font-size: var(--font-size-xl);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+
+.header__action-btn:hover {
+  transform: scale(1.1);
 }
 
 .header__title {
@@ -419,7 +441,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
-  font-size: var(--font-size-xs);
+  font-size: 0.65rem;
   color: var(--text-muted);
 }
 

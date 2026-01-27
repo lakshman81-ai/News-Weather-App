@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 /**
  * Header Component with optional back navigation
  */
-function Header({ title, icon, showBack = false, backTo = '/' }) {
+function Header({ title, icon, showBack = false, backTo = '/', actions }) {
     return (
         <header className="header">
             {showBack ? (
@@ -18,6 +18,7 @@ function Header({ title, icon, showBack = false, backTo = '/' }) {
                     {title}
                 </h1>
             )}
+            {actions}
         </header>
     );
 }
