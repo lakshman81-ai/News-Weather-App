@@ -111,7 +111,10 @@ function MainPage() {
                                     }}>
                                         {item.summary}
                                     </p>
-                                    <div className="news-item__meta">
+                                    <div className="news-item__meta" style={{
+                                        fontSize: '0.85rem',
+                                        color: 'var(--text-secondary)'
+                                    }}>
                                         <span className="news-item__source">{item.source}</span>
                                         <span>|</span>
                                         <span>{item.time}</span>
