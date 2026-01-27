@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
-import Navigation from '../components/Navigation';
 import WeatherCard from '../components/WeatherCard';
 import NewsSection from '../components/NewsSection';
 import MarketCard from '../components/MarketCard';
@@ -63,9 +63,16 @@ function MainPage() {
     const { sections, market: marketSettings } = settings;
     const showDTNext = shouldShowDTNext(segment);
 
+    const headerActions = (
+        <div className="header__actions">
+            <Link to="/settings" className="header__action-btn">⚙️</Link>
+            <Link to="/refresh" className="header__action-btn">🔄</Link>
+        </div>
+    );
+
     return (
         <>
-            <Header title="Daily Event AI" icon="🌅" />
+            <Header title="Daily Event AI" icon="🌅" actions={headerActions} />
 
             <main className="main-page">
                 {/* Segment Badge */}
@@ -229,8 +236,6 @@ function MainPage() {
                     </div>
                 </div>
             </main>
-
-            <Navigation />
         </>
     );
 }
