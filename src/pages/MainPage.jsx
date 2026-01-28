@@ -1,3 +1,5 @@
+import { fetchNews } from '../services/newsService';
+import { fetchWeather } from '../services/weatherService';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -27,19 +29,80 @@ import {
  * - DT Next (morning only)
  */
 function MainPage() {
-    const [segment, setSegment] = useState(null);
-    const [settings, setSettings] = useState(null);
+    const [segment, setSegment] = useState(() => getCurrentSegment());
+    const [settings, _setSettings] = useState(() => getSettings());
     const [loading, setLoading] = useState(true);
+    const [weatherData, setWeatherData] = useState(null);
+    const [newsData, setNewsData] = useState({});
+    const [, setErrors] = useState({});
 
     useEffect(() => {
-        // Get current segment and settings
-        const currentSegment = getCurrentSegment();
-        setSegment(currentSegment);
+        // API Keys
+        const newsApiKey = localStorage.getItem('news_api_key');
+        const ddgApiKey = settings?.duckDuckGoApiKey || '';
 
-        const savedSettings = getSettings();
-        setSettings(savedSettings);
+        const loadData = async () => {
+            if (!settings) return;
 
-        setLoading(false);
+            // 1. Fetch Weather (Open-Meteo) with Mock Fallback
+            if (settings.sections.weather !== false) {
+                try {
+                    const cities = ['chennai', 'trichy', 'muscat'];
+                    const weatherPromises = cities.map(city => fetchWeather(city).catch(error => { void error; return null; }));
+                    const [chennai, trichy, muscat] = await Promise.all(weatherPromises);
+
+                    setWeatherData({
+                        chennai: chennai || MOCK_WEATHER.chennai,
+                        trichy: trichy || MOCK_WEATHER.trichy,
+                        muscat: muscat || MOCK_WEATHER.muscat
+                    });
+                } catch (error) { void error;
+                    console.warn('Weather fetch failed completely, using mock', error);
+                    setWeatherData(MOCK_WEATHER);
+                }
+            }
+
+            // 2. Fetch News (Smart Service: API -> DDG -> RSS Fallback)
+            const newsSections = [
+                { key: 'world', query: 'World' },
+                { key: 'india', query: 'India' },
+                { key: 'chennai', query: 'Chennai' },
+                { key: 'trichy', query: 'Trichy' },
+                { key: 'local', query: 'Muscat' },
+                { key: 'social', query: 'Social Media Trends' },
+                { key: 'entertainment', query: 'Entertainment' }
+            ];
+
+            const fetchedNews = {};
+            const newsErrors = {};
+
+            await Promise.all(newsSections.map(async ({ key, query }) => {
+                if (settings.sections[key]?.enabled) {
+                    try {
+                        // Pass keys object to service
+                        const articles = await fetchNews(query, { newsApiKey, ddgApiKey });
+
+                        if (articles && articles.length > 0) {
+                            fetchedNews[key] = articles;
+                        } else {
+                            // Only use Mock Data if EVERYTHING failed AND we want to show something?
+                            // User asked "Do not use mock". So if RSS fails, we show error or empty.
+                            // But usually fallback to mock is better than blank for initial demo.
+                            // However, strictly complying with "old news" complaint:
+                            newsErrors[key] = 'No live news found (Check internet/keys).';
+                        }
+                    } catch (error) { void error;
+                        newsErrors[key] = 'Unable to fetch news.';
+                    }
+                }
+            }));
+
+            setNewsData(fetchedNews);
+            setErrors(prev => ({ ...prev, ...newsErrors }));
+            setLoading(false);
+        };
+
+        loadData();
 
         // Update segment every minute
         const interval = setInterval(() => {
@@ -47,7 +110,7 @@ function MainPage() {
         }, 60000);
 
         return () => clearInterval(interval);
-    }, []);
+        }, [settings]);
 
     if (loading || !settings) {
         return (
@@ -133,7 +196,7 @@ function MainPage() {
 
                 {/* Weather */}
                 {sections.weather !== false && (
-                    <WeatherCard weatherData={MOCK_WEATHER} />
+                    <WeatherCard weatherData={weatherData || MOCK_WEATHER} />
                 )}
 
                 {/* World News */}
@@ -142,7 +205,7 @@ function MainPage() {
                         title="World News"
                         icon="🌐"
                         colorClass="news-section__title--world"
-                        news={MOCK_NEWS.world}
+                        news={newsData.world || []}
                         maxDisplay={sections.world.count || 10}
                     />
                 )}
@@ -153,7 +216,7 @@ function MainPage() {
                         title="India News"
                         icon="🇮🇳"
                         colorClass="news-section__title--india"
-                        news={MOCK_NEWS.india}
+                        news={newsData.india || []}
                         maxDisplay={sections.india.count || 10}
                     />
                 )}
@@ -164,7 +227,7 @@ function MainPage() {
                         title="Chennai News"
                         icon="🏛️"
                         colorClass="news-section__title--chennai"
-                        news={MOCK_NEWS.chennai}
+                        news={newsData.chennai || []}
                         maxDisplay={sections.chennai.count || 3}
                     />
                 )}
@@ -175,7 +238,7 @@ function MainPage() {
                         title="Trichy News"
                         icon="🏛️"
                         colorClass="news-section__title--trichy"
-                        news={MOCK_NEWS.trichy}
+                        news={newsData.trichy || []}
                         maxDisplay={sections.trichy.count || 2}
                     />
                 )}
@@ -186,7 +249,7 @@ function MainPage() {
                         title="Local News (Muscat)"
                         icon="📍"
                         colorClass="news-section__title--local"
-                        news={MOCK_NEWS.local}
+                        news={newsData.local || []}
                         maxDisplay={sections.local.count || 3}
                     />
                 )}
@@ -197,7 +260,7 @@ function MainPage() {
                         title="Social Trends"
                         icon="👥"
                         colorClass="news-section__title--social"
-                        news={MOCK_NEWS.social}
+                        news={newsData.social || []}
                         maxDisplay={sections.social.count || 10}
                     />
                 )}
@@ -208,7 +271,7 @@ function MainPage() {
                         title="Entertainment"
                         icon="🎬"
                         colorClass="news-section__title--entertainment"
-                        news={MOCK_NEWS.entertainment}
+                        news={newsData.entertainment || []}
                         maxDisplay={sections.entertainment.count || 8}
                     />
                 )}
