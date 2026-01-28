@@ -1,0 +1,554 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
+import Toggle from '../components/Toggle';
+import { getSettings, saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
+import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
+
+/**
+ * Settings Page Component
+ */
+function SettingsPage() {
+    const navigate = useNavigate();
+    const [settings, setSettings] = useState(null);
+    const [showGoogleKey, setShowGoogleKey] = useState(false);
+    const [showDuckKey, setShowDuckKey] = useState(false);
+    const [showGeminiKey, setShowGeminiKey] = useState(false);
+    const [testStatus, setTestStatus] = useState({});
+    const [saved, setSaved] = useState(false);
+    const [recommended, setRecommended] = useState({});
+    const [newsApiKey, setNewsApiKey] = useState('');
+
+    useEffect(() => {
+        const saved = getSettings();
+        setSettings(saved);
+        setNewsApiKey(localStorage.getItem('news_api_key') || '');
+
+        // Get recommended toggles based on current segment
+        const segment = getCurrentSegment();
+        const rec = getRecommendedToggles(segment);
+        setRecommended(rec);
+    }, []);
+
+    const handleSave = () => {
+        if (settings) {
+            saveSettings(settings);
+            localStorage.setItem('news_api_key', newsApiKey);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        }
+    };
+
+    const handleReset = () => {
+        if (confirm('Reset all settings to defaults?')) {
+            resetSettings();
+            setSettings({ ...DEFAULT_SETTINGS });
+        }
+    };
+
+    const updateSection = (section, field, value) => {
+        setSettings(prev => ({
+            ...prev,
+            sections: {
+                ...prev.sections,
+                [section]: {
+                    ...prev.sections[section],
+                    [field]: value
+                }
+            }
+        }));
+    };
+
+    const updateMarket = (field, value) => {
+        setSettings(prev => ({
+            ...prev,
+            market: {
+                ...prev.market,
+                [field]: value
+            }
+        }));
+    };
+
+    const updateWeatherSource = (source, value) => {
+        setSettings(prev => ({
+            ...prev,
+            weatherSources: {
+                ...prev.weatherSources,
+                [source]: value
+            }
+        }));
+    };
+
+    const updateNewsSource = (source, value) => {
+        setSettings(prev => ({
+            ...prev,
+            newsSources: {
+                ...prev.newsSources,
+                [source]: value
+            }
+        }));
+    };
+
+    const testApiKey = async (type) => {
+        setTestStatus(prev => ({ ...prev, [type]: 'testing' }));
+        // Simulate API test
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const key = type === 'google' ? settings.googleApiKey : settings.duckDuckGoApiKey;
+        if (key && key.length > 10) {
+            setTestStatus(prev => ({ ...prev, [type]: 'success' }));
+        } else {
+            setTestStatus(prev => ({ ...prev, [type]: 'error' }));
+        }
+        setTimeout(() => setTestStatus(prev => ({ ...prev, [type]: null })), 3000);
+    };
+
+    const applyRecommended = () => {
+        if (!settings) return;
+
+        setSettings(prev => ({
+            ...prev,
+            sections: {
+                world: { ...prev.sections.world, enabled: recommended.world },
+                india: { ...prev.sections.india, enabled: recommended.india },
+                chennai: { ...prev.sections.chennai, enabled: recommended.chennai },
+                trichy: { ...prev.sections.trichy, enabled: recommended.trichy },
+                local: { ...prev.sections.local, enabled: recommended.local },
+                social: { ...prev.sections.social, enabled: recommended.social },
+                entertainment: { ...prev.sections.entertainment, enabled: true }
+            },
+            market: {
+                ...prev.market,
+                showBSE: recommended.market,
+                showNSE: recommended.market
+            }
+        }));
+    };
+
+    if (!settings) {
+        return (
+            <div className="settings-page">
+                <div className="loading">
+                    <div className="loading__spinner"></div>
+                    <span>Loading settings...</span>
+                </div>
+            </div>
+        );
+    }
+
+    const sectionConfig = [
+        { key: 'world', icon: '🌐', label: 'World News', min: 5, max: 15 },
+        { key: 'india', icon: '🇮🇳', label: 'India News', min: 5, max: 15 },
+        { key: 'chennai', icon: '🏛️', label: 'Chennai News', min: 3, max: 5 },
+        { key: 'trichy', icon: '🏛️', label: 'Trichy News', min: 2, max: 3 },
+        { key: 'local', icon: '📍', label: 'Local (Muscat)', min: 3, max: 5 },
+        { key: 'social', icon: '👥', label: 'Social Trends', min: 5, max: 15 },
+        { key: 'entertainment', icon: '🎬', label: 'Entertainment', min: 3, max: 10 }
+    ];
+
+    return (
+        <>
+            <Header title="Settings" showBack backTo="/" />
+
+            <div className="settings-page">
+                {/* Recommended Settings Banner */}
+                <div
+                    className="card"
+                    style={{
+                        marginBottom: 'var(--spacing-lg)',
+                        background: 'linear-gradient(135deg, rgba(0, 212, 170, 0.1), rgba(88, 166, 255, 0.1))',
+                        border: '1px solid var(--accent-primary)'
+                    }}
+                    onClick={applyRecommended}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                        <span style={{ fontSize: '1.5rem' }}>⭐</span>
+                        <div>
+                            <div style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
+                                Apply Recommended Settings
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Based on current time segment
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* API Configuration */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🔑</span>
+                        API Configuration
+                    </h2>
+
+                    <div className="settings-card">
+                        {/* Google API Key */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="api-input-group">
+                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
+                                    Google API Key
+                                </label>
+                                <div className="api-input-row">
+                                    <input
+                                        type={showGoogleKey ? 'text' : 'password'}
+                                        className="api-input"
+                                        value={settings.googleApiKey}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, googleApiKey: e.target.value }))}
+                                        placeholder="Enter Google API Key"
+                                    />
+                                    <button
+                                        className="api-btn"
+                                        onClick={() => setShowGoogleKey(!showGoogleKey)}
+                                    >
+                                        {showGoogleKey ? '🙈' : '👁️'}
+                                    </button>
+                                    <button
+                                        className="api-btn api-btn--test"
+                                        onClick={() => testApiKey('google')}
+                                        disabled={testStatus.google === 'testing'}
+                                    >
+                                        {testStatus.google === 'testing' ? '...' :
+                                            testStatus.google === 'success' ? '✓' :
+                                                testStatus.google === 'error' ? '✗' : 'Test'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* DuckDuckGo API Key */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="api-input-group">
+                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
+                                    DuckDuckGo API Key
+                                </label>
+                                <div className="api-input-row">
+                                    <input
+                                        type={showDuckKey ? 'text' : 'password'}
+                                        className="api-input"
+                                        value={settings.duckDuckGoApiKey}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, duckDuckGoApiKey: e.target.value }))}
+                                        placeholder="Enter DuckDuckGo API Key"
+                                    />
+                                    <button
+                                        className="api-btn"
+                                        onClick={() => setShowDuckKey(!showDuckKey)}
+                                    >
+                                        {showDuckKey ? '🙈' : '👁️'}
+                                    </button>
+                                    <button
+                                        className="api-btn api-btn--test"
+                                        onClick={() => testApiKey('duck')}
+                                        disabled={testStatus.duck === 'testing'}
+                                    >
+                                        {testStatus.duck === 'testing' ? '...' :
+                                            testStatus.duck === 'success' ? '✓' :
+                                                testStatus.duck === 'error' ? '✗' : 'Test'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Gemini API Key */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="api-input-group">
+                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
+                                    Gemini API Key <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(AI Reasoning)</span>
+                                </label>
+                                <div className="api-input-row">
+                                    <input
+                                        type={showGeminiKey ? 'text' : 'password'}
+                                        className="api-input"
+                                        value={settings.geminiApiKey || ''}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                                        placeholder="Enter Gemini API Key"
+                                    />
+                                    <button
+                                        className="api-btn"
+                                        onClick={() => setShowGeminiKey(!showGeminiKey)}
+                                    >
+                                        {showGeminiKey ? '🙈' : '👁️'}
+                                    </button>
+                                    <button
+                                        className="api-btn api-btn--test"
+                                        onClick={() => testApiKey('gemini')}
+                                        disabled={testStatus.gemini === 'testing'}
+                                    >
+                                        {testStatus.gemini === 'testing' ? '...' :
+                                            testStatus.gemini === 'success' ? '✓' :
+                                                testStatus.gemini === 'error' ? '✗' : 'Test'}
+                                    </button>
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    ⚠️ Gemini is post-processor only. Never fetches or decides relevance.
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* NewsData.io API Key - Added in same card for consistency */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="api-input-group">
+                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
+                                    NewsData.io API Key <span style={{ fontSize: '0.7rem', color: 'var(--accent-warning)' }}>(Required for News)</span>
+                                </label>
+                                <div className="api-input-row">
+                                    <input
+                                        type="text"
+                                        className="api-input"
+                                        value={newsApiKey}
+                                        onChange={(e) => setNewsApiKey(e.target.value)}
+                                        placeholder="Enter NewsData.io API Key"
+                                    />
+                                    <button
+                                        className="api-btn"
+                                        onClick={() => window.open('https://newsdata.io/register', '_blank')}
+                                        title="Get Free Key"
+                                    >
+                                        🔑
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Crawler Mode */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🤖</span>
+                        Crawler Mode
+                    </h2>
+
+                    <div className="settings-card">
+                        {[
+                            { value: 'auto', label: 'Auto', icon: '⭐', desc: 'Uses segment timing logic + FSM (recommended)' },
+                            { value: 'manual', label: 'Manual', icon: '👆', desc: 'Only refresh when you tap Refresh' },
+                            { value: 'scheduled', label: 'Scheduled', icon: '⏰', desc: 'Background refresh on intervals' }
+                        ].map(({ value, label, icon, desc }) => (
+                            <div
+                                key={value}
+                                className="settings-item"
+                                style={{
+                                    cursor: 'pointer',
+                                    background: settings.crawlerMode === value ? 'rgba(0, 212, 170, 0.1)' : 'transparent',
+                                    borderLeft: settings.crawlerMode === value ? '3px solid var(--accent-primary)' : '3px solid transparent'
+                                }}
+                                onClick={() => setSettings(prev => ({ ...prev, crawlerMode: value }))}
+                            >
+                                <div className="settings-item__label" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                        <span>{icon}</span>
+                                        <span style={{ fontWeight: 600 }}>{label}</span>
+                                        {value === 'auto' && (
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                background: 'var(--accent-primary)',
+                                                color: 'var(--bg-primary)',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px'
+                                            }}>DEFAULT</span>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '28px' }}>
+                                        {desc}
+                                    </div>
+                                </div>
+                                <div style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    borderRadius: '50%',
+                                    border: '2px solid var(--border-default)',
+                                    background: settings.crawlerMode === value ? 'var(--accent-primary)' : 'transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    {settings.crawlerMode === value && (
+                                        <span style={{ color: 'var(--bg-primary)', fontSize: '0.7rem' }}>✓</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 'var(--spacing-sm)' }}>
+                        Auto mode uses segment timing to intelligently decide what to refresh
+                    </div>
+                </section>
+
+                {/* News Sections & Counts */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🌍</span>
+                        News Sections & Counts
+                    </h2>
+
+                    <div className="settings-card">
+                        {sectionConfig.map(({ key, icon, label, min, max }) => (
+                            <div key={key} className="settings-item">
+                                <div className="settings-item__label">
+                                    <span className="settings-item__icon">{icon}</span>
+                                    {label}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                    <input
+                                        type="number"
+                                        className="settings-item__count"
+                                        min={min}
+                                        max={max}
+                                        value={settings.sections[key]?.count || min}
+                                        onChange={(e) => {
+                                            const val = Math.min(max, Math.max(min, parseInt(e.target.value) || min));
+                                            updateSection(key, 'count', val);
+                                        }}
+                                    />
+                                    <Toggle
+                                        checked={settings.sections[key]?.enabled}
+                                        onChange={(val) => updateSection(key, 'enabled', val)}
+                                        recommended={recommended[key]}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 'var(--spacing-sm)' }}>
+                        ★ = Recommended for current time segment
+                    </div>
+                </section>
+
+                {/* Market Settings */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>📈</span>
+                        Market Settings
+                    </h2>
+
+                    <div className="settings-card">
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show BSE Data</span>
+                            <Toggle
+                                checked={settings.market.showBSE}
+                                onChange={(val) => updateMarket('showBSE', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show NSE Data</span>
+                            <Toggle
+                                checked={settings.market.showNSE}
+                                onChange={(val) => updateMarket('showNSE', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Gainers</span>
+                            <Toggle
+                                checked={settings.market.showGainers}
+                                onChange={(val) => updateMarket('showGainers', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Losers</span>
+                            <Toggle
+                                checked={settings.market.showLosers}
+                                onChange={(val) => updateMarket('showLosers', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Market Movers</span>
+                            <Toggle
+                                checked={settings.market.showMovers}
+                                onChange={(val) => updateMarket('showMovers', val)}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Weather Sources */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🌤️</span>
+                        Weather Sources
+                    </h2>
+
+                    <div className="settings-card">
+                        <div className="settings-item">
+                            <span className="settings-item__label">AccuWeather</span>
+                            <Toggle
+                                checked={settings.weatherSources.accuWeather}
+                                onChange={(val) => updateWeatherSource('accuWeather', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">ECMWF</span>
+                            <Toggle
+                                checked={settings.weatherSources.ecmwf}
+                                onChange={(val) => updateWeatherSource('ecmwf', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">IMD/RSMC</span>
+                            <Toggle
+                                checked={settings.weatherSources.imd}
+                                onChange={(val) => updateWeatherSource('imd', val)}
+                            />
+                        </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 'var(--spacing-sm)' }}>
+                        Rain % = Average of enabled sources
+                    </div>
+                </section>
+
+                {/* News Sources */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>📰</span>
+                        News Sources
+                    </h2>
+
+                    <div className="settings-card">
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--border-default)' }}>
+                            {[
+                                { key: 'bbc', label: 'BBC' },
+                                { key: 'reuters', label: 'Reuters' },
+                                { key: 'ndtv', label: 'NDTV' },
+                                { key: 'theHindu', label: 'The Hindu' },
+                                { key: 'toi', label: 'TOI' },
+                                { key: 'financialExpress', label: 'FE' },
+                                { key: 'dtNext', label: 'DT Next' },
+                                { key: 'omanObserver', label: 'Oman Obs' },
+                                { key: 'moneyControl', label: 'MoneyCtrl' },
+                                { key: 'indiaToday', label: 'India Today' },
+                                { key: 'variety', label: 'Variety' },
+                                { key: 'hollywoodReporter', label: 'THR' },
+                                { key: 'bollywoodHungama', label: 'BH' },
+                                { key: 'filmCompanion', label: 'Film Comp' }
+                            ].map(({ key, label }) => (
+                                <div key={key} className="settings-item" style={{ background: 'var(--bg-card)' }}>
+                                    <span className="settings-item__label" style={{ fontSize: '0.85rem' }}>{label}</span>
+                                    <Toggle
+                                        checked={settings.newsSources[key]}
+                                        onChange={(val) => updateNewsSource(key, val)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
+                    <button
+                        className="btn btn--primary btn--full"
+                        onClick={handleSave}
+                    >
+                        {saved ? '✓ Saved!' : 'Save Settings'}
+                    </button>
+                    <button
+                        className="btn btn--danger btn--full"
+                        onClick={handleReset}
+                    >
+                        Reset to Defaults
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+}
+
+export default SettingsPage;
