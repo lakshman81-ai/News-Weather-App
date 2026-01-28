@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
-import { getSettings, saveSettings, getTimeSinceRefresh, setLastRefresh } from '../utils/storage';
+import { getTimeSinceRefresh, setLastRefresh } from '../utils/storage';
 import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
 
 /**
@@ -15,48 +15,25 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  */
 function RefreshPage() {
     const navigate = useNavigate();
-    const [settings, setSettings] = useState(null);
-    const [refreshToggles, setRefreshToggles] = useState({
-        world: true,
-        india: true,
-        chennai: true,
-        trichy: true,
-        local: true,
-        social: false,
-        weather: true,
-        market: true
-    });
+        const [refreshToggles, setRefreshToggles] = useState(() => getRecommendedToggles(getCurrentSegment()));
     const [loading, setLoading] = useState(false);
-    const [lastRefresh, setLastRefreshTime] = useState('Never');
-    const [recommended, setRecommended] = useState({});
+    const [lastRefresh, setLastRefreshTime] = useState(() => getTimeSinceRefresh());
+    const [recommended] = useState(() => getRecommendedToggles(getCurrentSegment()));
 
-    useEffect(() => {
-        const saved = getSettings();
-        setSettings(saved);
-        setLastRefreshTime(getTimeSinceRefresh());
 
-        // Get recommended toggles and apply them
-        const segment = getCurrentSegment();
-        const rec = getRecommendedToggles(segment);
-        setRecommended(rec);
-        setRefreshToggles(rec);
-    }, []);
 
     const handleRefresh = async () => {
         setLoading(true);
 
-        // Simulate API refresh
-        await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Update last refresh timestamps
-        const sections = Object.keys(refreshToggles).filter(k => refreshToggles[k]);
+                const sections = Object.keys(refreshToggles).filter(k => refreshToggles[k]);
         sections.forEach(section => setLastRefresh(section));
 
         setLastRefreshTime('Just now');
         setLoading(false);
 
-        // Navigate to main page after refresh
-        setTimeout(() => navigate('/'), 500);
+                setTimeout(() => navigate('/'), 500);
     };
 
     const toggleAll = (value) => {

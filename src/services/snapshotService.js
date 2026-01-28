@@ -304,7 +304,7 @@ export function saveSnapshot(snapshot) {
 
         localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(trimmed));
         return true;
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error saving snapshot:', error);
         return false;
     }
@@ -317,7 +317,7 @@ export function getLatestSnapshot() {
 
         const snapshots = JSON.parse(stored);
         return snapshots[0] || null;
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error getting snapshot:', error);
         return null;
     }
@@ -330,7 +330,7 @@ export function getSnapshotById(snapshotId) {
 
         const snapshots = JSON.parse(stored);
         return snapshots.find(s => s.snapshotId === snapshotId) || null;
-    } catch (error) {
+    } catch (error) { void error;
         return null;
     }
 }
@@ -339,7 +339,7 @@ export function getAllSnapshots() {
     try {
         const stored = localStorage.getItem(SNAPSHOT_KEY);
         return stored ? JSON.parse(stored) : [];
-    } catch (error) {
+    } catch (error) { void error;
         return [];
     }
 }

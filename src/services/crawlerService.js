@@ -70,7 +70,7 @@ const rateLimits = {
 
 const buckets = {};
 
-function checkRateLimit(api) {
+function _checkRateLimit(api) {
     const now = Date.now();
     const limit = rateLimits[api];
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+ 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { getSettings, saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
@@ -16,23 +16,20 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  * - News sources
  */
 function SettingsPage() {
-    const navigate = useNavigate();
-    const [settings, setSettings] = useState(null);
+
+    const [settings, setSettings] = useState(() => getSettings());
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showDuckKey, setShowDuckKey] = useState(false);
     const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [testStatus, setTestStatus] = useState({});
     const [saved, setSaved] = useState(false);
-    const [recommended, setRecommended] = useState({});
+    const [recommended, _setRecommended] = useState(() => getRecommendedToggles(getCurrentSegment()));
 
     useEffect(() => {
-        const saved = getSettings();
-        setSettings(saved);
+
 
         // Get recommended toggles based on current segment
-        const segment = getCurrentSegment();
-        const rec = getRecommendedToggles(segment);
-        setRecommended(rec);
+
     }, []);
 
     const handleSave = () => {

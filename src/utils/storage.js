@@ -84,7 +84,7 @@ export function getSettings() {
             // Merge with defaults to ensure all keys exist
             return deepMerge(DEFAULT_SETTINGS, parsed);
         }
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error reading settings:', error);
     }
     return { ...DEFAULT_SETTINGS };
@@ -98,7 +98,7 @@ export function saveSettings(settings) {
     try {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
         return true;
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error saving settings:', error);
         return false;
     }
@@ -144,7 +144,7 @@ export function getLastRefresh(section) {
                 return new Date(timestamps[section]);
             }
         }
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error reading last refresh:', error);
     }
     return null;
@@ -160,7 +160,7 @@ export function setLastRefresh(section) {
         const timestamps = stored ? JSON.parse(stored) : {};
         timestamps[section] = new Date().toISOString();
         localStorage.setItem(STORAGE_KEYS.LAST_REFRESH, JSON.stringify(timestamps));
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error setting last refresh:', error);
     }
 }
@@ -199,7 +199,7 @@ export function getTimeSinceRefresh(section = null) {
         if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
         return lastTime.toLocaleDateString();
-    } catch (error) {
+    } catch (error) { void error;
         return 'Unknown';
     }
 }
@@ -218,7 +218,7 @@ export function cacheData(section, data) {
             timestamp: new Date().toISOString()
         };
         localStorage.setItem(STORAGE_KEYS.CACHED_DATA, JSON.stringify(cache));
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error caching data:', error);
     }
 }
@@ -241,7 +241,7 @@ export function getCachedData(section, maxAgeMs = 30 * 60 * 1000) {
         if (age > maxAgeMs) return null;
 
         return cache[section].data;
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error reading cache:', error);
         return null;
     }
@@ -254,7 +254,7 @@ export function clearCache() {
     try {
         localStorage.removeItem(STORAGE_KEYS.CACHED_DATA);
         localStorage.removeItem(STORAGE_KEYS.LAST_REFRESH);
-    } catch (error) {
+    } catch (error) { void error;
         console.error('Error clearing cache:', error);
     }
 }

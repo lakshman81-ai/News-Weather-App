@@ -11,7 +11,7 @@ import { getWeatherTimeBlocks } from '../utils/timeSegment';
  * - Per-location summaries (3-4 lines each)
  * - Severe weather styling when applicable
  */
-function WeatherCard({ weatherData, isSevere = false }) {
+function WeatherCard({ weatherData,  }) {
     const timeBlocks = getWeatherTimeBlocks();
     const cities = ['chennai', 'trichy', 'muscat'];
 
