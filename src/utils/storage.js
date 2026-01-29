@@ -10,7 +10,6 @@ const STORAGE_KEYS = {
 export const DEFAULT_SETTINGS = {
     // API Keys
     googleApiKey: '',
-    duckDuckGoApiKey: '',
     geminiApiKey: '',
 
     // Crawler Mode: 'auto' (default), 'manual', 'scheduled', 'disabled'

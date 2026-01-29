@@ -19,7 +19,6 @@ function SettingsPage() {
 
     const [settings, setSettings] = useState(() => getSettings());
     const [showGoogleKey, setShowGoogleKey] = useState(false);
-    const [showDuckKey, setShowDuckKey] = useState(false);
     const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [testStatus, setTestStatus] = useState({});
     const [saved, setSaved] = useState(false);
@@ -210,39 +209,6 @@ function SettingsPage() {
                                         {testStatus.google === 'testing' ? '...' :
                                             testStatus.google === 'success' ? '✓' :
                                                 testStatus.google === 'error' ? '✗' : 'Test'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* DuckDuckGo API Key */}
-                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                            <div className="api-input-group">
-                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
-                                    DuckDuckGo API Key
-                                </label>
-                                <div className="api-input-row">
-                                    <input
-                                        type={showDuckKey ? 'text' : 'password'}
-                                        className="api-input"
-                                        value={settings.duckDuckGoApiKey}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, duckDuckGoApiKey: e.target.value }))}
-                                        placeholder="Enter DuckDuckGo API Key"
-                                    />
-                                    <button
-                                        className="api-btn"
-                                        onClick={() => setShowDuckKey(!showDuckKey)}
-                                    >
-                                        {showDuckKey ? '🙈' : '👁️'}
-                                    </button>
-                                    <button
-                                        className="api-btn api-btn--test"
-                                        onClick={() => testApiKey('duck')}
-                                        disabled={testStatus.duck === 'testing'}
-                                    >
-                                        {testStatus.duck === 'testing' ? '...' :
-                                            testStatus.duck === 'success' ? '✓' :
-                                                testStatus.duck === 'error' ? '✗' : 'Test'}
                                     </button>
                                 </div>
                             </div>

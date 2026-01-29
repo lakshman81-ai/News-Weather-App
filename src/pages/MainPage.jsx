@@ -39,7 +39,6 @@ function MainPage() {
     useEffect(() => {
         // API Keys
         const newsApiKey = localStorage.getItem('news_api_key');
-        const ddgApiKey = settings?.duckDuckGoApiKey || '';
 
         const loadData = async () => {
             if (!settings) return;
@@ -80,7 +79,7 @@ function MainPage() {
                 if (settings.sections[key]?.enabled) {
                     try {
                         // Pass keys object to service
-                        const articles = await fetchNews(query, { newsApiKey, ddgApiKey, settings });
+                        const articles = await fetchNews(query, { newsApiKey, settings });
 
                         if (articles && articles.length > 0) {
                             fetchedNews[key] = articles;

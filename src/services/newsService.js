@@ -36,18 +36,18 @@ export async function fetchNews(query, keys = {}) {
         apiKey = keys;
     } else {
         apiKey = keys.newsApiKey;
-        // ddgApiKey is no longer strictly required for the fetch to be attempted,
-        // but we respect the object structure.
         settings = keys.settings;
     }
 
     // 1. Try DuckDuckGo "Crawler" style (Bing RSS Proxy)
-    // We attempt this first. We removed the strict check for ddgApiKey.length > 0
-    // to fix the "not working" issue reported by user.
+    // This acts as a crawler proxy and does not require a key.
+    // It runs if no explicit "Manual" mode or if we want to prioritize it.
+    // Given the request to fix "DDG is not working", we ensure it runs.
     try {
-        // Only try if not explicitly disabled via some future setting, but for now we try it.
-        // Note: DDG results usually don't contain source info in title, so strict filtering
-        // requested for Google News might not apply here.
+        // We only skip if the user has specifically disabled crawler mode (if we had such a setting exposed)
+        // or if we decide to prioritize paid API first (which we do below if key exists, but we try this first for speed/backup?)
+        // Actually, the original order was DDG -> NewsData -> RSS.
+
         console.log('Fetching via DDG/Crawler proxy...');
         const results = await fetchDDGNews(query);
         if (results && results.length > 0) return results;
