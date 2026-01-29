@@ -4,6 +4,8 @@ import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { getTimeSinceRefresh, setLastRefresh } from '../utils/storage';
 import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
+import { useWeather } from '../context/WeatherContext';
+import { useNews } from '../context/NewsContext';
 
 /**
  * Refresh Page Component
@@ -15,25 +17,51 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  */
 function RefreshPage() {
     const navigate = useNavigate();
-        const [refreshToggles, setRefreshToggles] = useState(() => getRecommendedToggles(getCurrentSegment()));
+    const [refreshToggles, setRefreshToggles] = useState(() => getRecommendedToggles(getCurrentSegment()));
     const [loading, setLoading] = useState(false);
     const [lastRefresh, setLastRefreshTime] = useState(() => getTimeSinceRefresh());
     const [recommended] = useState(() => getRecommendedToggles(getCurrentSegment()));
 
-
+    const { refreshWeather } = useWeather();
+    const { refreshNews } = useNews();
 
     const handleRefresh = async () => {
         setLoading(true);
 
-                await new Promise(resolve => setTimeout(resolve, 2000));
+        const sectionsToRefresh = Object.keys(refreshToggles).filter(k => refreshToggles[k]);
 
-                const sections = Object.keys(refreshToggles).filter(k => refreshToggles[k]);
-        sections.forEach(section => setLastRefresh(section));
+        const promises = [];
+        const newsSections = [];
+
+        sectionsToRefresh.forEach(key => {
+            if (key === 'weather') {
+                promises.push(refreshWeather(true)); // force refresh
+                setLastRefresh('weather');
+            }
+            else if (key === 'market') {
+                // Market data not yet in context, assuming static or handled elsewhere
+                setLastRefresh('market');
+            }
+            else {
+                newsSections.push(key);
+                setLastRefresh(key);
+            }
+        });
+
+        if (newsSections.length > 0) {
+            promises.push(refreshNews(newsSections));
+        }
+
+        try {
+            await Promise.all(promises);
+        } catch (e) {
+            console.error("Refresh failed", e);
+        }
 
         setLastRefreshTime('Just now');
         setLoading(false);
 
-                setTimeout(() => navigate('/'), 500);
+        setTimeout(() => navigate('/'), 500);
     };
 
     const toggleAll = (value) => {

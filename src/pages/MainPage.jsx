@@ -1,5 +1,3 @@
-import { fetchNews } from '../services/newsService';
-import { fetchWeather } from '../services/weatherService';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -9,115 +7,50 @@ import MarketCard from '../components/MarketCard';
 import SegmentBadge from '../components/SegmentBadge';
 import { getCurrentSegment, shouldShowDTNext } from '../utils/timeSegment';
 import { getSettings } from '../utils/storage';
+import { useWeather } from '../context/WeatherContext';
+import { useNews } from '../context/NewsContext';
 import {
     MOCK_WEATHER,
-    MOCK_NEWS,
-    MOCK_MARKET,
     MOCK_DT_NEXT,
+    MOCK_MARKET,
     getTopline
 } from '../data/mockData';
 
 /**
  * Main Page Component
- * Displays:
- * - Current segment badge
- * - Topline summary
- * - Weather (if enabled)
- * - News sections (World, India, Chennai, Trichy, Local)
- * - Social Trends (if enabled)
- * - Market (if enabled)
- * - DT Next (morning only)
  */
 function MainPage() {
     const [segment, setSegment] = useState(() => getCurrentSegment());
-    const [settings, _setSettings] = useState(() => getSettings());
-    const [loading, setLoading] = useState(true);
-    const [weatherData, setWeatherData] = useState(null);
-    const [newsData, setNewsData] = useState({});
-    const [, setErrors] = useState({});
+    const [settings] = useState(() => getSettings());
 
+    // Use Contexts
+    const { weatherData, loading: weatherLoading, refreshWeather } = useWeather();
+    const { newsData, loading: newsLoading, refreshNews } = useNews();
+
+    // Refresh data on mount (checks cache)
     useEffect(() => {
-        // API Keys
-        const newsApiKey = localStorage.getItem('news_api_key');
-        const ddgApiKey = settings?.duckDuckGoApiKey || '';
+        refreshWeather();
+        refreshNews();
+    }, [refreshWeather, refreshNews]);
 
-        const loadData = async () => {
-            if (!settings) return;
-
-            // 1. Fetch Weather (Open-Meteo) with Mock Fallback
-            if (settings.sections.weather !== false) {
-                try {
-                    const cities = ['chennai', 'trichy', 'muscat'];
-                    const weatherPromises = cities.map(city => fetchWeather(city).catch(error => { void error; return null; }));
-                    const [chennai, trichy, muscat] = await Promise.all(weatherPromises);
-
-                    setWeatherData({
-                        chennai: chennai || MOCK_WEATHER.chennai,
-                        trichy: trichy || MOCK_WEATHER.trichy,
-                        muscat: muscat || MOCK_WEATHER.muscat
-                    });
-                } catch (error) { void error;
-                    console.warn('Weather fetch failed completely, using mock', error);
-                    setWeatherData(MOCK_WEATHER);
-                }
-            }
-
-            // 2. Fetch News (Smart Service: API -> DDG -> RSS Fallback)
-            const newsSections = [
-                { key: 'world', query: 'World' },
-                { key: 'india', query: 'India' },
-                { key: 'chennai', query: 'Chennai' },
-                { key: 'trichy', query: 'Trichy' },
-                { key: 'local', query: 'Muscat' },
-                { key: 'social', query: 'Social Media Trends' },
-                { key: 'entertainment', query: 'Entertainment' }
-            ];
-
-            const fetchedNews = {};
-            const newsErrors = {};
-
-            await Promise.all(newsSections.map(async ({ key, query }) => {
-                if (settings.sections[key]?.enabled) {
-                    try {
-                        // Pass keys object to service
-                        const articles = await fetchNews(query, { newsApiKey, ddgApiKey, settings });
-
-                        if (articles && articles.length > 0) {
-                            fetchedNews[key] = articles;
-                        } else {
-                            // Only use Mock Data if EVERYTHING failed AND we want to show something?
-                            // User asked "Do not use mock". So if RSS fails, we show error or empty.
-                            // But usually fallback to mock is better than blank for initial demo.
-                            // However, strictly complying with "old news" complaint:
-                            newsErrors[key] = 'No live news found (Check internet/keys).';
-                        }
-                    } catch (error) { void error;
-                        newsErrors[key] = 'Unable to fetch news.';
-                    }
-                }
-            }));
-
-            setNewsData(fetchedNews);
-            setErrors(prev => ({ ...prev, ...newsErrors }));
-            setLoading(false);
-        };
-
-        loadData();
-
-        // Update segment every minute
+    // Update segment every minute
+    useEffect(() => {
         const interval = setInterval(() => {
             setSegment(getCurrentSegment());
         }, 60000);
-
         return () => clearInterval(interval);
-        }, [settings]);
+    }, []);
 
-    if (loading || !settings) {
-        return (
+    // Determine loading state for initial load
+    // We consider it loading if we are fetching AND don't have data yet.
+    const isLoading = (weatherLoading && !weatherData) || (newsLoading && Object.keys(newsData).length === 0);
+
+    if (isLoading) {
+         return (
             <div className="main-page">
                 <div className="loading">
                     <div className="loading__spinner"></div>
-                    <span>Loading...</span>
+                    <span>Loading Updates...</span>
                 </div>
             </div>
         );
@@ -199,6 +132,7 @@ function MainPage() {
                     <WeatherCard weatherData={weatherData || MOCK_WEATHER} />
                 )}
 
+                {/* News Sections */}
                 {/* World News */}
                 {sections.world?.enabled && (
                     <NewsSection
@@ -284,21 +218,17 @@ function MainPage() {
                     />
                 )}
 
-                {/* Self-Check Summary (at bottom) */}
+                {/* Self-Check Summary */}
                 <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
                     <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)', color: 'var(--accent-primary)' }}>
-                        ✔ SELF-CHECK SUMMARY
+                        ✔ SELF-CHECK SUMMARY (v2.0)
                     </div>
                     <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                        ✔ Correct segment/time: Yes<br />
-                        ✔ No duplicates: Yes<br />
-                        ✔ Required story counts matched: Yes<br />
-                        ✔ DT Next only in Morning: {showDTNext ? 'Yes' : 'N/A'}<br />
-                        ✔ All facts &lt;48h & cited: Yes<br />
-                        ✔ Weather avg + rainfall range used: Yes<br />
-                        ✔ Confidence tags present: Yes<br />
-                        ✔ No hallucinations: Yes<br />
-                        ✔ Error-tolerance applied: Yes
+                        ✔ Aggregated RSS Feeds used<br />
+                        ✔ Context API State Management<br />
+                        ✔ Smart Mix (Freshness + Authority)<br />
+                        ✔ Weather Caching Implemented<br />
+                        ✔ Segment-based Topline<br />
                     </div>
                 </div>
             </main>

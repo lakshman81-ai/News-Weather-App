@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
- 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { getSettings, saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
