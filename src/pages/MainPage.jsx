@@ -80,7 +80,7 @@ function MainPage() {
                 if (settings.sections[key]?.enabled) {
                     try {
                         // Pass keys object to service
-                        const articles = await fetchNews(query, { newsApiKey, ddgApiKey });
+                        const articles = await fetchNews(query, { newsApiKey, ddgApiKey, settings });
 
                         if (articles && articles.length > 0) {
                             fetchedNews[key] = articles;
