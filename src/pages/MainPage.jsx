@@ -68,6 +68,7 @@ function MainPage() {
                 { key: 'chennai', query: 'Chennai' },
                 { key: 'trichy', query: 'Trichy' },
                 { key: 'local', query: 'Muscat' },
+                { key: 'sports', query: 'Sports' },
                 { key: 'social', query: 'Social Media Trends' },
                 { key: 'entertainment', query: 'Entertainment' }
             ];
@@ -79,7 +80,7 @@ function MainPage() {
                 if (settings.sections[key]?.enabled) {
                     try {
                         // Pass keys object to service
-                        const articles = await fetchNews(query, { newsApiKey, settings });
+                        const articles = await fetchNews(query, { newsApiKey, settings, section: key });
 
                         if (articles && articles.length > 0) {
                             fetchedNews[key] = articles;
@@ -250,6 +251,17 @@ function MainPage() {
                         colorClass="news-section__title--local"
                         news={newsData.local || []}
                         maxDisplay={sections.local.count || 3}
+                    />
+                )}
+
+                {/* Sports */}
+                {sections.sports?.enabled && (
+                    <NewsSection
+                        title="Sports"
+                        icon="🏆"
+                        colorClass="news-section__title--sports"
+                        news={newsData.sports || []}
+                        maxDisplay={sections.sports.count || 5}
                     />
                 )}
 

@@ -3,6 +3,8 @@
  * Fetches data from NewsData.io (Priority) or RSS Fallback (Basic Data)
  */
 
+import { fetchDirectRSS } from './rssService';
+
 const BASE_URL = 'https://newsdata.io/api/1/news';
 
 // Mapping from Settings Keys (or general identifiers) to Google News Source Strings
@@ -31,23 +33,30 @@ export async function fetchNews(query, keys = {}) {
     // Handle both old signature (query, apiKeyString) and new (query, keyObject)
     let apiKey = '';
     let settings = null;
+    let sectionKey = null;
 
     if (typeof keys === 'string') {
         apiKey = keys;
     } else {
         apiKey = keys.newsApiKey;
         settings = keys.settings;
+        sectionKey = keys.section; // Expecting section key to map to rssService
+    }
+
+    // 0. Try Direct RSS (Smart Mix)
+    // This uses specific high-quality feeds (NDTV, Hindu) and smart logic (Top+Trending)
+    if (sectionKey) {
+        try {
+            const results = await fetchDirectRSS(sectionKey);
+            if (results && results.length > 0) return results;
+        } catch (error) { void error;
+            console.warn(`Direct RSS failed for ${sectionKey}, falling back...`, error);
+        }
     }
 
     // 1. Try DuckDuckGo "Crawler" style (Bing RSS Proxy)
     // This acts as a crawler proxy and does not require a key.
-    // It runs if no explicit "Manual" mode or if we want to prioritize it.
-    // Given the request to fix "DDG is not working", we ensure it runs.
     try {
-        // We only skip if the user has specifically disabled crawler mode (if we had such a setting exposed)
-        // or if we decide to prioritize paid API first (which we do below if key exists, but we try this first for speed/backup?)
-        // Actually, the original order was DDG -> NewsData -> RSS.
-
         console.log('Fetching via DDG/Crawler proxy...');
         const results = await fetchDDGNews(query);
         if (results && results.length > 0) return results;

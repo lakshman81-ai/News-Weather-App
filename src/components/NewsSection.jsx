@@ -129,12 +129,31 @@ function NewsSection({
                 ))}
             </div>
 
+            {/* Load More Triangle UI */}
             {showExpand && hasMore && (
                 <div
-                    className="news-more"
                     onClick={() => setExpanded(!expanded)}
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: '10px',
+                        cursor: 'pointer',
+                        marginTop: '10px',
+                        color: 'var(--accent-primary)',
+                        transition: 'transform 0.2s ease',
+                        opacity: 0.8
+                    }}
+                    title={expanded ? "Show Less" : "Load More"}
                 >
-                    {expanded ? '▲ Show less' : `▼ +${news.length - maxDisplay} more...`}
+                    <div style={{
+                        width: 0,
+                        height: 0,
+                        borderLeft: '10px solid transparent',
+                        borderRight: '10px solid transparent',
+                        borderTop: expanded ? 'none' : '12px solid var(--accent-primary)',
+                        borderBottom: expanded ? '12px solid var(--accent-primary)' : 'none',
+                    }}></div>
                 </div>
             )}
         </section>

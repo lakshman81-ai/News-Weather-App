@@ -141,6 +141,7 @@ function SettingsPage() {
         { key: 'chennai', icon: '🏛️', label: 'Chennai News', min: 3, max: 5 },
         { key: 'trichy', icon: '🏛️', label: 'Trichy News', min: 2, max: 3 },
         { key: 'local', icon: '📍', label: 'Local (Muscat)', min: 3, max: 5 },
+        { key: 'sports', icon: '🏆', label: 'Sports', min: 3, max: 10 },
         { key: 'social', icon: '👥', label: 'Social Trends', min: 5, max: 15 },
         { key: 'entertainment', icon: '🎬', label: 'Entertainment', min: 3, max: 10 }
     ];

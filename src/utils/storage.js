@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = {
         chennai: { enabled: true, count: 3 },
         trichy: { enabled: true, count: 2 },
         local: { enabled: true, count: 3 },  // Muscat
+        sports: { enabled: true, count: 5 },
         social: { enabled: false, count: 10 },
         entertainment: { enabled: true, count: 8 }
     },
