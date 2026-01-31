@@ -66,8 +66,14 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
 
                 <div className="qw-details">
                     <span className="qw-feels">Feels like {displayData.feelsLike}°C</span>
-                    {/* Display Rain if available, else 0 */}
-                    <span>Rain: {displayData.rainProb?.avg ?? 0}%</span>
+                    {/* Display Rich Rain Data */}
+                    {displayData.rain ? (
+                        <span>
+                            Rain: {displayData.rain.totalMm}mm  ({displayData.rain.probBg}% avg)
+                        </span>
+                    ) : (
+                        <span>Rain: {displayData.rainProb?.avg ?? 0}%</span>
+                    )}
                     <span>Wind: 12 km/h</span> {/* Placeholder */}
                 </div>
             </div>

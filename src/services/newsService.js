@@ -36,8 +36,6 @@ export async function fetchNews(query, keys = {}) {
         apiKey = keys;
     } else {
         apiKey = keys.newsApiKey;
-        // ddgApiKey is no longer strictly required for the fetch to be attempted,
-        // but we respect the object structure.
         settings = keys.settings;
     }
 
@@ -51,7 +49,8 @@ export async function fetchNews(query, keys = {}) {
         console.log('Fetching via DDG/Crawler proxy...');
         const results = await fetchDDGNews(query);
         if (results && results.length > 0) return results;
-    } catch (error) { void error;
+    } catch (error) {
+        void error;
         console.warn('DDG Fetch failed, trying next option.', error);
     }
 
@@ -76,7 +75,8 @@ export async function fetchNews(query, keys = {}) {
                     }));
                 }
             }
-        } catch (error) { void error;
+        } catch (error) {
+            void error;
             console.warn(`API fetch failed for ${query}, falling back to RSS.`);
         }
     }
@@ -101,13 +101,13 @@ async function fetchRSSNews(query, settings = null) {
         if (data.status !== 'ok') throw new Error('RSS Parse failed');
 
         let items = (data.items || []).map((item, idx) => {
-             // Extract source from title if author is missing/generic
-             let source = item.author || 'Google News';
-             if (source === 'Google News' || !source) {
-                 source = extractSourceFromTitle(item.title) || 'Unknown Source';
-             }
+            // Extract source from title if author is missing/generic
+            let source = item.author || 'Google News';
+            if (source === 'Google News' || !source) {
+                source = extractSourceFromTitle(item.title) || 'Unknown Source';
+            }
 
-             return {
+            return {
                 id: `rss-${idx}`,
                 headline: item.title,
                 summary: 'Latest coverage from Google News',
@@ -138,7 +138,8 @@ async function fetchRSSNews(query, settings = null) {
         // Return filtered list (up to 10 to ensure we have content after filtering)
         return items.slice(0, 10);
 
-    } catch (error) { void error;
+    } catch (error) {
+        void error;
         console.error(`RSS Fetch failed for ${query}`, error);
         return [];
     }
@@ -169,7 +170,8 @@ async function fetchDDGNews(query) {
             confidence: 'MEDIUM',
             sourceCount: 1
         }));
-    } catch (error) { void error;
+    } catch (error) {
+        void error;
         throw new Error('DDG Fetch Failed');
     }
 }

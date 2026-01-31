@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS = {
     },
 
     // Data Freshness Settings (Strict & Robust)
-    freshnessLimitHours: 72, // Increased from 24/26 to 72 to ensure news appears
+    freshnessLimitHours: 36, // Set to 36h as per user request
     weatherFreshnessLimit: 4,      // Weather max age
     staleWarningHours: 12,         // Warning threshold
     strictFreshness: true,         // Fail-closed mode (hide if old)

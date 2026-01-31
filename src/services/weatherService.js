@@ -29,7 +29,7 @@ export async function fetchWeather(locationKey) {
     try {
         // Fetch current, hourly forecast, and daily precipitation probability
         const response = await fetch(
-            `${BASE_URL}?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature&hourly=temperature_2m,precipitation_probability,weather_code,apparent_temperature&daily=precipitation_probability_max,precipitation_sum&timezone=auto`
+            `${BASE_URL}?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,apparent_temperature&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,apparent_temperature&daily=precipitation_probability_max,precipitation_sum&timezone=auto`
         );
 
         if (!response.ok) {
@@ -40,7 +40,8 @@ export async function fetchWeather(locationKey) {
         return processWeatherData(data, locationKey);
     } catch (error) {
         console.error(`Error fetching weather for ${locationKey}:`, error);
-        throw error; // Propagate error, do NOT return mock data
+        // STRICT LIVE DATA POLICY: Throw error, do not return fallback/mock data.
+        throw error;
     }
 }
 
@@ -75,6 +76,44 @@ function processWeatherData(data, locationName) {
 
     const getCondition = (code) => conditionMap[code] || 'Unknown';
 
+    // Helper to calculate advanced segment metrics
+    const getSegmentMetrics = (startHour, endHour) => {
+        // Find indices for the requested hours (assuming data starts at 00:00 today)
+        // In robust app, we'd map timestamps. Here we use array indices corresponding to hours.
+        const indices = [];
+        for (let i = startHour; i <= endHour; i++) indices.push(i);
+
+        const temps = indices.map(i => data.hourly.temperature_2m[i]);
+        const precips = indices.map(i => data.hourly.precipitation[i] || 0);
+        const probs = indices.map(i => data.hourly.precipitation_probability[i] || 0);
+        const codes = indices.map(i => data.hourly.weather_code[i]);
+
+        const avgTemp = Math.round(temps.reduce((a, b) => a + b, 0) / temps.length);
+        const totalRain = precips.reduce((a, b) => a + b, 0).toFixed(1); // mm
+        const avgProb = Math.round(probs.reduce((a, b) => a + b, 0) / probs.length);
+        const minProb = Math.min(...probs);
+        const maxProb = Math.max(...probs);
+
+        // Representative icon (most frequent or worst condition?)
+        // Let's pick the one at the midpoint for simplicity or the worst code
+        const midIndex = indices[Math.floor(indices.length / 2)];
+        const icon = getIcon(data.hourly.weather_code[midIndex]);
+
+        // "Feels like" at midpoint
+        const feelsLike = Math.round(data.hourly.apparent_temperature[midIndex]);
+
+        return {
+            temp: avgTemp,
+            feelsLike: feelsLike,
+            icon: icon,
+            rain: {
+                totalMm: totalRain,
+                probBg: avgProb,
+                probRange: `${minProb}-${maxProb}%`
+            }
+        };
+    };
+
     return {
         name: locationName.charAt(0).toUpperCase() + locationName.slice(1),
         icon: locationName === 'muscat' ? '📍' : '🏛️',
@@ -85,24 +124,9 @@ function processWeatherData(data, locationName) {
             condition: getCondition(current.weather_code),
             icon: getIcon(current.weather_code)
         },
-        morning: {
-            temp: Math.round(data.hourly.temperature_2m[8]),
-            feelsLike: Math.round(data.hourly.apparent_temperature[8]),
-            icon: getIcon(data.hourly.weather_code[8]),
-            rainProb: { avg: data.hourly.precipitation_probability[8] }
-        },
-        noon: {
-            temp: Math.round(data.hourly.temperature_2m[13]),
-            feelsLike: Math.round(data.hourly.apparent_temperature[13]),
-            icon: getIcon(data.hourly.weather_code[13]),
-            rainProb: { avg: data.hourly.precipitation_probability[13] }
-        },
-        evening: {
-            temp: Math.round(data.hourly.temperature_2m[18]),
-            feelsLike: Math.round(data.hourly.apparent_temperature[18]),
-            icon: getIcon(data.hourly.weather_code[18]),
-            rainProb: { avg: data.hourly.precipitation_probability[18] }
-        },
+        morning: getSegmentMetrics(6, 11),   // 6 AM to 11 AM
+        noon: getSegmentMetrics(12, 16),     // 12 PM to 4 PM
+        evening: getSegmentMetrics(17, 22),  // 5 PM to 10 PM
         summary: `Today's max rain probability: ${data.daily.precipitation_probability_max[0]}%. Total precip: ${data.daily.precipitation_sum[0]}mm. Condition: ${getCondition(current.weather_code)}.`
     };
 }

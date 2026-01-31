@@ -169,15 +169,6 @@ const MainPage = () => {
                             </div>
                         </div>
 
-                        {/* Critics Say Section */}
-                        {critique && (
-                            <div className="critics-section">
-                                <div className="critics-label">Critic's Take</div>
-                                <div className="critics-content">"{critique}"</div>
-                            </div>
-                        )}
-
-                        {/* Breaking News Banner */}
                         <BreakingNews items={breakingNews} />
                     </>
                 )}

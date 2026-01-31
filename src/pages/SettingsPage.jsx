@@ -260,9 +260,9 @@ function SettingsPage() {
                                 type="number"
                                 className="settings-item__count"
                                 min={1}
-                                max={48}
-                                value={settings.freshnessLimitHours || 26}
-                                onChange={(e) => updateSettings({ ...settings, freshnessLimitHours: parseInt(e.target.value) || 26 })}
+                                max={72}
+                                value={settings.freshnessLimitHours || 36}
+                                onChange={(e) => updateSettings({ ...settings, freshnessLimitHours: parseInt(e.target.value) || 36 })}
                             />
                         </div>
 
@@ -323,38 +323,6 @@ function SettingsPage() {
                             </div>
                         </div>
 
-                        {/* DuckDuckGo API Key */}
-                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                            <div className="api-input-group">
-                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
-                                    DuckDuckGo API Key
-                                </label>
-                                <div className="api-input-row">
-                                    <input
-                                        type={showDuckKey ? 'text' : 'password'}
-                                        className="api-input"
-                                        value={settings.duckDuckGoApiKey}
-                                        onChange={(e) => updateSettings({ ...settings, duckDuckGoApiKey: e.target.value })}
-                                        placeholder="Enter DuckDuckGo API Key"
-                                    />
-                                    <button
-                                        className="api-btn"
-                                        onClick={() => setShowDuckKey(!showDuckKey)}
-                                    >
-                                        {showDuckKey ? '🙈' : '👁️'}
-                                    </button>
-                                    <button
-                                        className="api-btn api-btn--test"
-                                        onClick={() => testApiKey('duck')}
-                                        disabled={testStatus.duck === 'testing'}
-                                    >
-                                        {testStatus.duck === 'testing' ? '...' :
-                                            testStatus.duck === 'success' ? '✓' :
-                                                testStatus.duck === 'error' ? '✗' : 'Test'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Gemini API Key */}
                         <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>

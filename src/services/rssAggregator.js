@@ -162,28 +162,55 @@ function cleanSource(sourceName) {
 /**
  * Generates a "Critic's One Liner" heuristic from title/description
  */
+/**
+ * Generates a "Critic's One Liner" heuristic from title/description
+ */
 function generateCriticsOneLiner(title, description, source) {
-    // 1. If description has a clear quote, use it
-    const quoteMatch = description.match(/"([^"]{15,100})"/);
+    const text = (title + " " + description).toLowerCase();
+
+    // 1. Sector-Specific Insights
+    if (text.includes('sensex') || text.includes('nifty') || text.includes('market')) {
+        if (text.includes('record high') || text.includes('surge') || text.includes('jump')) {
+            return `Bullish sentiment prevails as key indices hit significant milestones; analysts watch for profit booking.`;
+        }
+        if (text.includes('slump') || text.includes('crash') || text.includes('drop')) {
+            return `Market volatility spikes amid global cues; institutional investors remain cautious.`;
+        }
+        return `Financial observers highlight the underlying strength despite mixed global signals in the equity space.`;
+    }
+
+    if (text.includes('election') || text.includes('poll') || text.includes('vote')) {
+        return `Political strategists emphasize the shifting dynamic as latest polling data suggests a tightening race.`;
+    }
+
+    if (text.includes('ai') || text.includes('artificial intelligence') || text.includes('tech')) {
+        return `Industry experts view this as a pivotal move in the ongoing race for AI supremacy and infrastructure.`;
+    }
+
+    if (text.includes('inflation') || text.includes('rbi') || text.includes('interest rate')) {
+        return `Monetary policy experts weigh the impact of fiscal pressures on long-term consumer spending patterns.`;
+    }
+
+    // 2. Structural Extractions
+    // If description has a clear quote, use it
+    const quoteMatch = description.match(/"([^"]{20,100})"/);
     if (quoteMatch) return `"${quoteMatch[1]}"`;
 
-    // 2. If title is a question, answer it ambiguously or interestingly
+    // 3. Narrative Heuristics
     if (title.includes('?')) {
-        return `Analysts debate the implications of this developing story from ${source}.`;
+        return `This development raises critical questions about the future trajectory of the sector.`;
     }
 
-    // 3. Extract the last sentence of description (often the impact/punchline)
     const sentences = description.split(/[.!?]\s+/);
     if (sentences.length > 1) {
-        const last = sentences[sentences.length - 1];
-        if (last.length > 20 && last.length < 120) return last;
-        const first = sentences[0];
-        if (first.length > 20 && first.length < 120) return first;
+        // Find a better sentence than just the last one
+        const punchy = sentences.find(s => s.length > 30 && s.length < 120 && !s.toLowerCase().includes('click here'));
+        if (punchy) return punchy.trim() + (punchy.endsWith('.') ? '' : '.');
     }
 
-    // 4. Default fallbacks
-    if (source === 'Google News') return "Breaking coverage on this trending topic.";
-    return `Latest update from ${source} on this unfolding event.`;
+    // 4. Default fallbacks (Made more professional)
+    if (source === 'Google News') return "Strategic analysis suggests this coverage reflects a broader trend in current affairs.";
+    return `Early indicators from ${source} point towards a significant shift in the regional narrative.`;
 }
 
 function computeImpactScore(item, section) {
