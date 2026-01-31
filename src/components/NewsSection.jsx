@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getCredibilityStars } from '../data/sourceMetrics';
 
 /**
  * News Section Component
