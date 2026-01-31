@@ -6,58 +6,122 @@ const NewsContext = createContext();
 
 export function NewsProvider({ children }) {
     const [newsData, setNewsData] = useState({});
+    const [breakingNews, setBreakingNews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [errors, setErrors] = useState({});
+    const [lastFetch, setLastFetch] = useState(0);
 
     const refreshNews = useCallback(async (specificSections = null) => {
         setLoading(true);
-        const settings = getSettings();
-        if (!settings) { setLoading(false); return; }
+        const fetchStartTime = Date.now();
 
-        const allSections = ['world', 'india', 'chennai', 'trichy', 'local', 'social', 'entertainment', 'business', 'technology'];
-        const sectionsToFetch = specificSections || allSections;
-
-        const newResults = {};
-        const newErrors = {};
-
-        await Promise.all(sectionsToFetch.map(async (key) => {
-            if (settings.sections[key]?.enabled) {
-                try {
-                    const count = settings.sections[key]?.count || 10;
-                    // Fetch more than needed to ensure "See More" triangle appears
-                    // rankAndFilter in rssAggregator now uses settings.freshnessLimitHours correctly
-                    const articles = await fetchSectionNews(key, count + 5, settings.newsSources);
-
-                    if (articles && articles.length > 0) {
-                        newResults[key] = articles;
-                    } else if (settings.strictFreshness) {
-                        // Fail-Closed: If strict freshness is on and no fresh articles are found,
-                        // explicitly clear the section to remove any old/stale data from the UI.
-                        newResults[key] = [];
-                    }
-                } catch (err) {
-                    console.error(`News Context: Error fetching ${key}`, err);
-                    newErrors[key] = 'Failed to load news.';
-                }
+        try {
+            const settings = getSettings();
+            if (!settings) {
+                console.error('[NewsContext] Settings not available');
+                return;
             }
-        }));
 
-        setNewsData(prev => {
-            // If strictly fresh, we might want to drop sections that aren't in newResults but were in prev?
-            // For now, we just merge updates. If fetchSectionNews returns empty because of filter, 
-            // the UI will show empty state.
-            return { ...prev, ...newResults };
-        });
-        setErrors(prev => ({ ...prev, ...newErrors }));
-        setLoading(false);
+            const allSections = ['world', 'india', 'chennai', 'trichy', 'local', 'social', 'entertainment', 'business', 'technology'];
+            const sectionsToFetch = specificSections || allSections;
+
+            const newResults = {};
+            const newErrors = {};
+
+            await Promise.all(sectionsToFetch.map(async (key) => {
+                if (settings.sections[key]?.enabled) {
+                    try {
+                        const count = settings.sections[key]?.count || 10;
+
+                        console.log(`[NewsContext] Fetching ${key}...`);
+                        const articles = await fetchSectionNews(
+                            key,
+                            count + 5,
+                            settings.newsSources
+                        );
+
+                        if (articles && Array.isArray(articles)) {
+                            if (articles.length > 0) {
+                                newResults[key] = articles;
+                                console.log(`[NewsContext] ✅ ${key}: Got ${articles.length} articles`);
+                            } else {
+                                newResults[key] = [];
+                                console.warn(`[NewsContext] ⚠️ ${key}: No articles found (may be empty feed)`);
+                            }
+                        } else {
+                            throw new Error(
+                                `Invalid response format. Got: ${typeof articles}. Expected: Array`
+                            );
+                        }
+
+                    } catch (err) {
+                        console.error(`[NewsContext] ❌ Error fetching ${key}:`, {
+                            errorMessage: err.message,
+                            errorStack: err.stack,
+                            errorType: err.name,
+                            timestamp: new Date().toISOString()
+                        });
+
+                        newErrors[key] = err.message || 'Failed to load news.';
+                        newResults[key] = []; // Fallback
+                    }
+                }
+            }));
+
+            setNewsData(prev => ({ ...prev, ...newResults }));
+            setErrors(prev => ({ ...prev, ...newErrors }));
+            setLastFetch(Date.now());
+
+            // Breaking News
+            const allFetchedArticles = Object.values(newResults).flat();
+            if (allFetchedArticles.length > 0) {
+                const breaking = allFetchedArticles
+                    .filter(item => item.isBreaking || (item.breakingScore && item.breakingScore > 1.5))
+                    .sort((a, b) => (b.breakingScore || 0) - (a.breakingScore || 0))
+                    .slice(0, 3);
+
+                setBreakingNews(breaking);
+                console.log(`[NewsContext] ✅ Breaking news: ${breaking.length} items`);
+            }
+
+            const fetchDuration = Date.now() - fetchStartTime;
+            console.log(`[NewsContext] ✅ Refresh complete in ${fetchDuration}ms`);
+
+        } catch (error) {
+            console.error("[NewsContext] ❌ Fatal refresh error:", {
+                errorMessage: error.message,
+                errorStack: error.stack,
+                timestamp: new Date().toISOString()
+            });
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
+        console.log('[NewsContext] Mounting - Initial fetch');
         refreshNews();
+
+        const interval = setInterval(() => {
+            console.log('[NewsContext] Auto-refresh (5min cycle)');
+            refreshNews();
+        }, 5 * 60 * 1000);
+
+        return () => {
+            clearInterval(interval);
+            console.log('[NewsContext] Unmounting');
+        };
     }, [refreshNews]);
 
     return (
-        <NewsContext.Provider value={{ newsData, loading, errors, refreshNews }}>
+        <NewsContext.Provider value={{
+            newsData,
+            loading,
+            errors,
+            refreshNews,
+            breakingNews,
+            lastFetch
+        }}>
             {children}
         </NewsContext.Provider>
     );

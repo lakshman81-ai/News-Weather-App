@@ -14,7 +14,8 @@ function NewsSection({
     colorClass,
     news = [],
     maxDisplay = 3,
-    showExpand = true
+    showExpand = true,
+    error = null
 }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -52,6 +53,21 @@ function NewsSection({
             window.open(url, '_blank', 'noopener,noreferrer');
         }
     };
+
+    if (error) {
+        return (
+            <section className="news-section">
+                <h2 className={`news-section__title ${colorClass}`}>
+                    <span>{icon}</span>
+                    {title}
+                </h2>
+                <div className="empty-state" style={{ borderColor: 'rgba(255, 87, 87, 0.3)' }}>
+                    <div className="empty-state__icon">❌</div>
+                    <p style={{ color: '#ff5757' }}>{error}</p>
+                </div>
+            </section>
+        );
+    }
 
     if (news.length === 0) {
         return (
@@ -128,7 +144,31 @@ function NewsSection({
                             </div>
                         )}
                         <div className="news-item__meta">
+                            {item.sentiment && (
+                                <span
+                                    className={`sentiment-badge sentiment--${item.sentiment.label}`}
+                                    title={`Sentiment: ${item.sentiment.label}`}
+                                >
+                                    {item.sentiment.label === 'positive' ? '🟢' :
+                                        item.sentiment.label === 'negative' ? '🔴' : '⚪'}
+                                </span>
+                            )}
                             <span className="news-item__source">{item.source}</span>
+                            {/* Credibility Stars */}
+                            <span
+                                className="news-item__credibility"
+                                title={`Source credibility: ${getCredibilityStars(item.source)}/5`}
+                            >
+                                {'⭐'.repeat(getCredibilityStars(item.source))}
+                            </span>
+                            {item.sourceCount > 1 && (
+                                <span
+                                    className="news-item__consensus"
+                                    title={`Reported by ${item.sourceCount} sources`}
+                                >
+                                    🔔 {item.sourceCount} sources
+                                </span>
+                            )}
                             <span>|</span>
                             <span>{getTimeAgo(item.publishedAt) || item.time}</span>
                             {item.sourceCount && (

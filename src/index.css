@@ -541,6 +541,51 @@ body {
   color: var(--text-secondary);
 }
 
+/* Sentiment Badges */
+.sentiment-badge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: help;
+}
+
+.sentiment--positive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.sentiment--negative {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.sentiment--neutral {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+}
+
+.news-item__consensus {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.news-item__credibility {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+
 /* Critics View Highlighting - Analyst Style */
 .news-item__critics {
   font-size: 0.85rem;

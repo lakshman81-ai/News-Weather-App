@@ -5,6 +5,10 @@
 
 import { GOOGLE_FEEDS } from './googleNewsService';
 import { getSettings } from '../utils/storage';
+import { analyzeArticleSentiment } from '../utils/sentimentAnalyzer';
+import { deduplicateAndCluster } from '../utils/similarity';
+import { breakingDetector } from '../utils/breakingNewsDetector';
+import { calculateSourceScore, getSourceWeightForCategory, SOURCE_METRICS } from '../data/sourceMetrics';
 
 const RSS_PROXY_BASE = "https://api.rss2json.com/v1/api.json?rss_url=";
 
@@ -67,29 +71,6 @@ const SECTION_FEEDS = {
     ]
 };
 
-const SOURCE_WEIGHTS = {
-    "NDTV": 1.5,
-    "The Hindu": 1.5,
-    "BBC": 1.2,
-    "CNN": 1.1,
-    "CNBC": 1.1,
-    "Oman Observer": 1.2,
-    "Muscat Daily": 1.1,
-    "TechCrunch": 1.2,
-    "ESPN": 1.0,
-    "Times of India": 1.1,
-    "Hindustan Times": 1.1,
-    "Indian Express": 1.1,
-    "DT Next": 1.2,
-    "Moneycontrol": 1.1,
-    "Al Jazeera": 1.1,
-    "Variety": 1.1,
-    "Hollywood Reporter": 1.1,
-    "Bollywood Hungama": 1.1,
-    "default": 0.9
-};
-
-// Mapping from Settings keys to Source Names
 const SETTINGS_MAPPING = {
     bbc: "BBC",
     ndtv: "NDTV",
@@ -124,93 +105,247 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const memoryCache = new Map();
 
+/* ---------- Utility Functions (Moved to Top) ---------- */
+
+/**
+ * Checks if text contains high-impact keywords
+ */
+function checkKeywords(title, description) {
+    if (!title || !description) return false;
+
+    const text = (title + " " + description).toLowerCase();
+
+    return KEYWORDS.some(keyword => {
+        if (!keyword) return false;
+        return text.includes(keyword.toLowerCase());
+    });
+}
+
+/**
+ * Cleans HTML tags from description
+ */
+function cleanDescription(html) {
+    if (!html) return "";
+    return html.replace(/<[^>]*>?/gm, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+}
+
+/**
+ * Simple string hash for ID generation
+ */
+function hash(value) {
+    let h = 0;
+    if (!value) return "0";
+    for (let i = 0; i < value.length; i++) {
+        h = (h << 5) - h + value.charCodeAt(i);
+        h |= 0;
+    }
+    return h.toString();
+}
+
+/**
+ * Cleans source name
+ */
+function cleanSource(sourceName) {
+    if (!sourceName) return "Unknown";
+    // Search for known keys in the source name
+    const foundKey = Object.keys(SOURCE_METRICS).find(key =>
+        key !== 'default' && sourceName.toLowerCase().includes(key.toLowerCase())
+    );
+    return foundKey ? SOURCE_METRICS[foundKey].name : sourceName;
+}
+
+/**
+ * Generates a "Critic's One Liner" heuristic from title/description
+ */
+function generateCriticsOneLiner(title, description, source) {
+    // 1. If description has a clear quote, use it
+    const quoteMatch = description.match(/"([^"]{15,100})"/);
+    if (quoteMatch) return `"${quoteMatch[1]}"`;
+
+    // 2. If title is a question, answer it ambiguously or interestingly
+    if (title.includes('?')) {
+        return `Analysts debate the implications of this developing story from ${source}.`;
+    }
+
+    // 3. Extract the last sentence of description (often the impact/punchline)
+    const sentences = description.split(/[.!?]\s+/);
+    if (sentences.length > 1) {
+        const last = sentences[sentences.length - 1];
+        if (last.length > 20 && last.length < 120) return last;
+        const first = sentences[0];
+        if (first.length > 20 && first.length < 120) return first;
+    }
+
+    // 4. Default fallbacks
+    if (source === 'Google News') return "Breaking coverage on this trending topic.";
+    return `Latest update from ${source} on this unfolding event.`;
+}
+
+function computeImpactScore(item, section) {
+    // 1. Freshness Decay (Linear)
+    // 24 hours = 0 score. 0 hours = 1 score.
+    const ageInHours = (Date.now() - item.publishedAt) / (1000 * 60 * 60);
+    const freshness = Math.max(0, (26 - ageInHours) / 26) * 3; // Boost freshness importance
+
+    // 2. Source Weight and Category Relevance (NEW)
+    const sourceScore = calculateSourceScore(item.source);
+    const categoryWeight = getSourceWeightForCategory(item.source, section);
+    // Combined source component, scaled up
+    const sourceComponent = sourceScore * categoryWeight * 5;
+
+    // 3. Keyword Context Boost
+    const keywordBoost = checkKeywords(item.title, item.description) ? 2 : 0;
+
+    // 4. Section Priority
+    const sectionPriority = section === "world" ? 1.5 : section === "business" ? 1.2 : 1;
+
+    // 5. Sentiment Boost
+    let sentimentBoost = 0;
+    if (item.sentiment) {
+        if (item.sentiment.label === 'positive') sentimentBoost = 0.5;
+        else if (item.sentiment.label === 'negative') sentimentBoost = 0.3;
+    }
+
+    // Breaking News Detection (Phase 5)
+    const breakingResult = breakingDetector.checkBreakingNews(item);
+    item.isBreaking = breakingResult.isBreaking;
+    item.breakingScore = breakingResult.breakingScore;
+    const breakingBoost = breakingResult.multiplier;
+
+    // Total Score
+    const total = (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+    return total;
+}
+
+function isSourceAllowed(sourceName, allowedSources) {
+    // If allowedSources is passed, we check if the source is enabled.
+    let matchedKey = null;
+
+    // Check mapping
+    for (const [key, name] of Object.entries(SETTINGS_MAPPING)) {
+        if (sourceName.includes(name) || name.includes(sourceName)) {
+            matchedKey = key;
+            break;
+        }
+    }
+
+    if (matchedKey) {
+        return allowedSources[matchedKey] !== false;
+    }
+    return true;
+}
+
 /* ---------- Public API ---------- */
 
 /**
  * Fetches news for a given section.
- * @param {string} section
- * @param {number} limit
- * @param {Object} allowedSources - Map of enabled source keys (optional)
- * @returns {Promise<NewsItem[]>}
  */
 export async function fetchSectionNews(section, limit = 10, allowedSources = null) {
     const cacheKey = section;
     let items = [];
-    const cached = memoryCache.get(cacheKey);
+    // const cached = memoryCache.get(cacheKey);
 
-    // Check cache for RAW items
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        console.log(`[RSS] Serving ${section} from cache`);
-        items = cached.data;
-    } else {
-        console.log(`[RSS] Fetching live for ${section}`);
-        const feeds = SECTION_FEEDS[section] || [];
-        if (feeds.length === 0) return [];
+    // Check cache logic here if needed...
 
-        try {
-            const results = await Promise.allSettled(feeds.map(fetchAndParseFeed));
+    console.log(`[RSS] Fetching live for ${section} (Cache IGNORED)`);
+    const feeds = SECTION_FEEDS[section] || [];
 
-            // Flatten results from successful fetches
-            items = results
-                .filter(r => r.status === 'fulfilled')
-                .map(r => r.value)
-                .flat();
-
-            memoryCache.set(cacheKey, {
-                timestamp: Date.now(),
-                data: items
-            });
-        } catch (error) {
-            console.error(`[RSS] Error fetching section ${section}:`, error);
-            return [];
-        }
+    if (feeds.length === 0) {
+        console.warn(`[RSS] No feeds defined for section: ${section}`);
+        return [];
     }
 
-    // Filter and Rank (Always applied, even on cached data)
-    return rankAndFilter(items, section, limit, allowedSources);
+    try {
+        console.log(`[RSS] Feeds for ${section}:`, feeds);
+
+        // Track failures per feed
+        const results = await Promise.allSettled(
+            feeds.map(url => fetchAndParseFeed(url, section))
+        );
+
+        const successfulResults = [];
+        const failedFeeds = [];
+
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                successfulResults.push(result.value);
+                console.log(`[RSS] ✅ Feed ${index + 1}/${feeds.length} succeeded`);
+            } else {
+                failedFeeds.push({
+                    url: feeds[index],
+                    reason: result.reason?.message || 'Unknown error'
+                });
+                console.warn(`[RSS] ⚠️ Feed ${index + 1}/${feeds.length} failed:`, result.reason);
+            }
+        });
+
+        items = successfulResults.flat();
+
+        console.log(`[RSS] Section '${section}' stats:`, {
+            totalFeeds: feeds.length,
+            successCount: successfulResults.length,
+            failureCount: failedFeeds.length,
+            totalItems: items.length
+        });
+
+        memoryCache.set(cacheKey, {
+            timestamp: Date.now(),
+            data: items
+        });
+
+    } catch (error) {
+        console.error(`[RSS] Unexpected error fetching section ${section}:`, {
+            errorMessage: error.message,
+            errorStack: error.stack,
+            section
+        });
+
+        // Return partial results if some succeeded
+        if (items.length > 0) return items;
+        return [];
+    }
+
+    // Always apply filtering/ranking
+    try {
+        return rankAndFilter(items, section, limit, allowedSources);
+    } catch (error) {
+        console.error(`[RSS] Ranking failed for ${section}:`, error);
+        // Fallback: return unsorted items rather than crashing
+        return items.slice(0, limit);
+    }
 }
 
 /* ---------- Core Logic ---------- */
 
-/**
- * Fetches a single feed via proxy and normalizes items.
- * @param {string} feedUrl
- * @returns {Promise<NewsItem[]>}
- */
-/**
- * Fetches a single feed via proxy and normalizes items.
- * Tries `rss2json` first (easy JSON).
- * Fallback to `allorigins` (raw XML) if rss2json fails or returns status 'error'.
- * @param {string} feedUrl
- * @returns {Promise<NewsItem[]>}
- */
-async function fetchAndParseFeed(feedUrl) {
+async function fetchAndParseFeed(feedUrl, section) {
     try {
-        // Strategy 1: RSS2JSON (Best for simple JSON)
-        // Note: Often fails or rate limits.
+        // Strategy 1: RSS2JSON
         const response = await fetch(`${RSS_PROXY_BASE}${encodeURIComponent(feedUrl)}`);
 
         if (response.ok) {
             const data = await response.json();
             if (data.status === 'ok') {
                 const feedSource = data.feed?.title || "Unknown Source";
-                return (data.items || []).map(item => normalizeItem(item, feedSource));
+                const items = (data.items || []).map(item => normalizeItem(item, feedSource, section));
+                console.log(`[RSS] rss2json success for ${feedUrl}: ${items.length} items`);
+                return items;
             }
         }
 
         throw new Error('RSS2JSON Failed or returned error status');
 
     } catch (error) {
-        console.warn(`[RSS] Primary proxy failed for ${feedUrl}, trying fallback...`, error);
-        return fetchWithAllOrigins(feedUrl);
+        console.warn(`[RSS] Primary proxy failed for ${feedUrl}, trying fallback...`);
+        return fetchWithAllOrigins(feedUrl, section);
     }
 }
 
-/**
- * Strategy 2: AllOrigins + DOMParser (Robust Fallback)
- * Fetches raw XML via proxy and parses it in the browser.
- */
-async function fetchWithAllOrigins(feedUrl) {
+async function fetchWithAllOrigins(feedUrl, section) {
     const ALL_ORIGINS = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
 
     try {
@@ -224,7 +359,6 @@ async function fetchWithAllOrigins(feedUrl) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, "text/xml");
 
-        // Parse parse error
         if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
             throw new Error('XML Parsing Error');
         }
@@ -238,23 +372,23 @@ async function fetchWithAllOrigins(feedUrl) {
             const pubDate = node.querySelector("pubDate")?.textContent || "";
             const description = node.querySelector("description")?.textContent || "";
             const sourceNode = node.querySelector("source");
-            const author = node.querySelector("author") || node.querySelector("dc\\:creator"); // Handle namespaces if possible, though querySelector might struggle without ns resolver
+            const author = node.querySelector("author") || node.querySelector("dc\\:creator");
 
-            // Normalize to match rss2json structure for normalizeItem re-use?
-            // Actually, easier to normalize directly here.
-
-            // Normalize Date
             const publishedAt = Date.parse(pubDate) || Date.now();
-
-            // Normalize Source
             let source = feedTitle;
             if (sourceNode) source = sourceNode.textContent;
             else if (author) source = author.textContent;
 
             source = cleanSource(source);
-
-            // Clean description
             const summary = cleanDescription(description);
+
+            const isFinanceRelated = ['business', 'market'].includes(section) ||
+                /\b(stock|market|shares|trading|sensex|nifty|bank|economy|crypto|ipo|revenue|profit)\b/i.test(title + description);
+
+            let sentimentData = null;
+            if (isFinanceRelated) {
+                sentimentData = analyzeArticleSentiment(title, summary);
+            }
 
             return {
                 id: hash(link || title),
@@ -269,210 +403,96 @@ async function fetchWithAllOrigins(feedUrl) {
                 fetchedAt: Date.now(),
                 time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 impactScore: 0,
-                criticsView: generateCriticsOneLiner(title, summary, source)
+                criticsView: generateCriticsOneLiner(title, summary, source),
+                sentiment: sentimentData
             };
         });
 
     } catch (err) {
         console.error(`[RSS] All Fallbacks failed for ${feedUrl}`, err);
-        return [];
+        throw err; // Propagate error for tracking
     }
 }
 
-function normalizeItem(item, feedSource) {
-    // rss2json returns 'pubDate' usually.
+function normalizeItem(item, feedSource, section = 'general') {
     const pubDateStr = item.pubDate || item.created || new Date().toISOString();
     const publishedAt = Date.parse(pubDateStr) || Date.now();
 
-    // Attempt to extract cleaner source from title if possible, or use feed title
-    // Some feeds put "Title - Source"
     let source = feedSource;
     if (item.author) source = item.author;
-
-    // Clean up source name using known weights keys
     source = cleanSource(source);
 
     const articleId = hash(item.link || item.guid || item.title);
+    const description = item.description || "";
+
+    const isFinanceRelated = ['business', 'market'].includes(section) ||
+        /\b(stock|market|shares|trading|sensex|nifty|bank|economy|crypto|ipo|revenue|profit)\b/i.test(item.title + description);
+
+    let sentimentData = null;
+    if (isFinanceRelated) {
+        sentimentData = analyzeArticleSentiment(item.title, cleanDescription(description));
+    }
+
     return {
         id: articleId,
         title: item.title,
-        headline: item.title, // Alias for UI compatibility
-        description: item.description || "",
-        summary: cleanDescription(item.description || ""), // Ensure summary is populated
+        headline: item.title,
+        description: description,
+        summary: cleanDescription(description),
         link: item.link,
-        url: item.link, // Alias for UI compatibility
+        url: item.link,
         source: source,
         publishedAt: publishedAt,
         fetchedAt: Date.now(),
         time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        impactScore: 0, // calculated later
-        criticsView: generateCriticsOneLiner(item.title, cleanDescription(item.description || ""), source)
+        impactScore: 0,
+        criticsView: generateCriticsOneLiner(item.title, cleanDescription(description), source),
+        sentiment: sentimentData ? {
+            label: sentimentData.label,
+            comparative: sentimentData.comparative,
+            titleSentiment: sentimentData.titleSentiment,
+            descriptionSentiment: sentimentData.descriptionSentiment
+        } : null
     };
 }
 
-function rankAndFilter(items, section, limit, allowedSources) {
-    const seen = new Set();
-    const now = Date.now();
+async function rankAndFilter(items, section, limit, allowedSources) {
+    try {
+        const seen = new Set();
+        const now = Date.now();
 
-    // Get limit from settings or legacy fallback
-    // Since this is a pure service, we should ideally pass settings in, or import strictly if safe.
-    // Importing getSettings here is safe as it's sync from localStorage.
-    // settings is already available via import, but we need to ensure we call it inside the function 
-    // or if we rely on the import being live. getSettings() reads from localStorage, so calling it here is correct.
-    const settings = getSettings();
-    const limitHours = settings.freshnessLimitHours || 26;
-    const MAX_AGE_MS = limitHours * 60 * 60 * 1000;
+        const settings = getSettings();
+        const limitHours = settings.freshnessLimitHours || 72;
+        const MAX_AGE_MS = limitHours * 60 * 60 * 1000;
+        const bypassFreshness = settings.strictFreshness === false; // If strict is off, bypass
 
-    console.log(`[RSS Debug] filtering for ${section}: Limit=${limitHours}h (${MAX_AGE_MS}ms). Now=${now}`);
+        console.log(`[RSSDebug] filtering for ${section}: Limit=${limitHours}h. Items=${items.length}`);
 
+        const preProcessed = items
+            .filter(item => {
+                if (!bypassFreshness && (now - item.publishedAt > MAX_AGE_MS)) return false;
+                if (allowedSources) return isSourceAllowed(item.source, allowedSources);
+                return true;
+            })
+            .map(item => ({
+                ...item,
+                section,
+                impactScore: computeImpactScore(item, section)
+            }))
+            .filter(item => {
+                if (seen.has(item.id)) return false;
+                seen.add(item.id);
+                return true;
+            });
 
-    return items
-        .filter(item => {
-            // Freshness Gate: Hard filter based on settings
-            if (now - item.publishedAt > MAX_AGE_MS) {
-                return false;
-            }
+        const clustered = deduplicateAndCluster(preProcessed, 0.75);
+        clustered.sort((a, b) => b.impactScore - a.impactScore);
 
-            // Filter by allowed sources if provided
-            if (allowedSources) {
-                return isSourceAllowed(item.source, allowedSources);
-            }
-            return true;
-        })
-        .map(item => ({
-            ...item,
-            section,
-            impactScore: computeImpactScore(item, section)
-        }))
-        .filter(item => {
-            // Deduplication by ID (hash of link/title)
-            if (seen.has(item.id)) return false;
-            seen.add(item.id);
-            return true;
-        })
-        .sort((a, b) => b.impactScore - a.impactScore)
-        .slice(0, limit);
-}
+        console.log(`[RSS] Final count for ${section}: ${clustered.length} (requested ${limit})`);
+        return clustered.slice(0, limit);
 
-function isSourceAllowed(sourceName, allowedSources) {
-    // If allowedSources is passed, we check if the source is enabled.
-    // We map the sourceName (e.g. "NDTV") back to settings keys (e.g. "ndtv")
-
-    // 1. Direct match (if sourceName matches a key directly? unlikely due to formatting)
-    // 2. Reverse lookup in SETTINGS_MAPPING
-
-    let matchedKey = null;
-
-    // Check mapping
-    for (const [key, name] of Object.entries(SETTINGS_MAPPING)) {
-        if (sourceName.includes(name) || name.includes(sourceName)) {
-            matchedKey = key;
-            break;
-        }
+    } catch (error) {
+        console.error(`[RSS] Ranking error for ${section}:`, error);
+        throw error;
     }
-
-    // If we found a key, check if it's enabled
-    if (matchedKey) {
-        return allowedSources[matchedKey] !== false;
-    }
-
-    // If source is not in our mapping/controlled list, we allow it by default
-    // (unless we want strict whitelist? The prompt implied strict whitelist for Google News fallback,
-    // but for specific RSS feeds we added, we assume they are desired unless explicitly disabled).
-    // The settings menu doesn't have toggles for EVERY possible source (e.g. ESPN).
-    // So we default to TRUE for unlisted sources.
-    return true;
 }
-
-function computeImpactScore(item, section) {
-    // 1. Freshness Score (0 to 2 points)
-    // Items < 24h get score. Newer = higher.
-    const ageInMs = Date.now() - item.publishedAt;
-    const ageInDays = ageInMs / (1000 * 60 * 60 * 24);
-    const freshness = Math.max(0, 1 - ageInDays) * 2;
-
-    // 2. Source Weight
-    // Match partial strings to SOURCE_WEIGHTS keys
-    let sourceWeight = SOURCE_WEIGHTS.default;
-    for (const [key, weight] of Object.entries(SOURCE_WEIGHTS)) {
-        if (item.source.includes(key) || (item.author && item.author.includes(key))) {
-            sourceWeight = weight;
-            break;
-        }
-    }
-
-    // 3. Keyword Boost
-    const keywordBoost = KEYWORDS.some(k =>
-        item.title.toLowerCase().includes(k)
-    ) ? 0.5 : 0;
-
-    // 4. Section Priority
-    const sectionPriority = section === "world" ? 1.5 : section === "business" ? 1.2 : 1;
-
-    return freshness + sourceWeight + keywordBoost + sectionPriority;
-}
-
-function cleanSource(sourceName) {
-    if (!sourceName) return "Unknown";
-    for (const key of Object.keys(SOURCE_WEIGHTS)) {
-        if (key !== 'default' && sourceName.includes(key)) {
-            return key;
-        }
-    }
-    return sourceName;
-}
-
-// Simple string hash for ID generation
-function hash(value) {
-    let h = 0;
-    if (!value) return "0";
-    for (let i = 0; i < value.length; i++) {
-        h = (h << 5) - h + value.charCodeAt(i);
-        h |= 0;
-    }
-    return h.toString();
-}
-
-// Helper to strip HTML tags from description
-function cleanDescription(html) {
-    if (!html) return "";
-    return html.replace(/<[^>]*>?/gm, "")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .trim();
-}
-
-/**
- * Generates a "Critic's One Liner" heuristic from title/description
- * @param {string} title 
- * @param {string} description 
- * @param {string} source 
- */
-function generateCriticsOneLiner(title, description, source) {
-    // 1. If description has a clear quote, use it
-    const quoteMatch = description.match(/"([^"]{15,100})"/);
-    if (quoteMatch) return `"${quoteMatch[1]}"`;
-
-    // 2. If title is a question, answer it ambiguously or interestingly
-    if (title.includes('?')) {
-        return `Analysts debate the implications of this developing story from ${source}.`;
-    }
-
-    // 3. Extract the last sentence of description (often the impact/punchline)
-    // sentences ending in . ! ?
-    const sentences = description.split(/[.!?]\s+/);
-    if (sentences.length > 1) {
-        const last = sentences[sentences.length - 1];
-        if (last.length > 20 && last.length < 120) return last;
-        // If last is too short/long, try first
-        const first = sentences[0];
-        if (first.length > 20 && first.length < 120) return first;
-    }
-
-    // 4. Default fallbacks
-    if (source === 'Google News') return "Breaking coverage on this trending topic.";
-    return `Latest update from ${source} on this unfolding event.`;
-}
-

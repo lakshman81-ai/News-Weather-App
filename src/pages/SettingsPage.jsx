@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
-import { getSettings, saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
+import { DEFAULT_SETTINGS } from '../utils/storage';
+import { useSettings } from '../context/SettingsContext';
 import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
+import { discoverFeeds } from '../utils/feedDiscovery';
 
 /**
  * Settings Page Component
@@ -16,13 +18,44 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
  */
 function SettingsPage() {
 
-    const [settings, setSettings] = useState(() => getSettings());
+    const { settings, updateSettings, reloadSettings } = useSettings();
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showDuckKey, setShowDuckKey] = useState(false);
     const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [testStatus, setTestStatus] = useState({});
     const [saved, setSaved] = useState(false);
     const [recommended, _setRecommended] = useState(() => getRecommendedToggles(getCurrentSegment()));
+
+    // Feed Discovery State
+    const [newFeedUrl, setNewFeedUrl] = useState('');
+    const [isDiscovering, setIsDiscovering] = useState(false);
+    const [discoveryError, setDiscoveryError] = useState(null);
+
+    const handleAddFeed = async () => {
+        if (!newFeedUrl) return;
+        setIsDiscovering(true);
+        setDiscoveryError(null);
+
+        try {
+            const feeds = await discoverFeeds(newFeedUrl);
+            if (feeds.length > 0) {
+                // Determine best feed (prioritize explicit fits or just take first)
+                const bestFeed = feeds[0];
+
+                updateSettings({
+                    ...settings,
+                    customFeeds: [...(settings.customFeeds || []), { title: bestFeed.title, url: bestFeed.url }]
+                });
+                setNewFeedUrl('');
+            } else {
+                setDiscoveryError('No feeds found. Check the URL or try a direct RSS link.');
+            }
+        } catch (err) {
+            setDiscoveryError('Error discovering feeds.');
+        } finally {
+            setIsDiscovering(false);
+        }
+    };
 
     useEffect(() => {
 
@@ -32,61 +65,65 @@ function SettingsPage() {
     }, []);
 
     const handleSave = () => {
-        if (settings) {
-            saveSettings(settings);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
-        }
+        // Settings are already saved via updateSettings, but we can trigger a visual confirmation
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+    };
+
+    const removeCustomFeed = (index) => {
+        const newFeeds = [...(settings.customFeeds || [])];
+        newFeeds.splice(index, 1);
+        updateSettings({ ...settings, customFeeds: newFeeds });
     };
 
     const handleReset = () => {
         if (confirm('Reset all settings to defaults?')) {
-            resetSettings();
-            setSettings({ ...DEFAULT_SETTINGS });
+            updateSettings({ ...DEFAULT_SETTINGS });
+            reloadSettings(); // Ensure fresh state
         }
     };
 
     const updateSection = (section, field, value) => {
-        setSettings(prev => ({
-            ...prev,
+        updateSettings({
+            ...settings,
             sections: {
-                ...prev.sections,
+                ...settings.sections,
                 [section]: {
-                    ...prev.sections[section],
+                    ...settings.sections[section],
                     [field]: value
                 }
             }
-        }));
+        });
     };
 
     const updateMarket = (field, value) => {
-        setSettings(prev => ({
-            ...prev,
+        updateSettings({
+            ...settings,
             market: {
-                ...prev.market,
+                ...settings.market,
                 [field]: value
             }
-        }));
+        });
     };
 
     const updateWeatherSource = (source, value) => {
-        setSettings(prev => ({
-            ...prev,
+        updateSettings({
+            ...settings,
             weatherSources: {
-                ...prev.weatherSources,
+                ...settings.weatherSources,
                 [source]: value
             }
-        }));
+        });
     };
 
     const updateNewsSource = (source, value) => {
-        setSettings(prev => ({
-            ...prev,
+        updateSettings({
+            ...settings,
             newsSources: {
-                ...prev.newsSources,
+                ...settings.newsSources,
                 [source]: value
             }
-        }));
+        });
     };
 
     const testApiKey = async (type) => {
@@ -94,7 +131,7 @@ function SettingsPage() {
         // Simulate API test
         await new Promise(resolve => setTimeout(resolve, 1000));
         const key = type === 'google' ? settings.googleApiKey : settings.duckDuckGoApiKey;
-        if (key && key.length > 10) {
+        if (key && key.length > 10) { // Simple validation
             setTestStatus(prev => ({ ...prev, [type]: 'success' }));
         } else {
             setTestStatus(prev => ({ ...prev, [type]: 'error' }));
@@ -105,23 +142,23 @@ function SettingsPage() {
     const applyRecommended = () => {
         if (!settings) return;
 
-        setSettings(prev => ({
-            ...prev,
+        updateSettings({
+            ...settings,
             sections: {
-                world: { ...prev.sections.world, enabled: recommended.world },
-                india: { ...prev.sections.india, enabled: recommended.india },
-                chennai: { ...prev.sections.chennai, enabled: recommended.chennai },
-                trichy: { ...prev.sections.trichy, enabled: recommended.trichy },
-                local: { ...prev.sections.local, enabled: recommended.local },
-                social: { ...prev.sections.social, enabled: recommended.social },
-                entertainment: { ...prev.sections.entertainment, enabled: true }
+                world: { ...settings.sections.world, enabled: recommended.world },
+                india: { ...settings.sections.india, enabled: recommended.india },
+                chennai: { ...settings.sections.chennai, enabled: recommended.chennai },
+                trichy: { ...settings.sections.trichy, enabled: recommended.trichy },
+                local: { ...settings.sections.local, enabled: recommended.local },
+                social: { ...settings.sections.social, enabled: recommended.social },
+                entertainment: { ...settings.sections.entertainment, enabled: true }
             },
             market: {
-                ...prev.market,
+                ...settings.market,
                 showBSE: recommended.market,
                 showNSE: recommended.market
             }
-        }));
+        });
     };
 
     if (!settings) {
@@ -189,7 +226,7 @@ function SettingsPage() {
                             </div>
                             <Toggle
                                 checked={settings.uiMode === 'timeline'}
-                                onChange={(val) => setSettings(prev => ({ ...prev, uiMode: val ? 'timeline' : 'classic' }))}
+                                onChange={(val) => updateSettings({ ...settings, uiMode: val ? 'timeline' : 'classic' })}
                             />
                         </div>
                     </div>
@@ -211,7 +248,7 @@ function SettingsPage() {
                             </div>
                             <Toggle
                                 checked={settings.strictFreshness}
-                                onChange={(val) => setSettings(prev => ({ ...prev, strictFreshness: val }))}
+                                onChange={(val) => updateSettings({ ...settings, strictFreshness: val })}
                             />
                         </div>
 
@@ -225,7 +262,7 @@ function SettingsPage() {
                                 min={1}
                                 max={48}
                                 value={settings.freshnessLimitHours || 26}
-                                onChange={(e) => setSettings(prev => ({ ...prev, freshnessLimitHours: parseInt(e.target.value) || 26 }))}
+                                onChange={(e) => updateSettings({ ...settings, freshnessLimitHours: parseInt(e.target.value) || 26 })}
                             />
                         </div>
 
@@ -239,7 +276,7 @@ function SettingsPage() {
                                 min={1}
                                 max={12}
                                 value={settings.weatherFreshnessLimit || 4}
-                                onChange={(e) => setSettings(prev => ({ ...prev, weatherFreshnessLimit: parseInt(e.target.value) || 4 }))}
+                                onChange={(e) => updateSettings({ ...settings, weatherFreshnessLimit: parseInt(e.target.value) || 4 })}
                             />
                         </div>
                     </div>
@@ -264,7 +301,7 @@ function SettingsPage() {
                                         type={showGoogleKey ? 'text' : 'password'}
                                         className="api-input"
                                         value={settings.googleApiKey}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, googleApiKey: e.target.value }))}
+                                        onChange={(e) => updateSettings({ ...settings, googleApiKey: e.target.value })}
                                         placeholder="Enter Google API Key"
                                     />
                                     <button
@@ -297,7 +334,7 @@ function SettingsPage() {
                                         type={showDuckKey ? 'text' : 'password'}
                                         className="api-input"
                                         value={settings.duckDuckGoApiKey}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, duckDuckGoApiKey: e.target.value }))}
+                                        onChange={(e) => updateSettings({ ...settings, duckDuckGoApiKey: e.target.value })}
                                         placeholder="Enter DuckDuckGo API Key"
                                     />
                                     <button
@@ -330,7 +367,7 @@ function SettingsPage() {
                                         type={showGeminiKey ? 'text' : 'password'}
                                         className="api-input"
                                         value={settings.geminiApiKey || ''}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                                        onChange={(e) => updateSettings({ ...settings, geminiApiKey: e.target.value })}
                                         placeholder="Enter Gemini API Key"
                                     />
                                     <button
@@ -378,7 +415,7 @@ function SettingsPage() {
                                     background: settings.crawlerMode === value ? 'rgba(0, 212, 170, 0.1)' : 'transparent',
                                     borderLeft: settings.crawlerMode === value ? '3px solid var(--accent-primary)' : '3px solid transparent'
                                 }}
-                                onClick={() => setSettings(prev => ({ ...prev, crawlerMode: value }))}
+                                onClick={() => updateSettings({ ...settings, crawlerMode: value })}
                             >
                                 <div className="settings-item__label" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
@@ -575,6 +612,70 @@ function SettingsPage() {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </section>
+
+                {/* Custom Feeds (Phase 7) */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>📡</span>
+                        Custom Feeds
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="api-input-group">
+                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
+                                    Add New Feed
+                                </label>
+                                <div className="api-input-row">
+                                    <input
+                                        type="text"
+                                        className="api-input"
+                                        value={newFeedUrl}
+                                        onChange={(e) => setNewFeedUrl(e.target.value)}
+                                        placeholder="Enter Website or RSS URL"
+                                    />
+                                    <button
+                                        className="api-btn api-btn--test"
+                                        onClick={handleAddFeed}
+                                        disabled={isDiscovering}
+                                    >
+                                        {isDiscovering ? 'Searching...' : 'Add'}
+                                    </button>
+                                </div>
+                                {discoveryError && (
+                                    <div style={{ color: 'var(--text-error)', fontSize: '0.75rem', marginTop: '4px' }}>
+                                        {discoveryError}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* List of Custom Feeds */}
+                        {settings.customFeeds && settings.customFeeds.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                                    Your Feeds
+                                </div>
+                                {settings.customFeeds.map((feed, index) => (
+                                    <div key={index} className="settings-item" style={{ background: 'var(--bg-card)', padding: '8px 12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                            <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>{feed.title}</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {feed.url}
+                                            </span>
+                                        </div>
+                                        <button
+                                            className="btn btn--danger"
+                                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                            onClick={() => removeCustomFeed(index)}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </section>
 

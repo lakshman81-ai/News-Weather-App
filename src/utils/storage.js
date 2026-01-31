@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS = {
     },
 
     // Data Freshness Settings (Strict & Robust)
-    freshnessLimitHours: 26,       // News max age
+    freshnessLimitHours: 72, // Increased from 24/26 to 72 to ensure news appears
     weatherFreshnessLimit: 4,      // Weather max age
     staleWarningHours: 12,         // Warning threshold
     strictFreshness: true,         // Fail-closed mode (hide if old)
@@ -76,7 +76,10 @@ export const DEFAULT_SETTINGS = {
         filmCompanion: true,
         indiaToday: true,
         timesOfOman: true
-    }
+    },
+
+    // Custom Feeds (Phase 7)
+    customFeeds: []
 };
 
 /**

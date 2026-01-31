@@ -10,25 +10,31 @@ import { WeatherProvider } from './context/WeatherContext';
 import { NewsProvider } from './context/NewsContext';
 import './index.css';
 
+import { SettingsProvider } from './context/SettingsContext';
+
 function App() {
   return (
-    <WeatherProvider>
-      <NewsProvider>
-        <HashRouter>
-          <div className="app">
-            <Routes>
-              <Route path="/" element={<MainPage />} />
-              <Route path="/weather" element={<WeatherPage />} />
-              <Route path="/markets" element={<MarketPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/refresh" element={<RefreshPage />} />
-            </Routes>
-            <BottomNav />
-          </div>
-        </HashRouter>
-      </NewsProvider>
-    </WeatherProvider>
+    <SettingsProvider>
+      <WeatherProvider>
+
+        <NewsProvider>
+          <HashRouter>
+            <div className="app">
+              <Routes>
+                <Route path="/" element={<MainPage />} />
+                <Route path="/weather" element={<WeatherPage />} />
+                <Route path="/markets" element={<MarketPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/refresh" element={<RefreshPage />} />
+              </Routes>
+              <BottomNav />
+            </div>
+          </HashRouter>
+        </NewsProvider>
+      </WeatherProvider>
+    </SettingsProvider>
   );
 }
+
 
 export default App;

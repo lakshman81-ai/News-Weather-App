@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
+import BreakingNews from '../components/BreakingNews';
+import MarketTicker from '../components/MarketTicker';
 import SegmentBadge from '../components/SegmentBadge';
 import TimelineHeader from '../components/TimelineHeader';
 import QuickWeather from '../components/QuickWeather';
@@ -9,18 +12,49 @@ import { getCurrentSegment, shouldShowDTNext, getTopline } from '../utils/timeSe
 import { getSettings, getTimeSinceRefresh, getLastRefresh } from '../utils/storage';
 import { useWeather } from '../context/WeatherContext';
 import { useNews } from '../context/NewsContext';
+import { useSettings } from '../context/SettingsContext';
 
-/**
- * Main Page Component
- */
-function MainPage() {
+
+// DEBUG LOGGING SYSTEM
+const logs = [];
+const logSubscribers = new Set();
+const addLog = (msg) => {
+    logs.push(msg);
+    if (logs.length > 200) logs.shift();
+    logSubscribers.forEach(sub => sub([...logs]));
+};
+
+if (typeof window !== 'undefined') {
+    const patch = (type) => {
+        const original = console[type];
+        console[type] = (...args) => {
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+            addLog(`${prefix} ${new Date().toLocaleTimeString()} - ${msg}`);
+            original(...args);
+        };
+    };
+    patch('log');
+    patch('error');
+    patch('warn');
+}
+
+const MainPage = () => {
+    const { settings } = useSettings();
     const [segment, setSegment] = useState(() => getCurrentSegment());
-    const [settings] = useState(() => getSettings());
     const [activePill, setActivePill] = useState('Morning'); // Timeline UI state
+    const [vLog, setVLog] = useState([...logs]);
+
+    // Update logs Reactively
+    useEffect(() => {
+        const sub = (newLogs) => setVLog(newLogs);
+        logSubscribers.add(sub);
+        return () => logSubscribers.delete(sub);
+    }, []);
 
     // Use Contexts
     const { weatherData, loading: weatherLoading, refreshWeather } = useWeather();
-    const { newsData, loading: newsLoading, refreshNews } = useNews();
+    const { newsData, loading, errors, breakingNews, refreshNews } = useNews();
 
     // Refresh data on mount (checks cache)
     useEffect(() => {
@@ -78,7 +112,7 @@ function MainPage() {
     }, [refreshNews, refreshWeather]);
 
     // Determine loading state
-    const isLoading = (weatherLoading && !weatherData) || (newsLoading && Object.keys(newsData).length === 0);
+    const isLoading = (weatherLoading && !weatherData) || (loading && Object.keys(newsData).length === 0);
 
     if (isLoading) {
         return (
@@ -134,6 +168,17 @@ function MainPage() {
                                 SEGMENT: {segment?.name} (Published)
                             </div>
                         </div>
+
+                        {/* Critics Say Section */}
+                        {critique && (
+                            <div className="critics-section">
+                                <div className="critics-label">Critic's Take</div>
+                                <div className="critics-content">"{critique}"</div>
+                            </div>
+                        )}
+
+                        {/* Breaking News Banner */}
+                        <BreakingNews items={breakingNews} />
                     </>
                 )}
 
@@ -184,6 +229,7 @@ function MainPage() {
                         colorClass="news-section__title--world"
                         news={newsData.world}
                         maxDisplay={sections.world.count || 10}
+                        error={errors.world}
                     />
                 )}
 
@@ -195,6 +241,7 @@ function MainPage() {
                         colorClass="news-section__title--india"
                         news={newsData.india}
                         maxDisplay={sections.india.count || 10}
+                        error={errors.india}
                     />
                 )}
 
@@ -206,6 +253,7 @@ function MainPage() {
                         colorClass="news-section__title--chennai"
                         news={newsData.chennai}
                         maxDisplay={sections.chennai.count || 3}
+                        error={errors.chennai}
                     />
                 )}
 
@@ -217,6 +265,7 @@ function MainPage() {
                         colorClass="news-section__title--trichy"
                         news={newsData.trichy}
                         maxDisplay={sections.trichy.count || 2}
+                        error={errors.trichy}
                     />
                 )}
 
@@ -228,6 +277,7 @@ function MainPage() {
                         colorClass="news-section__title--local"
                         news={newsData.local}
                         maxDisplay={sections.local.count || 3}
+                        error={errors.local}
                     />
                 )}
 
@@ -239,6 +289,7 @@ function MainPage() {
                         colorClass="news-section__title--social"
                         news={newsData.social}
                         maxDisplay={sections.social.count || 10}
+                        error={errors.social}
                     />
                 )}
 
@@ -250,20 +301,52 @@ function MainPage() {
                         colorClass="news-section__title--entertainment"
                         news={newsData.entertainment}
                         maxDisplay={sections.entertainment.count || 8}
+                        error={errors.entertainment}
                     />
                 )}
 
                 {/* Self-Check Summary */}
                 <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
                     <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)', color: 'var(--accent-primary)' }}>
-                        ✔ SYSTEM STATUS
+                        SYSTEM STATUS
                     </div>
                     <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                        ✔ UI Mode: {isTimelineMode ? 'Timeline' : 'Classic'}<br />
-                        ✔ Accessibility: Enhanced<br />
-                        ✔ Strict Mode: {settings.strictFreshness ? 'Active' : 'Off'}<br />
-                        ✔ Live Feeds Active<br />
+                        UI Mode: {isTimelineMode ? 'Timeline' : 'Classic'}<br />
+                        Accessibility: Enhanced<br />
+                        Strict Mode: {settings.strictFreshness ? 'Active' : 'Off'}<br />
+                        Live Feeds Active<br />
                     </div>
+                </div>
+
+                {/* DEBUG CONSOLE (STAYS VISIBLE IN PROD PREVIEW) */}
+                <div style={{
+                    marginTop: '20px',
+                    padding: '15px',
+                    background: '#0a0a0a',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    fontFamily: 'monospace',
+                    fontSize: '11px',
+                    color: '#00ff41',
+                    height: '200px',
+                    overflowY: 'auto',
+                    boxShadow: '0 0 20px rgba(0,255,65,0.1)'
+                }}>
+                    <div style={{ borderBottom: '1px solid #333', paddingBottom: '5px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>SYSTEM DEBUG LOGS (REAL-TIME)</span>
+                        <div>
+                            <button onClick={() => refreshNews()} style={{ background: '#00ff41', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px', marginRight: '5px' }}>RE-FETCH NEWS</button>
+                            <button onClick={() => window.location.reload()} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px' }}>FORCE RELOAD</button>
+                        </div>
+                    </div>
+                    {vLog?.map((msg, i) => (
+                        <div key={i} style={{ marginBottom: '4px', borderLeft: msg.includes('❌') ? '2px solid red' : 'none', paddingLeft: '5px' }}>
+                            <span style={{ color: '#888' }}>[{i}]</span> {msg}
+                        </div>
+                    ))}
+                    {(!vLog || vLog.length === 0) && (
+                        <div style={{ color: '#555' }}>Initializing logger... No logs captured yet. Try refreshing.</div>
+                    )}
                 </div>
             </main>
         </div>
