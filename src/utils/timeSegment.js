@@ -307,3 +307,24 @@ export function shouldShowDTNext(segment) {
 export function getAllSegments() {
     return Object.values(SEGMENTS);
 }
+
+/**
+ * Get topline summary based on current segment
+ * @param {Object} segment - Current segment
+ * @returns {string} Topline header text
+ */
+export function getTopline(segment) {
+    if (!segment) return "Welcome to Daily Event AI";
+    switch (segment.id) {
+        case 'morning_weather': return "Good Morning! Here's your weather start.";
+        case 'morning_news': return "Your Morning Headlines are ready.";
+        case 'market_brief': return "Market Open: Sensex & Nifty Updates.";
+        case 'midday_brief': return "Midday Update: Top stories so far.";
+        case 'market_movers': return "Market Movers: Gainers & Losers.";
+        case 'evening_news': return "Evening Wrap: Catch up on the day.";
+        case 'local_events': return "How your evening looks around town.";
+        case 'night_wrap_up': return "The Day in Review.";
+        case 'urgent_only': return "Urgent Updates Only.";
+        default: return "Daily Event AI: Live Updates.";
+    }
+}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { getSettings, saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
@@ -7,33 +6,34 @@ import { getCurrentSegment, getRecommendedToggles } from '../utils/timeSegment';
 
 /**
  * Settings Page Component
+ * Configures:
+ * - Google API Key
+ * - DuckDuckGo API Key
+ * - News sections (toggle + count)
+ * - Market settings
+ * - Weather sources
+ * - News sources
  */
 function SettingsPage() {
-    const navigate = useNavigate();
-    const [settings, setSettings] = useState(null);
+
+    const [settings, setSettings] = useState(() => getSettings());
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showDuckKey, setShowDuckKey] = useState(false);
     const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [testStatus, setTestStatus] = useState({});
     const [saved, setSaved] = useState(false);
-    const [recommended, setRecommended] = useState({});
-    const [newsApiKey, setNewsApiKey] = useState('');
+    const [recommended, _setRecommended] = useState(() => getRecommendedToggles(getCurrentSegment()));
 
     useEffect(() => {
-        const saved = getSettings();
-        setSettings(saved);
-        setNewsApiKey(localStorage.getItem('news_api_key') || '');
+
 
         // Get recommended toggles based on current segment
-        const segment = getCurrentSegment();
-        const rec = getRecommendedToggles(segment);
-        setRecommended(rec);
+
     }, []);
 
     const handleSave = () => {
         if (settings) {
             saveSettings(settings);
-            localStorage.setItem('news_api_key', newsApiKey);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         }
@@ -173,6 +173,78 @@ function SettingsPage() {
                     </div>
                 </div>
 
+                {/* UI Configuration */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>📱</span>
+                        Interface
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item">
+                            <div className="settings-item__label" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                                <div style={{ fontWeight: 600 }}>Home Layout</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {settings.uiMode === 'timeline' ? 'Timeline Navigator (New)' : 'Classic Dashboard'}
+                                </div>
+                            </div>
+                            <Toggle
+                                checked={settings.uiMode === 'timeline'}
+                                onChange={(val) => setSettings(prev => ({ ...prev, uiMode: val ? 'timeline' : 'classic' }))}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Data Freshness Configuration */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🛡️</span>
+                        Data Freshness
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item">
+                            <div className="settings-item__label" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                                <div style={{ fontWeight: 600 }}>Strict Freshness</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Hide old data (Fail-Closed)
+                                </div>
+                            </div>
+                            <Toggle
+                                checked={settings.strictFreshness}
+                                onChange={(val) => setSettings(prev => ({ ...prev, strictFreshness: val }))}
+                            />
+                        </div>
+
+                        <div className="settings-item">
+                            <div className="settings-item__label">
+                                News Max Age (Hours)
+                            </div>
+                            <input
+                                type="number"
+                                className="settings-item__count"
+                                min={1}
+                                max={48}
+                                value={settings.freshnessLimitHours || 26}
+                                onChange={(e) => setSettings(prev => ({ ...prev, freshnessLimitHours: parseInt(e.target.value) || 26 }))}
+                            />
+                        </div>
+
+                        <div className="settings-item">
+                            <div className="settings-item__label">
+                                Weather Max Age (Hours)
+                            </div>
+                            <input
+                                type="number"
+                                className="settings-item__count"
+                                min={1}
+                                max={12}
+                                value={settings.weatherFreshnessLimit || 4}
+                                onChange={(e) => setSettings(prev => ({ ...prev, weatherFreshnessLimit: parseInt(e.target.value) || 4 }))}
+                            />
+                        </div>
+                    </div>
+                </section>
+
                 {/* API Configuration */}
                 <section className="settings-section">
                     <h2 className="settings-section__title">
@@ -279,31 +351,6 @@ function SettingsPage() {
                                 </div>
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                                     ⚠️ Gemini is post-processor only. Never fetches or decides relevance.
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* NewsData.io API Key - Added in same card for consistency */}
-                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                            <div className="api-input-group">
-                                <label style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs)' }}>
-                                    NewsData.io API Key <span style={{ fontSize: '0.7rem', color: 'var(--accent-warning)' }}>(Required for News)</span>
-                                </label>
-                                <div className="api-input-row">
-                                    <input
-                                        type="text"
-                                        className="api-input"
-                                        value={newsApiKey}
-                                        onChange={(e) => setNewsApiKey(e.target.value)}
-                                        placeholder="Enter NewsData.io API Key"
-                                    />
-                                    <button
-                                        className="api-btn"
-                                        onClick={() => window.open('https://newsdata.io/register', '_blank')}
-                                        title="Get Free Key"
-                                    >
-                                        🔑
-                                    </button>
                                 </div>
                             </div>
                         </div>

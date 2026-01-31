@@ -11,7 +11,7 @@ import { getWeatherTimeBlocks } from '../utils/timeSegment';
  * - Per-location summaries (3-4 lines each)
  * - Severe weather styling when applicable
  */
-function WeatherCard({ weatherData, isSevere = false }) {
+function WeatherCard({ weatherData, }) {
     const timeBlocks = getWeatherTimeBlocks();
     const cities = ['chennai', 'trichy', 'muscat'];
 
@@ -67,7 +67,7 @@ function WeatherCard({ weatherData, isSevere = false }) {
                                         <div className="weather-feels">Feels {data.feelsLike}°</div>
                                         <div className="weather-rain">
                                             <span className="weather-rain-prob">
-                                                🌧️ {data.rainProb?.avg}%
+                                                🌧️ {data.rainProb?.avg ?? 0}%
                                             </span>
                                             {data.rainProb?.range && (
                                                 <span className="weather-rain-mm">({data.rainProb.range})</span>
@@ -112,6 +112,14 @@ function WeatherCard({ weatherData, isSevere = false }) {
                             </div>
                         </div>
                     ))}
+                    <div style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        textAlign: 'right',
+                        marginTop: '8px'
+                    }}>
+                        Source: Open-Meteo High-Resolution Model
+                    </div>
                 </div>
 
                 {/* Severe Weather Alert */}

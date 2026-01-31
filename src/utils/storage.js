@@ -8,13 +8,14 @@ const STORAGE_KEYS = {
 
 // Default settings
 export const DEFAULT_SETTINGS = {
-    // API Keys
-    googleApiKey: 'AIzaSyCyYBK051jN0Ndr1bi6269z4EGJo3MyzTs',
-    duckDuckGoApiKey: '',
-    geminiApiKey: '',
+    // API Keys (Removed unused placeholder keys)
+    // newsApiKey: '', // Optional: Add if implementing NewsData.io fully in future
 
     // Crawler Mode: 'auto' (default), 'manual', 'scheduled', 'disabled'
     crawlerMode: 'auto',
+
+    // UI Mode: 'timeline' (New) or 'classic' (Old)
+    uiMode: 'timeline',
 
     // Agent Settings
     agent: {
@@ -23,6 +24,12 @@ export const DEFAULT_SETTINGS = {
         enableDriftDetection: true,
         driftThreshold: 0.3
     },
+
+    // Data Freshness Settings (Strict & Robust)
+    freshnessLimitHours: 26,       // News max age
+    weatherFreshnessLimit: 4,      // Weather max age
+    staleWarningHours: 12,         // Warning threshold
+    strictFreshness: true,         // Fail-closed mode (hide if old)
 
     // News section toggles and counts
     sections: {
@@ -85,6 +92,7 @@ export function getSettings() {
             return deepMerge(DEFAULT_SETTINGS, parsed);
         }
     } catch (error) {
+        void error;
         console.error('Error reading settings:', error);
     }
     return { ...DEFAULT_SETTINGS };
@@ -99,6 +107,7 @@ export function saveSettings(settings) {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
         return true;
     } catch (error) {
+        void error;
         console.error('Error saving settings:', error);
         return false;
     }
@@ -145,6 +154,7 @@ export function getLastRefresh(section) {
             }
         }
     } catch (error) {
+        void error;
         console.error('Error reading last refresh:', error);
     }
     return null;
@@ -161,6 +171,7 @@ export function setLastRefresh(section) {
         timestamps[section] = new Date().toISOString();
         localStorage.setItem(STORAGE_KEYS.LAST_REFRESH, JSON.stringify(timestamps));
     } catch (error) {
+        void error;
         console.error('Error setting last refresh:', error);
     }
 }
@@ -200,6 +211,7 @@ export function getTimeSinceRefresh(section = null) {
         if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
         return lastTime.toLocaleDateString();
     } catch (error) {
+        void error;
         return 'Unknown';
     }
 }
@@ -219,6 +231,7 @@ export function cacheData(section, data) {
         };
         localStorage.setItem(STORAGE_KEYS.CACHED_DATA, JSON.stringify(cache));
     } catch (error) {
+        void error;
         console.error('Error caching data:', error);
     }
 }
@@ -242,6 +255,7 @@ export function getCachedData(section, maxAgeMs = 30 * 60 * 1000) {
 
         return cache[section].data;
     } catch (error) {
+        void error;
         console.error('Error reading cache:', error);
         return null;
     }
@@ -255,6 +269,7 @@ export function clearCache() {
         localStorage.removeItem(STORAGE_KEYS.CACHED_DATA);
         localStorage.removeItem(STORAGE_KEYS.LAST_REFRESH);
     } catch (error) {
+        void error;
         console.error('Error clearing cache:', error);
     }
 }
