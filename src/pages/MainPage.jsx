@@ -13,6 +13,8 @@ import { getSettings, getTimeSinceRefresh, getLastRefresh } from '../utils/stora
 import { useWeather } from '../context/WeatherContext';
 import { useNews } from '../context/NewsContext';
 import { useSettings } from '../context/SettingsContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import MarketPage from './MarketPage';
 
 
 // DEBUG LOGGING SYSTEM
@@ -45,6 +47,29 @@ const MainPage = () => {
     const [activePill, setActivePill] = useState('Morning'); // Timeline UI state
     const [vLog, setVLog] = useState([...logs]);
 
+    // Responsive Detection
+    const { isWebView, isDesktop } = useMediaQuery();
+
+    // Dynamic Timeline Logic
+    const getTimelinePills = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return ['Morning', 'Midday', 'Evening'];
+        if (hour < 17) return ['Midday', 'Evening', 'Tomorrow Morning'];
+        return ['Evening', 'Tomorrow Morning', 'Tomorrow Midday'];
+    };
+
+    const [timelinePills, setTimelinePills] = useState(() => getTimelinePills());
+
+    // Update active pill to match first available slot on mount/change
+    useEffect(() => {
+        const currentPills = getTimelinePills();
+        setTimelinePills(currentPills);
+        // Only reset if current active isn't in the new list (preserves user selection if valid)
+        if (!currentPills.includes(activePill)) {
+            setActivePill(currentPills[0]);
+        }
+    }, []); // Run once on mount, we can add a timer if needed for long sessions
+
     // Update logs Reactively
     useEffect(() => {
         const sub = (newLogs) => setVLog(newLogs);
@@ -55,6 +80,20 @@ const MainPage = () => {
     // Use Contexts
     const { weatherData, loading: weatherLoading, refreshWeather } = useWeather();
     const { newsData, loading, errors, breakingNews, refreshNews } = useNews();
+
+    const { sections, market: marketSettings, uiMode = 'timeline' } = settings;
+
+    // Detect uiMode changes
+    useEffect(() => {
+        console.log('[MainPage] UI mode changed:', uiMode);
+    }, [uiMode]);
+
+    // Reset timeline state when switching to classic mode to avoid stale state
+    useEffect(() => {
+        if (uiMode === 'classic') {
+            setActivePill('Morning'); // Reset to default
+        }
+    }, [uiMode]);
 
     // Refresh data on mount (checks cache)
     useEffect(() => {
@@ -100,16 +139,19 @@ const MainPage = () => {
             isPulling = false;
         };
 
-        document.addEventListener('touchstart', handleTouchStart);
-        document.addEventListener('touchmove', handleTouchMove);
-        document.addEventListener('touchend', handleTouchEnd);
+        // Only attach touch listeners on mobile to avoid interference on desktop
+        if (!isDesktop) {
+            document.addEventListener('touchstart', handleTouchStart);
+            document.addEventListener('touchmove', handleTouchMove);
+            document.addEventListener('touchend', handleTouchEnd);
+        }
 
         return () => {
             document.removeEventListener('touchstart', handleTouchStart);
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [refreshNews, refreshWeather]);
+    }, [refreshNews, refreshWeather, isDesktop]);
 
     // Determine loading state
     const isLoading = (weatherLoading && !weatherData) || (loading && Object.keys(newsData).length === 0);
@@ -124,8 +166,6 @@ const MainPage = () => {
             </div>
         );
     }
-
-    const { sections, market: marketSettings, uiMode = 'timeline' } = settings;
 
 
 
@@ -142,202 +182,205 @@ const MainPage = () => {
     );
 
     return (
-        <div className="page-container">
+        <div className={`page-container mode-${uiMode} ${isWebView ? 'page-container--desktop' : ''}`}>
             {/* Conditional Header Rendering */}
             {isTimelineMode ? (
-                <>
-                    <TimelineHeader activePill={activePill} onPillChange={setActivePill} />
-                    <QuickWeather activePill={activePill} />
-                </>
+                <TimelineHeader
+                    activePill={activePill}
+                    onPillChange={setActivePill}
+                    pills={timelinePills}
+                />
             ) : (
                 <Header title="Daily Event AI" icon="🌅" actions={headerActions} />
             )}
 
-            <main className="main-content">
-                {/* Legacy UI Elements (Classic Mode Only) */}
-                {!isTimelineMode && (
-                    <>
-                        {/* Stale Warning and Topline are Classic features */}
-                        <div style={{ marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>
-                            <SegmentBadge segment={segment} />
+            <main className={`main-content ${isWebView ? 'main-content--desktop' : ''}`}>
+
+                {/* Desktop Sidebar: Weather appears here for Timeline mode */}
+                {isWebView && isTimelineMode && (
+                    <QuickWeather activePill={activePill} />
+                )}
+
+                {/* Right Content Column (Corrects Grid Layout) */}
+                <div className="content-wrapper">
+                    {/* Legacy UI Elements (Classic Mode Only) */}
+                    {!isTimelineMode && (
+                        <>
+                            {/* Stale Warning and Topline are Classic features */}
+                            <div style={{ marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>
+                                <SegmentBadge segment={segment} />
+                            </div>
+                            <div className="topline">
+                                <div className="topline__label">TOPLINE</div>
+                                <div className="topline__text">{getTopline(segment)}</div>
+                                <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                    SEGMENT: {segment?.name} (Published)
+                                </div>
+                            </div>
+
+                            <BreakingNews items={breakingNews} />
+                        </>
+                    )}
+
+                    {/* Mobile/Tablet Timeline Mode: Weather appears inline here */}
+                    {!isWebView && isTimelineMode && (
+                        <QuickWeather activePill={activePill} />
+                    )}
+
+                    {/* Stale Data Warning Banner */}
+                    {settings.strictFreshness && (
+                        <div className="alert-banner" style={{
+                            display: (weatherData && (Date.now() - (weatherData.fetchedAt || 0)) > settings.staleWarningHours * 3600000) ||
+                                (newsData.world && newsData.world[0] && (Date.now() - newsData.world[0].fetchedAt) > settings.staleWarningHours * 3600000)
+                                ? 'flex' : 'none'
+                        }}>
+                            <span>⚠️ Some data is older than {settings.staleWarningHours} hours.</span>
+                            <Link
+                                to="/refresh"
+                                style={{
+                                    textDecoration: 'underline',
+                                    fontWeight: 'bold',
+                                    color: 'inherit'
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    refreshNews();
+                                    refreshWeather();
+                                }}
+                            >
+                                Refresh Now
+                            </Link>
                         </div>
-                        <div className="topline">
-                            <div className="topline__label">TOPLINE</div>
-                            <div className="topline__text">{getTopline(segment)}</div>
-                            <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
-                                SEGMENT: {segment?.name} (Published)
+                    )}
+
+                    {/* News Sections */}
+                    <div className="news-sections news-sections--grid">
+                        <NewsSection
+                            title="Global Updates"
+                            icon="🌍"
+                            colorClass="news-section__title--world"
+                            news={newsData.world}
+                            maxDisplay={8}
+                        />
+
+
+                        {/* India News */}
+                        {sections.india?.enabled && (
+                            <NewsSection
+                                title={isTimelineMode ? "India" : "India News"}
+                                icon="🇮🇳"
+                                colorClass="news-section__title--india"
+                                news={newsData.india}
+                                maxDisplay={sections.india.count || 10}
+                                error={errors.india}
+                            />
+                        )}
+
+                        {/* Chennai News */}
+                        {sections.chennai?.enabled && (
+                            <NewsSection
+                                title={isTimelineMode ? "Tamil Nadu" : "Chennai News"}
+                                icon="🏛️"
+                                colorClass="news-section__title--chennai"
+                                news={newsData.chennai}
+                                maxDisplay={sections.chennai.count || 3}
+                                error={errors.chennai}
+                            />
+                        )}
+
+                        {/* Trichy News */}
+                        {sections.trichy?.enabled && (
+                            <NewsSection
+                                title={isTimelineMode ? "Trichy" : "Trichy News"}
+                                icon="🏛️"
+                                colorClass="news-section__title--trichy"
+                                news={newsData.trichy}
+                                maxDisplay={sections.trichy.count || 2}
+                                error={errors.trichy}
+                            />
+                        )}
+
+                        {/* Local News (Muscat) */}
+                        {sections.local?.enabled && (
+                            <NewsSection
+                                title={isTimelineMode ? "Local — Muscat" : "Local News (Muscat)"}
+                                icon="📍"
+                                colorClass="news-section__title--local"
+                                news={newsData.local}
+                                maxDisplay={sections.local.count || 3}
+                                error={errors.local}
+                            />
+                        )}
+
+                        {/* Social Trends */}
+                        {sections.social?.enabled && (
+                            <NewsSection
+                                title={isTimelineMode ? "Social" : "Social Trends"}
+                                icon="👥"
+                                colorClass="news-section__title--social"
+                                news={newsData.social}
+                                maxDisplay={sections.social.count || 10}
+                                error={errors.social}
+                            />
+                        )}
+
+                        {/* Entertainment */}
+                        {sections.entertainment?.enabled && (
+                            <NewsSection
+                                title="Entertainment"
+                                icon="🎬"
+                                colorClass="news-section__title--entertainment"
+                                news={newsData.entertainment}
+                                maxDisplay={sections.entertainment.count || 8}
+                                error={errors.entertainment}
+                            />
+                        )}
+                    </div>
+
+                    {/* Self-Check Summary */}
+                    <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)', color: 'var(--accent-primary)' }}>
+                            SYSTEM STATUS
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+                            UI Mode: {isTimelineMode ? 'Timeline' : 'Classic'}<br />
+                            Platform: {isWebView ? 'Desktop/Web' : 'Mobile'}<br />
+                            Accessibility: Enhanced<br />
+                            Strict Mode: {settings.strictFreshness ? 'Active' : 'Off'}<br />
+                            Live Feeds Active<br />
+                        </div>
+                    </div>
+
+                    {/* DEBUG CONSOLE (STAYS VISIBLE IN PROD PREVIEW) */}
+                    <div style={{
+                        marginTop: '20px',
+                        padding: '15px',
+                        background: '#0a0a0a',
+                        border: '1px solid #333',
+                        borderRadius: '8px',
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                        color: '#00ff41',
+                        height: '200px',
+                        overflowY: 'auto',
+                        boxShadow: '0 0 20px rgba(0,255,65,0.1)'
+                    }}>
+                        <div style={{ borderBottom: '1px solid #333', paddingBottom: '5px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>SYSTEM DEBUG LOGS (REAL-TIME)</span>
+                            <div>
+                                <button onClick={() => refreshNews()} style={{ background: '#00ff41', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px', marginRight: '5px' }}>RE-FETCH NEWS</button>
+                                <button onClick={() => window.location.reload()} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px' }}>FORCE RELOAD</button>
                             </div>
                         </div>
-
-                        <BreakingNews items={breakingNews} />
-                    </>
-                )}
-
-                {/* News Sections (Shared but styled differently via props if needed) */}
-
-                {/* Stale Data Warning Banner */}
-                {settings.strictFreshness && (
-                    <div style={{
-                        display: (weatherData && (Date.now() - (weatherData.fetchedAt || 0)) > settings.staleWarningHours * 3600000) ||
-                            (newsData.world && newsData.world[0] && (Date.now() - newsData.world[0].fetchedAt) > settings.staleWarningHours * 3600000)
-                            ? 'flex' : 'none',
-                        background: 'rgba(255, 87, 87, 0.15)',
-                        border: '1px solid #ff5757',
-                        color: '#ff5757',
-                        padding: '12px',
-                        margin: '0 var(--spacing-md) var(--spacing-md)',
-                        borderRadius: 'var(--border-radius-md)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px'
-                    }}>
-                        <span>⚠️ Some data is older than {settings.staleWarningHours} hours.</span>
-                        <Link
-                            to="/refresh"
-                            style={{
-                                textDecoration: 'underline',
-                                fontWeight: 'bold',
-                                color: 'inherit'
-                            }}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                refreshNews();
-                                refreshWeather();
-                            }}
-                        >
-                            Refresh Now
-                        </Link>
+                        {vLog?.map((msg, i) => (
+                            <div key={i} style={{ marginBottom: '4px', borderLeft: msg.includes('❌') ? '2px solid red' : 'none', paddingLeft: '5px' }}>
+                                <span style={{ color: '#888' }}>[{i}]</span> {msg}
+                            </div>
+                        ))}
+                        {(!vLog || vLog.length === 0) && (
+                            <div style={{ color: '#555' }}>Initializing logger... No logs captured yet. Try refreshing.</div>
+                        )}
                     </div>
-                )}
-
-                {/* News Sections (Shared but styled differently via props if needed) */}
-
-                {/* World News */}
-                {sections.world?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "Top Stories — World" : "World News"}
-                        icon="🌐"
-                        colorClass="news-section__title--world"
-                        news={newsData.world}
-                        maxDisplay={sections.world.count || 10}
-                        error={errors.world}
-                    />
-                )}
-
-                {/* India News */}
-                {sections.india?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "India" : "India News"}
-                        icon="🇮🇳"
-                        colorClass="news-section__title--india"
-                        news={newsData.india}
-                        maxDisplay={sections.india.count || 10}
-                        error={errors.india}
-                    />
-                )}
-
-                {/* Chennai News */}
-                {sections.chennai?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "Tamil Nadu" : "Chennai News"}
-                        icon="🏛️"
-                        colorClass="news-section__title--chennai"
-                        news={newsData.chennai}
-                        maxDisplay={sections.chennai.count || 3}
-                        error={errors.chennai}
-                    />
-                )}
-
-                {/* Trichy News */}
-                {sections.trichy?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "Trichy" : "Trichy News"}
-                        icon="🏛️"
-                        colorClass="news-section__title--trichy"
-                        news={newsData.trichy}
-                        maxDisplay={sections.trichy.count || 2}
-                        error={errors.trichy}
-                    />
-                )}
-
-                {/* Local News (Muscat) */}
-                {sections.local?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "Local — Muscat" : "Local News (Muscat)"}
-                        icon="📍"
-                        colorClass="news-section__title--local"
-                        news={newsData.local}
-                        maxDisplay={sections.local.count || 3}
-                        error={errors.local}
-                    />
-                )}
-
-                {/* Social Trends */}
-                {sections.social?.enabled && (
-                    <NewsSection
-                        title={isTimelineMode ? "Social" : "Social Trends"}
-                        icon="👥"
-                        colorClass="news-section__title--social"
-                        news={newsData.social}
-                        maxDisplay={sections.social.count || 10}
-                        error={errors.social}
-                    />
-                )}
-
-                {/* Entertainment */}
-                {sections.entertainment?.enabled && (
-                    <NewsSection
-                        title="Entertainment"
-                        icon="🎬"
-                        colorClass="news-section__title--entertainment"
-                        news={newsData.entertainment}
-                        maxDisplay={sections.entertainment.count || 8}
-                        error={errors.entertainment}
-                    />
-                )}
-
-                {/* Self-Check Summary */}
-                <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)', color: 'var(--accent-primary)' }}>
-                        SYSTEM STATUS
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                        UI Mode: {isTimelineMode ? 'Timeline' : 'Classic'}<br />
-                        Accessibility: Enhanced<br />
-                        Strict Mode: {settings.strictFreshness ? 'Active' : 'Off'}<br />
-                        Live Feeds Active<br />
-                    </div>
-                </div>
-
-                {/* DEBUG CONSOLE (STAYS VISIBLE IN PROD PREVIEW) */}
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: '#0a0a0a',
-                    border: '1px solid #333',
-                    borderRadius: '8px',
-                    fontFamily: 'monospace',
-                    fontSize: '11px',
-                    color: '#00ff41',
-                    height: '200px',
-                    overflowY: 'auto',
-                    boxShadow: '0 0 20px rgba(0,255,65,0.1)'
-                }}>
-                    <div style={{ borderBottom: '1px solid #333', paddingBottom: '5px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>SYSTEM DEBUG LOGS (REAL-TIME)</span>
-                        <div>
-                            <button onClick={() => refreshNews()} style={{ background: '#00ff41', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px', marginRight: '5px' }}>RE-FETCH NEWS</button>
-                            <button onClick={() => window.location.reload()} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px' }}>FORCE RELOAD</button>
-                        </div>
-                    </div>
-                    {vLog?.map((msg, i) => (
-                        <div key={i} style={{ marginBottom: '4px', borderLeft: msg.includes('❌') ? '2px solid red' : 'none', paddingLeft: '5px' }}>
-                            <span style={{ color: '#888' }}>[{i}]</span> {msg}
-                        </div>
-                    ))}
-                    {(!vLog || vLog.length === 0) && (
-                        <div style={{ color: '#555' }}>Initializing logger... No logs captured yet. Try refreshing.</div>
-                    )}
                 </div>
             </main>
         </div>

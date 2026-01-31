@@ -1,28 +1,25 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
-/**
- * Bottom Navigation Component
- * Provides main app navigation for mobile layout
- */
 function BottomNav() {
+    const { isWebView } = useMediaQuery();
+    const location = useLocation();
+
     const navItems = [
-        { path: '/', icon: '🏠', label: 'Home' },
-        { path: '/weather', icon: '☁️', label: 'Weather' },
-        { path: '/markets', icon: '📈', label: 'Markets' },
-        { path: '/settings', icon: '⚙️', label: 'Settings' }
+        { path: '/', label: 'Main', icon: '🏠' },
+        { path: '/markets', label: 'Market/Tech/Social', icon: '📊' },
+        { path: '/weather', label: 'Weather', icon: '☁️' },
+        { path: '/settings', label: 'Settings', icon: '⚙️' }
     ];
 
     return (
-        <nav className="bottom-nav">
-            {navItems.map((item) => (
+        <nav className={`bottom-nav ${isWebView ? 'bottom-nav--desktop' : ''}`}>
+            {navItems.map(item => (
                 <NavLink
                     key={item.path}
                     to={item.path}
-                    className={({ isActive }) =>
-                        `bottom-nav__item ${isActive ? 'active' : ''}`
-                    }
-                    end={item.path === '/'}
+                    className={`bottom-nav__item ${location.pathname === item.path ? 'active' : ''}`}
                 >
                     <span className="bottom-nav__icon">{item.icon}</span>
                     <span className="bottom-nav__label">{item.label}</span>

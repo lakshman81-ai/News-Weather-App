@@ -62,7 +62,9 @@ export const GOOGLE_FEEDS = {
     // Specialized high-res feeds
     WORLD_IN: getGoogleNewsUrl({ category: 'world', country: 'IN', lang: 'en' }),
     BUSINESS_IN: getGoogleNewsUrl({ category: 'business', country: 'IN', lang: 'en' }),
+    BUSINESS_IN_SEARCH: getGoogleNewsUrl({ query: 'Business Economy India', country: 'IN', lang: 'en' }), // Fallback
     TECH_IN: getGoogleNewsUrl({ category: 'technology', country: 'IN', lang: 'en' }),
+    TECH_IN_SEARCH: getGoogleNewsUrl({ query: 'Technology Startups India', country: 'IN', lang: 'en' }), // Fallback
 
     // Regional/Language Specific
     TAMIL_NADU: getGoogleNewsUrl({ query: 'Tamil Nadu', country: 'IN', lang: 'ta' }),

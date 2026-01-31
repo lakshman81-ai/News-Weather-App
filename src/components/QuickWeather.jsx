@@ -22,17 +22,33 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
 
     // Explicit mapping to handle potential case sensitivity or extra pill types
     const pill = activePill;
-
-    if (pill === 'Midday') {
+    if (pill === 'Morning') {
+        timeKey = 'morning';
+        summaryPrefix = "Start your day with";
+    } else if (pill === 'Midday') {
         timeKey = 'noon';
         summaryPrefix = "As the day progresses, expect";
     } else if (pill === 'Evening') {
         timeKey = 'evening';
         summaryPrefix = "Your evening outlook is";
+    } else if (pill === 'Tomorrow Morning') {
+        timeKey = 'tomorrow.morning';
+        summaryPrefix = "Tomorrow starts with";
+    } else if (pill === 'Tomorrow Midday') {
+        timeKey = 'tomorrow.noon';
+        summaryPrefix = "Tomorrow midday will be";
     }
 
     // Fallback to current if specific slot is missing (safety)
-    const displayData = data[timeKey] || data.current;
+    // Handle nested keys like 'tomorrow.morning'
+    let displayData;
+    if (timeKey.includes('.')) {
+        const [root, sub] = timeKey.split('.');
+        displayData = data[root]?.[sub];
+    } else {
+        displayData = data[timeKey];
+    }
+    displayData = displayData || data.current;
 
     // Safety check for displayData
     if (!displayData) return null;

@@ -114,6 +114,19 @@ function processWeatherData(data, locationName) {
         };
     };
 
+    // Helper to extract segments for a specific day offset (0 = today, 1 = tomorrow)
+    const getDaySegments = (dayOffset) => {
+        const offset = dayOffset * 24;
+        return {
+            morning: getSegmentMetrics(6 + offset, 11 + offset),
+            noon: getSegmentMetrics(12 + offset, 16 + offset),
+            evening: getSegmentMetrics(17 + offset, 22 + offset)
+        };
+    };
+
+    const today = getDaySegments(0);
+    const tomorrow = getDaySegments(1);
+
     return {
         name: locationName.charAt(0).toUpperCase() + locationName.slice(1),
         icon: locationName === 'muscat' ? '📍' : '🏛️',
@@ -124,9 +137,10 @@ function processWeatherData(data, locationName) {
             condition: getCondition(current.weather_code),
             icon: getIcon(current.weather_code)
         },
-        morning: getSegmentMetrics(6, 11),   // 6 AM to 11 AM
-        noon: getSegmentMetrics(12, 16),     // 12 PM to 4 PM
-        evening: getSegmentMetrics(17, 22),  // 5 PM to 10 PM
+        morning: today.morning,
+        noon: today.noon,
+        evening: today.evening,
+        tomorrow: tomorrow,
         summary: `Today's max rain probability: ${data.daily.precipitation_probability_max[0]}%. Total precip: ${data.daily.precipitation_sum[0]}mm. Condition: ${getCondition(current.weather_code)}.`
     };
 }

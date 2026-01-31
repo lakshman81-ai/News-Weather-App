@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
  * Displays contextual greeting, date, and time-block filters.
  * Replaces standard header in Timeline UI Mode.
  */
-const TimelineHeader = ({ activePill, onPillChange }) => {
+const TimelineHeader = ({ activePill, onPillChange, pills }) => {
     const [greeting, setGreeting] = useState('Good Morning');
     const [dateString, setDateString] = useState('');
 
@@ -30,7 +30,8 @@ const TimelineHeader = ({ activePill, onPillChange }) => {
         return () => clearInterval(interval);
     }, []);
 
-    const pills = ['Morning', 'Midday', 'Evening'];
+    const defaultPills = ['Morning', 'Midday', 'Evening'];
+    const displayPills = pills || defaultPills;
 
     return (
         <header className="timeline-header">
@@ -42,7 +43,7 @@ const TimelineHeader = ({ activePill, onPillChange }) => {
             </div>
 
             <div className="timeline-pills">
-                {pills.map((pill) => (
+                {displayPills.map((pill) => (
                     <button
                         key={pill}
                         className={`time-pill ${activePill === pill ? 'time-pill--active' : ''}`}

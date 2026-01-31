@@ -38,8 +38,10 @@ export const DEFAULT_SETTINGS = {
         chennai: { enabled: true, count: 3 },
         trichy: { enabled: true, count: 2 },
         local: { enabled: true, count: 3 },  // Muscat
-        social: { enabled: false, count: 10 },
-        entertainment: { enabled: true, count: 8 }
+        social: { enabled: true, count: 10 },
+        entertainment: { enabled: true, count: 8 },
+        business: { enabled: true, count: 10 },
+        technology: { enabled: true, count: 8 }
     },
 
     // Market settings

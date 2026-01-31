@@ -8,13 +8,15 @@ import { useNews } from '../context/NewsContext';
  * Market Dashboard
  * Displays financial indices (Simulated/Placeholder) and Business News.
  */
-function MarketPage() {
+function MarketPage({ isWidget = false }) {
     const [settings] = useState(() => getSettings());
     const { newsData, refreshNews } = useNews();
     const { market: marketSettings } = settings;
 
-    // Pull-to-Refresh Logic (Local)
+    // Pull-to-Refresh Logic (Local) - Only active if NOT a widget (full page)
     useEffect(() => {
+        if (isWidget) return;
+
         let startY = 0;
         let isPulling = false;
 
@@ -38,7 +40,7 @@ function MarketPage() {
             document.removeEventListener('touchstart', handleTouchStart);
             document.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [refreshNews]);
+    }, [refreshNews, isWidget]);
 
     // Simulated Market Data (Since no API key)
     // In future phase, replace these with fetch calls
@@ -49,64 +51,85 @@ function MarketPage() {
         { name: 'USD/INR', value: '₹83.15', change: '+0.02%', up: true, key: 'showMovers' }
     ];
 
-    const filterOldNews = (newsArray) => {
-        if (!newsArray) return [];
-        const limitMs = (settings.freshnessLimitHours || 26) * 3600000;
+    const filterOldNews = (newsArray, sectionName) => {
+        if (!newsArray) {
+            // console.log(`[MarketPage] No data for ${sectionName}`);
+            return [];
+        }
+        // Match aggregator default of 72h to avoid double-filtering valid items
+        const limitMs = (settings.freshnessLimitHours || 72) * 3600000;
         const now = Date.now();
-        return newsArray.filter(item => (now - (item.publishedAt || 0)) < limitMs);
+        const filtered = newsArray.filter(item => (now - (item.publishedAt || 0)) < limitMs);
+        return filtered;
     };
+
+    // Market Indices (Only for full page, not widget)
+    const indicesContent = (
+        <>
+            <div className="market-indices">
+                {marketIndices.map((index, idx) => (
+                    marketSettings[index.key] !== false && (
+                        <div key={idx} className="market-index">
+                            <div className="market-index__name">{index.name}</div>
+                            <div className="market-index__value">{index.value}</div>
+                            <div className={`market-index__change ${index.up ? 'market-index__change--up' : 'market-index__change--down'}`}>
+                                <span>{index.up ? '▲' : '▼'}</span>
+                                {index.change}
+                            </div>
+                        </div>
+                    )
+                ))}
+            </div>
+            <div style={{
+                fontSize: '0.7rem',
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+                marginBottom: 'var(--spacing-lg)',
+                fontStyle: 'italic'
+            }}>
+                * Indices delayed by 15 mins (Simulated for Demo)
+            </div>
+        </>
+    );
+
+    // News Sections (Shared between widget and full page)
+    const newsContent = (
+        <>
+            <NewsSection
+                title="Business & Economy"
+                icon="💼"
+                colorClass="news-section__title--india"
+                news={filterOldNews(newsData.business, 'Business')}
+                maxDisplay={isWidget ? 4 : 10}
+            />
+            <NewsSection
+                title="Tech & Startups"
+                icon="💻"
+                colorClass="news-section__title--world"
+                news={filterOldNews(newsData.technology, 'Technology')}
+                maxDisplay={isWidget ? 3 : 6}
+            />
+            <NewsSection
+                title="Social Trends"
+                icon="👥"
+                colorClass="news-section__title--social"
+                news={filterOldNews(newsData.social, 'Social')}
+                maxDisplay={isWidget ? 3 : 8}
+            />
+        </>
+    );
+
+    if (isWidget) {
+        // Widget mode: Only news sections, NO indices
+        return newsContent;
+    }
 
     return (
         <div className="page-container">
-            <Header title="Markets" icon="📈" />
-
+            <Header title="Market/Tech/Social" icon="📊" />
             <main className="main-content">
-
-                {/* Market Indices Grid */}
-                <div className="market-indices">
-                    {marketIndices.map((index, idx) => (
-                        marketSettings[index.key] !== false && (
-                            <div key={idx} className="market-index">
-                                <div className="market-index__name">{index.name}</div>
-                                <div className="market-index__value">{index.value}</div>
-                                <div className={`market-index__change ${index.up ? 'market-index__change--up' : 'market-index__change--down'}`}>
-                                    <span>{index.up ? '▲' : '▼'}</span>
-                                    {index.change}
-                                </div>
-                            </div>
-                        )
-                    ))}
-                </div>
-
-                {/* Disclaimer */}
-                <div style={{
-                    fontSize: '0.7rem',
-                    color: 'var(--text-muted)',
-                    textAlign: 'center',
-                    marginBottom: 'var(--spacing-lg)',
-                    fontStyle: 'italic'
-                }}>
-                    * Indices delayed by 15 mins (Simulated for Demo)
-                </div>
-
-                {/* Business News */}
-                <NewsSection
-                    title="Business & Economy"
-                    icon="💼"
-                    colorClass="news-section__title--india"
-                    news={filterOldNews(newsData.business)}
-                    maxDisplay={10}
-                />
-
-                {/* Technology News */}
-                <NewsSection
-                    title="Tech & Startups"
-                    icon="💻"
-                    colorClass="news-section__title--world"
-                    news={filterOldNews(newsData.technology)}
-                    maxDisplay={6}
-                />
-
+                {indicesContent}
+                {newsContent}
             </main>
         </div>
     );

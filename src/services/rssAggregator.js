@@ -50,12 +50,18 @@ const SECTION_FEEDS = {
         "https://www.muscatdaily.com/feed" // Backup (often > 48h old)
     ],
     business: [
-        GOOGLE_FEEDS.BUSINESS_IN,
-        "https://feeds.bbci.co.uk/news/business/rss.xml",
+        // "https://news.google.com/rss/search?q=Business+Economy+India&hl=en-IN&gl=IN&ceid=IN:en", // Working Replacement
+        GOOGLE_FEEDS.BUSINESS_IN_SEARCH, // Switched to search-based
+        "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+        "https://www.moneycontrol.com/rss/business.xml",
+        "https://www.livemint.com/rss/money",
+        "https://feeds.bbci.co.uk/news/business/rss.xml", // Keeps BBC as global backup
         "https://www.cnbc.com/id/10001147/device/rss/rss.html"
     ],
     technology: [
-        GOOGLE_FEEDS.TECH_IN,
+        // "https://news.google.com/rss/search?q=Technology+Startups+India&hl=en-IN&gl=IN&ceid=IN:en", // Working Replacement
+        GOOGLE_FEEDS.TECH_IN_SEARCH, // Switched to search-based
+        "https://gadgets360.com/rss/news",
         "https://techcrunch.com/feed/",
         "https://www.theverge.com/rss/index.xml"
     ],
@@ -169,25 +175,26 @@ function generateCriticsOneLiner(title, description, source) {
     const text = (title + " " + description).toLowerCase();
 
     // 1. Sector-Specific Insights
-    if (text.includes('sensex') || text.includes('nifty') || text.includes('market')) {
-        if (text.includes('record high') || text.includes('surge') || text.includes('jump')) {
+    if (/\bsensex\b|\bnifty\b|\bmarket\b/i.test(text)) {
+        if (/\brecord high\b|\bsurge\b|\bjump\b/i.test(text)) {
             return `Bullish sentiment prevails as key indices hit significant milestones; analysts watch for profit booking.`;
         }
-        if (text.includes('slump') || text.includes('crash') || text.includes('drop')) {
+        if (/\bslump\b|\bcrash\b|\bdrop\b/i.test(text)) {
             return `Market volatility spikes amid global cues; institutional investors remain cautious.`;
         }
         return `Financial observers highlight the underlying strength despite mixed global signals in the equity space.`;
     }
 
-    if (text.includes('election') || text.includes('poll') || text.includes('vote')) {
+    if (/\belection\b|\bpoll\b|\bvote\b/i.test(text)) {
         return `Political strategists emphasize the shifting dynamic as latest polling data suggests a tightening race.`;
     }
 
-    if (text.includes('ai') || text.includes('artificial intelligence') || text.includes('tech')) {
+    // Strict regex for AI to avoid matching 'air', 'said', etc.
+    if (/\b(ai|artificial intelligence)\b/i.test(text) || /\btech\b/i.test(text)) {
         return `Industry experts view this as a pivotal move in the ongoing race for AI supremacy and infrastructure.`;
     }
 
-    if (text.includes('inflation') || text.includes('rbi') || text.includes('interest rate')) {
+    if (/\binflation\b|\brbi\b|\binterest rate\b/i.test(text)) {
         return `Monetary policy experts weigh the impact of fiscal pressures on long-term consumer spending patterns.`;
     }
 
@@ -201,16 +208,8 @@ function generateCriticsOneLiner(title, description, source) {
         return `This development raises critical questions about the future trajectory of the sector.`;
     }
 
-    const sentences = description.split(/[.!?]\s+/);
-    if (sentences.length > 1) {
-        // Find a better sentence than just the last one
-        const punchy = sentences.find(s => s.length > 30 && s.length < 120 && !s.toLowerCase().includes('click here'));
-        if (punchy) return punchy.trim() + (punchy.endsWith('.') ? '' : '.');
-    }
-
-    // 4. Default fallbacks (Made more professional)
-    if (source === 'Google News') return "Strategic analysis suggests this coverage reflects a broader trend in current affairs.";
-    return `Early indicators from ${source} point towards a significant shift in the regional narrative.`;
+    // 4. No generic fallback - return null to hide component
+    return null;
 }
 
 function computeImpactScore(item, section) {

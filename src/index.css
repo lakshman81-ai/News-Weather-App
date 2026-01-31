@@ -1480,3 +1480,191 @@ body {
   max-width: 600px;
   margin: 0 auto;
 }
+
+/* ==========================================================================
+   DESKTOP & WEB VIEW OPTIMIZATIONS (Global)
+   ========================================================================== */
+
+/* DESKTOP/WEB VIEW (min-width: 1024px) */
+@media (min-width: 1024px) {
+    html {
+        font-size: 16px;  /* Reduce from 18px for desktop for better density */
+    }
+
+    /* Expand max-width significantly */
+    .page-container--desktop.main-page,
+    .page-container--desktop {
+        padding: 0;
+        margin-top: 60px; /* Space for top nav */
+        max-width: 100%;
+    }
+
+    .main-content--desktop {
+        max-width: 1200px;  /* Expand from 600px */
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 320px 1fr;  /* Sidebar + content */
+        gap: var(--spacing-lg);
+        padding: var(--spacing-lg);
+    }
+
+    /* QuickWeather becomes sticky sidebar */
+    .main-content--desktop .quick-weather {
+        position: sticky;
+        top: 80px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        margin: 0;
+        grid-column: 1;
+        z-index: 10;
+        scrollbar-width: thin;
+    }
+
+    /* News sections expand to main column */
+    .news-sections--grid {
+        grid-column: 2;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);  /* 2 column news grid */
+        gap: var(--spacing-md);
+    }
+    
+    /* Ensure cards take full height in grid */
+    .news-sections--grid .card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Bottom nav repositions to top as horizontal navbar */
+    .bottom-nav--desktop {
+        position: fixed;
+        bottom: auto;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        padding: 0 var(--spacing-xl);
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: center;
+        gap: var(--spacing-lg);
+        background: rgba(10, 13, 17, 0.85); /* Proper glass background */
+        backdrop-filter: blur(12px);
+        border-top: none;
+        border-bottom: 1px solid var(--border-default);
+        z-index: 1000;
+        width: 100%;
+    }
+
+    .bottom-nav--desktop .bottom-nav__item {
+        width: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--radius-md);
+    }
+    
+    .bottom-nav--desktop .bottom-nav__item:hover {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .bottom-nav--desktop .bottom-nav__icon {
+        margin-bottom: 0;
+        font-size: 1.2rem;
+    }
+
+    .bottom-nav--desktop .bottom-nav__label {
+        font-size: 0.9rem;
+        display: inline; 
+    }
+
+    /* TimelineHeader full-width but less height */
+    .timeline-header {
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+
+    /* Market grid expands to 4 columns */
+    .market-indices {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* Settings page wider */
+    .settings-page.settings-page--desktop {
+        max-width: 800px;
+        margin: 0 auto;
+        padding-top: 40px;
+    }
+
+    /* Weather grid expands */
+    .weather-grid {
+        grid-template-columns: 100px repeat(3, 1fr);  /* Corrected to 4 cols: Header + 3 Cities */
+    }
+}
+
+/* LARGE DESKTOP (min-width: 1440px) */
+@media (min-width: 1440px) {
+    .main-content--desktop {
+        grid-template-columns: 360px 1fr;
+        max-width: 1600px;
+    }
+
+    .news-sections--grid {
+        grid-template-columns: repeat(3, 1fr);  /* 3 columns for more content */
+    }
+}
+
+
+/* ==========================================================================
+   MOBILE OPTIMIZATIONS (CLASSIC Mode Only)
+   ========================================================================== */
+   
+html {
+    --spacing-xs-mobile: 3px;
+    --font-headline-mobile: 1rem;
+    --font-label-mobile: 0.8rem;
+    --font-weather-mobile: 1.1rem;
+}
+
+/* Extra small phones (320-340px) - CLASSIC MODE ONLY */
+@media (max-width: 340px) {
+    /* Scoped to mode-classic to affect ONLY Classic view */
+    .page-container.mode-classic,
+    .mode-classic {
+        /* Base font adjustment handled via component overrides to avoid breaking rems globally */
+    }
+    
+    .mode-classic .page-container {
+        padding: 12px;
+    }
+
+    .mode-classic .card {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .mode-classic .news-item {
+        padding: 12px;
+        gap: 6px;
+    }
+
+    .mode-classic .news-item__headline {
+        font-size: var(--font-headline-mobile); /* 1rem / 16px */
+        line-height: 1.3;
+        font-weight: 600;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* Limit to 2 lines */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .mode-classic .news-item__summary {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    .mode-classic .weather-temp {
+        font-size: var(--font-weather-mobile);
+    }
+}
+
