@@ -6,12 +6,13 @@ import { getWeatherTimeBlocks } from '../utils/timeSegment';
  * Displays weather for Chennai, Trichy, Muscat with:
  * - 3 time rows (Morning/Noon/Evening based on current time)
  * - Temperature with feels-like
- * - Rain probability (averaged from 3 sources)
+ * - Rain probability (averaged from 3 models with confidence indicator)
  * - Rain amount in mm
- * - Per-location summaries (3-4 lines each)
- * - Severe weather styling when applicable
+ * - Enhanced metrics: UV, Humidity, Wind, Cloud Cover
+ * - Per-location summaries
+ * - Model source attribution
  */
-function WeatherCard({ weatherData, }) {
+function WeatherCard({ weatherData }) {
     const timeBlocks = getWeatherTimeBlocks();
     const cities = ['chennai', 'trichy', 'muscat'];
 
@@ -20,6 +21,33 @@ function WeatherCard({ weatherData, }) {
     const severeAlert = cities.find(city => weatherData[city]?.alert)
         ? weatherData[cities.find(city => weatherData[city]?.alert)]?.alert
         : null;
+
+    // Get UV index color class
+    const getUVClass = (uvIndex) => {
+        if (uvIndex == null) return '';
+        if (uvIndex <= 2) return 'uv-low';
+        if (uvIndex <= 5) return 'uv-moderate';
+        if (uvIndex <= 7) return 'uv-high';
+        if (uvIndex <= 10) return 'uv-very-high';
+        return 'uv-extreme';
+    };
+
+    const getUVLabel = (uvIndex) => {
+        if (uvIndex == null) return 'N/A';
+        if (uvIndex <= 2) return 'Low';
+        if (uvIndex <= 5) return 'Moderate';
+        if (uvIndex <= 7) return 'High';
+        if (uvIndex <= 10) return 'Very High';
+        return 'Extreme';
+    };
+
+    // Get wind direction arrow
+    const getWindDirection = (degrees) => {
+        if (degrees == null) return '';
+        const directions = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'];
+        const index = Math.round(((degrees % 360) / 45)) % 8;
+        return directions[index];
+    };
 
     return (
         <section className={`weather-section ${hasSevereWeather ? 'weather-section--severe' : ''}`}>
@@ -65,15 +93,39 @@ function WeatherCard({ weatherData, }) {
                                         <div className="weather-icon">{data.icon}</div>
                                         <div className="weather-temp">{data.temp}°C</div>
                                         <div className="weather-feels">Feels {data.feelsLike}°</div>
+
+                                        {/* Enhanced Rainfall Display with Consensus Indicator */}
                                         <div className="weather-rain">
-                                            <span className="weather-rain-prob">
-                                                🌧️ {data.rainProb?.avg ?? 0}%
+                                            <span className={`weather-rain-prob ${data.rainProb?.isWideRange ? 'rain-uncertain' : 'rain-confident'}`}>
+                                                {data.rainProb?.isWideRange && <span className="rain-warning-icon">⚠️ </span>}
+                                                🌧️ {data.rainProb?.displayString || '~0%'}
                                             </span>
-                                            {data.rainProb?.range && (
-                                                <span className="weather-rain-mm">({data.rainProb.range})</span>
-                                            )}
-                                            {data.rainMm && data.rainMm !== '0mm' && (
+                                            {data.rainMm && data.rainMm !== '0.0mm' && (
                                                 <span className="weather-rain-mm">{data.rainMm}</span>
+                                            )}
+                                        </div>
+
+                                        {/* Additional Metrics */}
+                                        <div className="weather-extra-metrics">
+                                            {data.humidity != null && (
+                                                <div className="weather-metric">
+                                                    💧 {data.humidity}%
+                                                </div>
+                                            )}
+                                            {data.windSpeed != null && (
+                                                <div className="weather-metric">
+                                                    🌬️ {data.windSpeed} km/h
+                                                </div>
+                                            )}
+                                            {data.uvIndex != null && (
+                                                <div className={`weather-metric ${getUVClass(data.uvIndex)}`}>
+                                                    ☀️ UV {data.uvIndex}
+                                                </div>
+                                            )}
+                                            {data.cloudCover != null && (
+                                                <div className="weather-metric">
+                                                    ☁️ {data.cloudCover}%
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -105,6 +157,17 @@ function WeatherCard({ weatherData, }) {
                                     color: 'var(--text-primary)'
                                 }}>
                                     {weatherData[city]?.name}
+                                    {weatherData[city]?.current?.humidity != null && (
+                                        <span style={{
+                                            marginLeft: '8px',
+                                            fontSize: '0.75rem',
+                                            color: 'var(--text-muted)',
+                                            fontWeight: 400
+                                        }}>
+                                            💧 {weatherData[city].current.humidity}% •
+                                            🌬️ {weatherData[city].current.windSpeed || 0} km/h {getWindDirection(weatherData[city].current.windDirection)}
+                                        </span>
+                                    )}
                                 </div>
                                 <span style={{ lineHeight: 1.6 }}>
                                     {weatherData[city]?.summary || 'Weather summary not available.'}
@@ -112,13 +175,47 @@ function WeatherCard({ weatherData, }) {
                             </div>
                         </div>
                     ))}
+
+                    {/* Multi-Model Attribution Footer */}
                     <div style={{
                         fontSize: '0.7rem',
                         color: 'var(--text-muted)',
                         textAlign: 'right',
-                        marginTop: '8px'
+                        marginTop: '12px',
+                        padding: '8px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
                     }}>
-                        Source: Open-Meteo High-Resolution Model
+                        <div>
+                            <strong>Multi-Model Forecast:</strong> Averaged from{' '}
+                            {weatherData.chennai?.models?.count || 3} weather model
+                            {(weatherData.chennai?.models?.count || 3) > 1 ? 's' : ''}
+                        </div>
+                        <div className="weather-model-badge">
+                            {weatherData.chennai?.models?.names || 'ECMWF, GFS, ICON'}
+                        </div>
+                    </div>
+
+                    {/* Rainfall Consensus Legend */}
+                    <div style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--text-muted)',
+                        marginTop: '8px',
+                        padding: '6px 8px',
+                        background: 'var(--bg-tertiary)',
+                        borderRadius: 'var(--radius-sm)',
+                        borderLeft: '3px solid var(--accent-primary)'
+                    }}>
+                        <strong>Rainfall Indicator:</strong>
+                        <span style={{ marginLeft: '6px' }}>
+                            <span className="rain-confident">~</span> = Models agree (±30%)
+                        </span>
+                        <span style={{ marginLeft: '12px' }}>
+                            <span className="rain-uncertain">⚠️ !</span> = Wide range (&gt;30% spread)
+                        </span>
                     </div>
                 </div>
 

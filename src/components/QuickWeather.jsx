@@ -3,7 +3,7 @@ import { useWeather } from '../context/WeatherContext';
 
 /**
  * Quick Weather Widget
- * Compact weather display for Timeline UI.
+ * Compact weather display for Timeline UI with multi-model data
  */
 const QuickWeather = ({ activePill = 'Morning' }) => {
     const { weatherData, loading, error } = useWeather();
@@ -16,11 +16,9 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
     if (!data) return null;
 
     // Map Time Pill to Data Key
-    // Default to 'current' if no match, though usually we map to morning/noon/evening
     let timeKey = 'morning';
     let summaryPrefix = "Start your day with";
 
-    // Explicit mapping to handle potential case sensitivity or extra pill types
     const pill = activePill;
     if (pill === 'Morning') {
         timeKey = 'morning';
@@ -39,7 +37,6 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
         summaryPrefix = "Tomorrow midday will be";
     }
 
-    // Fallback to current if specific slot is missing (safety)
     // Handle nested keys like 'tomorrow.morning'
     let displayData;
     if (timeKey.includes('.')) {
@@ -82,21 +79,53 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
 
                 <div className="qw-details">
                     <span className="qw-feels">Feels like {displayData.feelsLike}°C</span>
-                    {/* Display Rich Rain Data */}
-                    {displayData.rain ? (
-                        <span>
-                            Rain: {displayData.rain.totalMm}mm  ({displayData.rain.probBg}% avg)
+
+                    {/* Enhanced Rain Display with Multi-Model Consensus */}
+                    {displayData.rainProb ? (
+                        <span className={displayData.rainProb.isWideRange ? 'rain-uncertain' : 'rain-confident'}>
+                            {displayData.rainProb.isWideRange && '⚠️ '}
+                            Rain: {displayData.rainProb.displayString}
+                            {displayData.rainMm && displayData.rainMm !== '0.0mm' && ` • ${displayData.rainMm}`}
                         </span>
                     ) : (
-                        <span>Rain: {displayData.rainProb?.avg ?? 0}%</span>
+                        <span>Rain: ~0%</span>
                     )}
-                    <span>Wind: 12 km/h</span> {/* Placeholder */}
+
+                    {/* Real Wind Data */}
+                    {displayData.windSpeed != null ? (
+                        <span>Wind: {displayData.windSpeed} km/h</span>
+                    ) : (
+                        <span>Wind: N/A</span>
+                    )}
+
+                    {/* Humidity */}
+                    {displayData.humidity != null && (
+                        <span>Humidity: {displayData.humidity}%</span>
+                    )}
+
+                    {/* UV Index */}
+                    {displayData.uvIndex != null && (
+                        <span>UV: {displayData.uvIndex}</span>
+                    )}
                 </div>
             </div>
 
             <div className="qw-summary">
                 {summaryPrefix} {displayData.temp}°C and {data.current.condition}. {data.summary}
             </div>
+
+            {/* Model Attribution */}
+            {data.models?.names && (
+                <div style={{
+                    fontSize: '0.65rem',
+                    color: 'var(--text-muted)',
+                    marginTop: '8px',
+                    textAlign: 'center',
+                    opacity: 0.7
+                }}>
+                    Data from {data.models.count} model{data.models.count > 1 ? 's' : ''}: {data.models.names}
+                </div>
+            )}
         </section>
     );
 };

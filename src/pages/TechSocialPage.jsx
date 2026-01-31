@@ -1,0 +1,281 @@
+import React, { useMemo } from 'react';
+import Header from '../components/Header';
+import NewsSection from '../components/NewsSection';
+import { useNews } from '../context/NewsContext';
+import { getSettings } from '../utils/storage';
+
+/**
+ * Tech & Social Page
+ * Social Trends Distribution:
+ * - 30% World
+ * - 30% India
+ * - 20% Tamil Nadu
+ * - 20% Muscat/Local
+ */
+function TechSocialPage() {
+    const { newsData, refreshNews, loading } = useNews();
+    const settings = getSettings();
+
+    const filterOldNews = (newsArray) => {
+        if (!newsArray) return [];
+        const limitMs = (settings.freshnessLimitHours || 72) * 3600000;
+        const now = Date.now();
+        return newsArray.filter(item => (now - (item.publishedAt || 0)) < limitMs);
+    };
+
+    // ============================================
+    // SOCIAL TRENDS DISTRIBUTION LOGIC
+    // 30% World, 30% India, 20% TN, 20% Muscat
+    // ============================================
+
+    const socialTrends = useMemo(() => {
+        // Keywords for each region
+        const REGION_KEYWORDS = {
+            world: ['global', 'world', 'international', 'usa', 'europe', 'uk', 'china',
+                'twitter', 'x.com', 'meta', 'tiktok', 'instagram', 'viral'],
+            india: ['india', 'indian', 'bollywood', 'cricket', 'modi', 'delhi',
+                'mumbai', 'bangalore', 'hyderabad', 'ipl', 'bcci'],
+            tamilnadu: ['chennai', 'tamil', 'tamilnadu', 'kollywood', 'rajini',
+                'kamal', 'vijay', 'trichy', 'coimbatore', 'madurai', 'tn'],
+            muscat: ['muscat', 'oman', 'gulf', 'gcc', 'uae', 'dubai', 'arab',
+                'middle east', 'expat', 'omani']
+        };
+
+        // Categorize social news by region
+        const categorizeByRegion = (newsItem) => {
+            const text = (newsItem.title + ' ' + (newsItem.summary || '')).toLowerCase();
+
+            // Check Tamil Nadu first (most specific)
+            if (REGION_KEYWORDS.tamilnadu.some(kw => text.includes(kw))) {
+                return 'tamilnadu';
+            }
+            // Check Muscat/Oman
+            if (REGION_KEYWORDS.muscat.some(kw => text.includes(kw))) {
+                return 'muscat';
+            }
+            // Check India
+            if (REGION_KEYWORDS.india.some(kw => text.includes(kw))) {
+                return 'india';
+            }
+            // Default to World
+            return 'world';
+        };
+
+        // Get all social news
+        const allSocial = filterOldNews(newsData.social || []);
+
+        // Also pull from world, india, chennai sections for social trends
+        const worldNews = filterOldNews(newsData.world || []);
+        const indiaNews = filterOldNews(newsData.india || []);
+        const chennaiNews = filterOldNews(newsData.chennai || []);
+        const localNews = filterOldNews(newsData.local || []); // Muscat/Oman
+
+        // Categorize all news
+        const regionBuckets = {
+            world: [],
+            india: [],
+            tamilnadu: [],
+            muscat: []
+        };
+
+        // Add social news to appropriate buckets
+        allSocial.forEach(item => {
+            const region = categorizeByRegion(item);
+            regionBuckets[region].push({ ...item, source: 'social' });
+        });
+
+        // Add world news to world bucket (filter for social trends)
+        worldNews
+            .filter(item => item.title?.toLowerCase().includes('trend') ||
+                item.title?.toLowerCase().includes('viral') ||
+                item.title?.toLowerCase().includes('social'))
+            .forEach(item => regionBuckets.world.push({ ...item, source: 'world' }));
+
+        // Add India news to india bucket
+        indiaNews
+            .filter(item => item.title?.toLowerCase().includes('trend') ||
+                item.title?.toLowerCase().includes('viral') ||
+                item.title?.toLowerCase().includes('social'))
+            .forEach(item => regionBuckets.india.push({ ...item, source: 'india' }));
+
+        // Add Chennai news to TN bucket
+        chennaiNews.forEach(item => {
+            regionBuckets.tamilnadu.push({ ...item, source: 'chennai' });
+        });
+
+        // Add Local (Muscat) news to Muscat bucket
+        localNews.forEach(item => {
+            regionBuckets.muscat.push({ ...item, source: 'local' });
+        });
+
+        // Calculate target counts based on distribution
+        // For 10 total items: 3 world, 3 india, 2 TN, 2 muscat
+        const totalDisplay = 10;
+        const distribution = {
+            world: Math.round(totalDisplay * 0.30),      // 3
+            india: Math.round(totalDisplay * 0.30),      // 3
+            tamilnadu: Math.round(totalDisplay * 0.20),  // 2
+            muscat: Math.round(totalDisplay * 0.20)      // 2
+        };
+
+        // Build final mixed array
+        const result = [];
+
+        // Add from each bucket according to distribution
+        Object.entries(distribution).forEach(([region, count]) => {
+            const bucket = regionBuckets[region];
+            // Sort bucket by date if possible
+            bucket.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
+
+            const toAdd = bucket.slice(0, count);
+            toAdd.forEach(item => {
+                result.push({
+                    ...item,
+                    region: region,
+                    regionLabel: region === 'world' ? '🌍 World' :
+                        region === 'india' ? '🇮🇳 India' :
+                            region === 'tamilnadu' ? '🏛️ Tamil Nadu' :
+                                '🏝️ Muscat'
+                });
+            });
+        });
+
+        // Fill remaining slots if some buckets were empty
+        const remaining = totalDisplay - result.length;
+        if (remaining > 0) {
+            // Get any available news to fill gaps
+            const allAvailable = [
+                ...regionBuckets.world,
+                ...regionBuckets.india,
+                ...regionBuckets.tamilnadu,
+                ...regionBuckets.muscat
+            ].filter(item => !result.find(r => r.link === item.link));
+
+            allAvailable.slice(0, remaining).forEach(item => {
+                result.push({
+                    ...item,
+                    region: 'mixed',
+                    regionLabel: '📰 Social'
+                });
+            });
+        }
+
+        // Sort by publishedAt (newest first)
+        result.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
+
+        console.log('[TechSocialPage] Social Trends Distribution:', {
+            world: result.filter(r => r.region === 'world').length,
+            india: result.filter(r => r.region === 'india').length,
+            tamilnadu: result.filter(r => r.region === 'tamilnadu').length,
+            muscat: result.filter(r => r.region === 'muscat').length,
+            total: result.length
+        });
+
+        return result;
+    }, [newsData, settings.freshnessLimitHours]);
+
+    const handleRefresh = () => {
+        refreshNews(['technology', 'social', 'world', 'india', 'chennai', 'local']);
+    };
+
+    return (
+        <div className="page-container">
+            <Header
+                title="Tech & Social"
+                icon="💻"
+                onRefresh={handleRefresh}
+                loading={loading}
+            />
+            <main className="main-content">
+                {/* Tech Section */}
+                <NewsSection
+                    title="Tech & Startups"
+                    icon="🚀"
+                    colorClass="news-section__title--world"
+                    news={filterOldNews(newsData.technology)}
+                    maxDisplay={12}
+                />
+
+                {/* Social Trends with Distribution */}
+                <section className="news-section">
+                    <h2 className="news-section__title news-section__title--social">
+                        <span>👥</span> Social Trends
+                        <span style={{
+                            fontSize: '0.65rem',
+                            marginLeft: '8px',
+                            color: 'var(--text-muted)',
+                            fontWeight: 400
+                        }}>
+                            (30% 🌍 | 30% 🇮🇳 | 20% 🏛️ | 20% 🏝️)
+                        </span>
+                    </h2>
+
+                    <div className="news-list">
+                        {socialTrends.map((item, idx) => (
+                            <article key={idx} className="news-item">
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: '4px'
+                                }}>
+                                    <span className="news-item__region-badge" style={{
+                                        fontSize: '0.65rem',
+                                        color: 'var(--accent-secondary)',
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {item.regionLabel}
+                                    </span>
+                                    {item.region === 'tamilnadu' && <span style={{ fontSize: '0.8rem' }}>🏛️</span>}
+                                    {item.region === 'muscat' && <span style={{ fontSize: '0.8rem' }}>🏝️</span>}
+                                </div>
+
+                                <a
+                                    href={item.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="news-item__headline"
+                                >
+                                    {item.title}
+                                </a>
+
+                                {item.summary && (
+                                    <p className="news-item__summary">{item.summary}</p>
+                                )}
+
+                                <div className="news-item__meta">
+                                    <span className="news-item__source">{item.source}</span>
+                                    <span>{item.timeAgo || 'Recently'}</span>
+                                </div>
+                            </article>
+                        ))}
+
+                        {socialTrends.length === 0 && (
+                            <div className="empty-state">
+                                <p>No social trends available</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* AI & Innovation */}
+                <NewsSection
+                    title="AI & Innovation"
+                    icon="🤖"
+                    colorClass="news-section__title--entertainment"
+                    news={filterOldNews(newsData.technology?.filter(
+                        item => item.title?.toLowerCase().includes('ai') ||
+                            item.title?.toLowerCase().includes('innovation') ||
+                            item.title?.toLowerCase().includes('machine learning') ||
+                            item.title?.toLowerCase().includes('chatgpt') ||
+                            item.title?.toLowerCase().includes('gemini')
+                    ))}
+                    maxDisplay={6}
+                />
+            </main>
+        </div>
+    );
+}
+
+export default TechSocialPage;
