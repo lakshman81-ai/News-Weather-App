@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import Header from '../components/Header';
 import MutualFundCard from '../components/MutualFundCard';
 import IPOCard from '../components/IPOCard';
+import QuickMarket from '../components/QuickMarket';
+import SectionNavigator from '../components/SectionNavigator';
 import { useMarket } from '../context/MarketContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -30,6 +32,14 @@ function MarketPage() {
             minute: '2-digit'
         });
     };
+
+    // Navigation Sections
+    const navSections = [
+        { id: 'market-indices', icon: '📊', label: 'Indices' },
+        (marketSettings.showGainers !== false || marketSettings.showLosers !== false) && { id: 'market-movers', icon: '📈', label: 'Top Movers' },
+        marketSettings.showMutualFunds !== false && { id: 'mutual-funds', icon: '💰', label: 'Mutual Funds' },
+        marketSettings.showIPO !== false && { id: 'ipo-tracker', icon: '🎯', label: 'IPO Watch' }
+    ].filter(Boolean);
 
     if (loading && !marketData) {
         return (
@@ -71,6 +81,9 @@ function MarketPage() {
             />
 
             <main className="main-content market-page">
+                {/* Quick Market Overview (New Widget) */}
+                <QuickMarket />
+
                 {/* Last Updated */}
                 <div className="market-page__timestamp">
                     Last updated: {formatTime(lastFetch)}
@@ -79,7 +92,7 @@ function MarketPage() {
 
                 {/* =========== INDICES =========== */}
                 {marketSettings.showIndices !== false && (
-                    <section className="market-section">
+                    <section id="market-indices" className="market-section">
                         <h2 className="market-section__title">
                             <span>📊</span> Market Indices
                         </h2>
@@ -101,7 +114,7 @@ function MarketPage() {
 
                 {/* =========== TOP MOVERS =========== */}
                 {(marketSettings.showGainers !== false || marketSettings.showLosers !== false) && (
-                    <section className="market-section">
+                    <section id="market-movers" className="market-section">
                         <h2 className="market-section__title">
                             <span>📈</span> Top Movers
                         </h2>
@@ -144,7 +157,7 @@ function MarketPage() {
 
                 {/* =========== MUTUAL FUNDS =========== */}
                 {marketSettings.showMutualFunds !== false && (
-                    <section className="market-section">
+                    <section id="mutual-funds" className="market-section">
                         <h2 className="market-section__title">
                             <span>📊</span> Mutual Fund NAVs
                         </h2>
@@ -154,7 +167,7 @@ function MarketPage() {
 
                 {/* =========== IPO TRACKER =========== */}
                 {marketSettings.showIPO !== false && (
-                    <section className="market-section">
+                    <section id="ipo-tracker" className="market-section">
                         <h2 className="market-section__title">
                             <span>🎯</span> IPO Tracker
                         </h2>
@@ -168,6 +181,9 @@ function MarketPage() {
                     Delayed by 15 minutes. Not investment advice.
                 </div>
             </main>
+
+            {/* Floating Section Navigator */}
+            <SectionNavigator sections={navSections} />
         </div>
     );
 }

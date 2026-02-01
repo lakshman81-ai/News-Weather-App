@@ -3,11 +3,20 @@ import { useWeather } from '../context/WeatherContext';
 
 /**
  * Quick Weather Widget
- * Compact weather display for Timeline UI with multi-model data
+ * Compact weather display for Timeline UI with multi-model data.
+ * Now includes Timeline Pills (Morning/Midday/Evening) for context switching.
  */
-const QuickWeather = ({ activePill = 'Morning' }) => {
+const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'] }) => {
     const { weatherData, loading, error } = useWeather();
     const [activeCity, setActiveCity] = useState('chennai');
+
+    // Icon Mapping helper
+    const getPillIcon = (pillName) => {
+        if (pillName.includes('Morning')) return '🌅';
+        if (pillName.includes('Midday')) return '☀️';
+        if (pillName.includes('Evening')) return '🌙';
+        return pillName;
+    };
 
     if (loading) return <div className="quick-weather">Loading weather...</div>;
     if (error || !weatherData) return <div className="quick-weather">Weather unavailable</div>;
@@ -52,10 +61,30 @@ const QuickWeather = ({ activePill = 'Morning' }) => {
 
     return (
         <section className="quick-weather">
-            <div className="qw-header">
-                <div style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
-                    {pill} Weather — {data.name}
+            {/* Timeline Pills Header */}
+            <div className="qw-header" style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="qw-pills" style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>
+                    {pills.map((p) => (
+                        <button
+                            key={p}
+                            className={`time-pill ${activePill === p ? 'time-pill--active' : ''}`}
+                            onClick={() => onPillChange && onPillChange(p)}
+                            title={p}
+                            style={{
+                                padding: '4px 8px',
+                                fontSize: '1.2rem',
+                                background: activePill === p ? 'rgba(255,255,255,0.2)' : 'transparent',
+                                border: 'none',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {getPillIcon(p)}
+                        </button>
+                    ))}
                 </div>
+
                 <div className="qw-city-toggles">
                     {['chennai', 'trichy', 'muscat'].map(city => (
                         <button
