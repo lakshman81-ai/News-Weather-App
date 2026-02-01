@@ -1748,6 +1748,45 @@ body {
     grid-template-columns: 100px repeat(3, 1fr);
     /* Corrected to 4 cols: Header + 3 Cities */
   }
+
+  /* QuickWeather Desktop Overrides */
+  .quick-weather--desktop .qw-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .quick-weather--desktop .qw-pills {
+    width: 100%;
+    flex-wrap: wrap;
+    padding-bottom: 4px;
+  }
+
+  .quick-weather--desktop .qw-city-toggles {
+    width: 100%;
+    justify-content: space-between;
+    display: flex;
+  }
+
+  .quick-weather--desktop .qw-toggle {
+    flex: 1;
+    text-align: center;
+  }
+
+  /* Stack body elements (Temp & Details) vertically on desktop to fit sidebar */
+  .quick-weather--desktop .qw-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .quick-weather--desktop .qw-details {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--spacing-md);
+    width: 100%;
+  }
 }
 
 /* LARGE DESKTOP (min-width: 1440px) */

@@ -6,7 +6,7 @@ import { useWeather } from '../context/WeatherContext';
  * Compact weather display for Timeline UI with multi-model data.
  * Now includes Timeline Pills (Morning/Midday/Evening) for context switching.
  */
-const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'] }) => {
+const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'], isDesktop = false, lastUpdated, onRefresh }) => {
     const { weatherData, loading, error } = useWeather();
     const [activeCity, setActiveCity] = useState('chennai');
 
@@ -60,7 +60,37 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     if (!displayData) return null;
 
     return (
-        <section className="quick-weather">
+        <section className={`quick-weather ${isDesktop ? 'quick-weather--desktop' : ''}`}>
+            {/* Desktop Header Controls */}
+            {isDesktop && (
+                <div className="desktop-header-controls" style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-default)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '1.5rem' }}>📰</div>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>News & Weather</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        <span>{lastUpdated}</span>
+                        <button
+                            onClick={onRefresh}
+                            style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid var(--border-default)',
+                                borderRadius: '4px',
+                                color: 'var(--accent-primary)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 8px',
+                                fontWeight: '600'
+                            }}
+                        >
+                            Refresh ↻
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Timeline Pills Header */}
             <div className="qw-header" style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <div className="qw-pills" style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>

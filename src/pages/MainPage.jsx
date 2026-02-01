@@ -155,6 +155,11 @@ const MainPage = () => {
     // Determine loading state
     const isLoading = (weatherLoading && !weatherData) || (loading && Object.keys(newsData).length === 0);
 
+    const handleRefresh = () => {
+        refreshNews();
+        refreshWeather();
+    };
+
     if (isLoading) {
         return (
             <div className="main-page">
@@ -188,18 +193,20 @@ const MainPage = () => {
 
     return (
         <div className={`page-container mode-${uiMode} ${isWebView ? 'page-container--desktop' : ''}`}>
-            {/* Conditional Header Rendering */}
-            {isTimelineMode ? (
-                <TimelineHeader
-                    actions={headerActions}
-                />
-            ) : (
-                <Header
-                    title=""
-                    icon="🌅"
-                    actions={headerActions}
-                    /* Pills removed from header, moved to QuickWeather */
-                />
+            {/* Conditional Header Rendering - Hidden on Desktop */}
+            {!isWebView && (
+                isTimelineMode ? (
+                    <TimelineHeader
+                        actions={headerActions}
+                    />
+                ) : (
+                    <Header
+                        title=""
+                        icon="🌅"
+                        actions={headerActions}
+                        /* Pills removed from header, moved to QuickWeather */
+                    />
+                )
             )}
 
             <main className={`main-content ${isWebView ? 'main-content--desktop' : ''}`}>
@@ -210,6 +217,9 @@ const MainPage = () => {
                         activePill={activePill}
                         onPillChange={setActivePill}
                         pills={timelinePills}
+                        isDesktop={isWebView}
+                        lastUpdated={getTimeSinceRefresh()}
+                        onRefresh={handleRefresh}
                     />
                 )}
 
