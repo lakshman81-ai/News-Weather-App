@@ -33,6 +33,14 @@ const TimelineHeader = ({ activePill, onPillChange, pills }) => {
     const defaultPills = ['Morning', 'Midday', 'Evening'];
     const displayPills = pills || defaultPills;
 
+    // Icon Mapping
+    const getPillIcon = (pillName) => {
+        if (pillName.includes('Morning')) return '🌅';
+        if (pillName.includes('Midday')) return '☀️';
+        if (pillName.includes('Evening')) return '🌙';
+        return pillName;
+    };
+
     return (
         <header className="timeline-header">
             <h1 className="timeline-greeting">{greeting}</h1>
@@ -48,8 +56,9 @@ const TimelineHeader = ({ activePill, onPillChange, pills }) => {
                         key={pill}
                         className={`time-pill ${activePill === pill ? 'time-pill--active' : ''}`}
                         onClick={() => onPillChange(pill)}
+                        title={pill}
                     >
-                        {pill}
+                        {getPillIcon(pill)}
                     </button>
                 ))}
             </div>

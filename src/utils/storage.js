@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
     // INTERFACE
     // ========================================
     uiMode: 'timeline',  // 'timeline' | 'classic'
+    fontSize: 20,        // Default base font size
 
     // ========================================
     // DATA FRESHNESS

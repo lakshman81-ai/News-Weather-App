@@ -161,6 +161,37 @@ function SettingsPage() {
                 </section>
 
                 {/* ========================================
+                    SECTION: APPEARANCE
+                    ======================================== */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>👁️</span> Appearance
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span className="settings-item__label">Font Size</span>
+                                <span style={{ fontWeight: 'bold' }}>{settings.fontSize || 20}px</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="14"
+                                max="24"
+                                step="1"
+                                value={settings.fontSize || 20}
+                                onChange={(e) => updateSettings({ ...settings, fontSize: parseInt(e.target.value) })}
+                                style={{ width: '100%' }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                <span>Small</span>
+                                <span>Default</span>
+                                <span>Large</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ========================================
                     SECTION 2: DATA FRESHNESS
                     ======================================== */}
                 <section className="settings-section">

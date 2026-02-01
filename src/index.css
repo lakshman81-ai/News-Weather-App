@@ -232,6 +232,64 @@ body {
   color: var(--accent-primary);
 }
 
+.header__pills {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+/* Mobile Header Layout Optimization */
+@media (max-width: 480px) {
+  .header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 8px 0;
+    padding-bottom: 12px;
+  }
+
+  .header__title,
+  .header__back {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .header__actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .header__pills {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 100px;
+    padding: 4px;
+    margin: 0 auto;
+    width: fit-content;
+  }
+}
+
+.time-pill--matte {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  padding: 4px 8px;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.time-pill--matte:hover,
+.time-pill--matte.time-pill--active {
+  background: transparent;
+  border: none;
+  opacity: 1;
+  transform: scale(1.2);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
 /* ========================================
    SEGMENT BADGE
    ======================================== */
@@ -2102,4 +2160,51 @@ html {
 
 .text-danger {
   color: var(--accent-danger) !important;
+}
+
+/* ========================================
+   SECTION NAVIGATOR
+   ======================================== */
+.section-navigator {
+  position: fixed;
+  bottom: 80px;
+  /* Above bottom nav */
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 900;
+}
+
+.section-navigator__btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(18, 23, 30, 0.6);
+  /* Translucent matte */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.section-navigator__btn:hover {
+  background: var(--bg-card);
+  transform: scale(1.1);
+  border-color: var(--accent-primary);
+}
+
+@media (min-width: 1024px) {
+  .section-navigator {
+    bottom: 30px;
+    /* No bottom nav on desktop */
+    right: 30px;
+  }
 }
