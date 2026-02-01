@@ -55,6 +55,7 @@ function SettingsPage() {
     const handleSave = () => {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
+        reloadSettings(); // Trigger refresh/reload of data
     };
 
     const handleReset = () => {
@@ -96,15 +97,15 @@ function SettingsPage() {
 
     // Section configs
     const sectionConfig = [
-        { key: 'world', icon: '🌐', label: 'World News', min: 5, max: 15 },
-        { key: 'india', icon: '🇮🇳', label: 'India News', min: 5, max: 15 },
-        { key: 'chennai', icon: '🏛️', label: 'Chennai', min: 2, max: 5 },
-        { key: 'trichy', icon: '🏛️', label: 'Trichy', min: 1, max: 3 },
-        { key: 'local', icon: '📍', label: 'Muscat', min: 2, max: 5 },
-        { key: 'social', icon: '👥', label: 'Social', min: 5, max: 15 },
-        { key: 'entertainment', icon: '🎬', label: 'Entertainment', min: 3, max: 10 },
-        { key: 'business', icon: '💼', label: 'Business', min: 3, max: 10 },
-        { key: 'technology', icon: '💻', label: 'Technology', min: 3, max: 10 }
+        { key: 'world', icon: '🌐', label: 'World News' },
+        { key: 'india', icon: '🇮🇳', label: 'India News' },
+        { key: 'chennai', icon: '🏛️', label: 'Chennai' },
+        { key: 'trichy', icon: '🏛️', label: 'Trichy' },
+        { key: 'local', icon: '📍', label: 'Muscat' },
+        { key: 'social', icon: '👥', label: 'Social' },
+        { key: 'entertainment', icon: '🎬', label: 'Entertainment' },
+        { key: 'business', icon: '💼', label: 'Business' },
+        { key: 'technology', icon: '💻', label: 'Technology' }
     ];
 
     const newsSourceConfig = [
@@ -171,20 +172,20 @@ function SettingsPage() {
                         <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                 <span className="settings-item__label">Font Size</span>
-                                <span style={{ fontWeight: 'bold' }}>{settings.fontSize || 20}px</span>
+                                <span style={{ fontWeight: 'bold' }}>{settings.fontSize || 26}px</span>
                             </div>
                             <input
                                 type="range"
                                 min="14"
-                                max="24"
+                                max="34"
                                 step="1"
-                                value={settings.fontSize || 20}
+                                value={settings.fontSize || 26}
                                 onChange={(e) => updateSettings({ ...settings, fontSize: parseInt(e.target.value) })}
                                 style={{ width: '100%' }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 <span>Small</span>
-                                <span>Default</span>
+                                <span>Default (26px)</span>
                                 <span>Large</span>
                             </div>
                         </div>
@@ -289,30 +290,38 @@ function SettingsPage() {
                         <span>📰</span> News Sections
                     </h2>
                     <div className="settings-card">
-                        {sectionConfig.map(({ key, icon, label, min, max }) => (
-                            <div key={key} className="settings-item">
-                                <div className="settings-item__label">
-                                    <span>{icon}</span> {label}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {sectionConfig.map(({ key, icon, label }) => {
+                             // Default defaults: Social=25, Others=5
+                             const defaultCount = key === 'social' ? 25 : 5;
+                             // Use nullish coalescing to allow 0, but fallback to default if undefined
+                             const currentCount = settings.sections?.[key]?.count ?? defaultCount;
+
+                             return (
+                                <div key={key} className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <div className="settings-item__label">
+                                            <span>{icon}</span> {label}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{currentCount}</span>
+                                            <Toggle
+                                                checked={settings.sections?.[key]?.enabled !== false}
+                                                onChange={(val) => updateNested(`sections.${key}.enabled`, val)}
+                                            />
+                                        </div>
+                                    </div>
                                     <input
-                                        type="number"
-                                        className="settings-item__count"
-                                        min={min}
-                                        max={max}
-                                        value={settings.sections?.[key]?.count || min}
-                                        onChange={(e) => {
-                                            const val = Math.min(max, Math.max(min, parseInt(e.target.value) || min));
-                                            updateNested(`sections.${key}.count`, val);
-                                        }}
-                                    />
-                                    <Toggle
-                                        checked={settings.sections?.[key]?.enabled !== false}
-                                        onChange={(val) => updateNested(`sections.${key}.enabled`, val)}
+                                        type="range"
+                                        min="0"
+                                        max="25"
+                                        step="1"
+                                        value={currentCount}
+                                        onChange={(e) => updateNested(`sections.${key}.count`, parseInt(e.target.value))}
+                                        style={{ width: '100%' }}
                                     />
                                 </div>
-                            </div>
-                        ))}
+                             );
+                        })}
                     </div>
                 </section>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
@@ -9,14 +9,12 @@ import MarketTicker from '../components/MarketTicker';
 import SegmentBadge from '../components/SegmentBadge';
 import TimelineHeader from '../components/TimelineHeader';
 import QuickWeather from '../components/QuickWeather';
-import { getCurrentSegment, shouldShowDTNext, getTopline } from '../utils/timeSegment';
-import { getSettings, getTimeSinceRefresh, getLastRefresh } from '../utils/storage';
+import { getCurrentSegment, getTopline } from '../utils/timeSegment';
+import { getTimeSinceRefresh } from '../utils/storage';
 import { useWeather } from '../context/WeatherContext';
 import { useNews } from '../context/NewsContext';
 import { useSettings } from '../context/SettingsContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import MarketPage from './MarketPage';
-
 
 // DEBUG LOGGING SYSTEM
 const logs = [];
@@ -69,7 +67,7 @@ const MainPage = () => {
         if (!currentPills.includes(activePill)) {
             setActivePill(currentPills[0]);
         }
-    }, []); // Run once on mount, we can add a timer if needed for long sessions
+    }, []); // Run once on mount
 
     // Update logs Reactively
     useEffect(() => {
@@ -82,7 +80,7 @@ const MainPage = () => {
     const { weatherData, loading: weatherLoading, refreshWeather } = useWeather();
     const { newsData, loading, errors, breakingNews, refreshNews } = useNews();
 
-    const { sections, market: marketSettings, uiMode = 'timeline' } = settings;
+    const { sections, uiMode = 'timeline' } = settings;
 
     // Detect uiMode changes
     useEffect(() => {
@@ -168,16 +166,13 @@ const MainPage = () => {
         );
     }
 
-
-
     const isTimelineMode = uiMode === 'timeline';
 
-    // Navigation Sections for Floating Tabs
+    // Navigation Sections for Floating Tabs (Social removed)
     const navSections = [
         { id: 'world-news', icon: '🌍', label: 'World' },
         sections.india?.enabled && { id: 'india-news', icon: '🇮🇳', label: 'India' },
         sections.local?.enabled && { id: 'local-news', icon: '📍', label: 'Muscat' },
-        sections.social?.enabled && { id: 'social-trends', icon: '📈', label: 'Trends' },
         sections.entertainment?.enabled && { id: 'entertainment', icon: '🎬', label: 'Entertainment' }
     ].filter(Boolean);
 
@@ -196,26 +191,31 @@ const MainPage = () => {
             {/* Conditional Header Rendering */}
             {isTimelineMode ? (
                 <TimelineHeader
-                    activePill={activePill}
-                    onPillChange={setActivePill}
-                    pills={timelinePills}
+                    actions={headerActions}
                 />
             ) : (
                 <Header
-                    title="Daily Event AI"
+                    title=""
                     icon="🌅"
                     actions={headerActions}
-                    pills={timelinePills}
-                    activePill={activePill}
-                    onPillChange={setActivePill}
+                    /* Pills removed from header, moved to QuickWeather */
                 />
             )}
 
             <main className={`main-content ${isWebView ? 'main-content--desktop' : ''}`}>
 
                 {/* Desktop Sidebar: Weather appears here for Timeline mode */}
-                {isWebView && isTimelineMode && (
-                    <QuickWeather activePill={activePill} />
+                {isWebView && (
+                    <QuickWeather
+                        activePill={activePill}
+                        onPillChange={setActivePill}
+                        pills={timelinePills}
+                    />
+                )}
+
+                {/* Market Ticker - Visible on Main Page as requested */}
+                {!isWebView && (
+                     <MarketTicker />
                 )}
 
                 {/* Right Content Column (Corrects Grid Layout) */}
@@ -239,9 +239,14 @@ const MainPage = () => {
                         </>
                     )}
 
-                    {/* Mobile/Tablet Timeline Mode: Weather appears inline here */}
-                    {!isWebView && isTimelineMode && (
-                        <QuickWeather activePill={activePill} />
+                    {/* Mobile/Tablet: Weather appears inline here (Classic & Timeline) */}
+                    {/* User requested morning/noon/evening icons move with weather in Classic view too */}
+                    {!isWebView && (
+                        <QuickWeather
+                            activePill={activePill}
+                            onPillChange={setActivePill}
+                            pills={timelinePills}
+                        />
                     )}
 
                     {/* Stale Data Warning Banner */}
@@ -278,7 +283,7 @@ const MainPage = () => {
                             icon="🌍"
                             colorClass="news-section__title--world"
                             news={newsData.world}
-                            maxDisplay={8}
+                            maxDisplay={sections.world?.count || 5} // Dynamic
                         />
 
 
@@ -290,7 +295,7 @@ const MainPage = () => {
                                 icon="🇮🇳"
                                 colorClass="news-section__title--india"
                                 news={newsData.india}
-                                maxDisplay={sections.india.count || 10}
+                                maxDisplay={sections.india.count || 5} // Dynamic
                                 error={errors.india}
                             />
                         )}
@@ -303,7 +308,7 @@ const MainPage = () => {
                                 icon="🏛️"
                                 colorClass="news-section__title--chennai"
                                 news={newsData.chennai}
-                                maxDisplay={sections.chennai.count || 3}
+                                maxDisplay={sections.chennai.count || 5} // Dynamic
                                 error={errors.chennai}
                             />
                         )}
@@ -316,7 +321,7 @@ const MainPage = () => {
                                 icon="🏛️"
                                 colorClass="news-section__title--trichy"
                                 news={newsData.trichy}
-                                maxDisplay={sections.trichy.count || 2}
+                                maxDisplay={sections.trichy.count || 5} // Dynamic
                                 error={errors.trichy}
                             />
                         )}
@@ -329,21 +334,8 @@ const MainPage = () => {
                                 icon="📍"
                                 colorClass="news-section__title--local"
                                 news={newsData.local}
-                                maxDisplay={sections.local.count || 3}
+                                maxDisplay={sections.local.count || 5} // Dynamic
                                 error={errors.local}
-                            />
-                        )}
-
-                        {/* Social Trends */}
-                        {sections.social?.enabled && (
-                            <NewsSection
-                                id="social-trends"
-                                title={isTimelineMode ? "Social" : "Social Trends"}
-                                icon="👥"
-                                colorClass="news-section__title--social"
-                                news={newsData.social}
-                                maxDisplay={sections.social.count || 10}
-                                error={errors.social}
                             />
                         )}
 
@@ -355,7 +347,7 @@ const MainPage = () => {
                                 icon="🎬"
                                 colorClass="news-section__title--entertainment"
                                 news={newsData.entertainment}
-                                maxDisplay={sections.entertainment.count || 8}
+                                maxDisplay={sections.entertainment.count || 5} // Dynamic
                                 error={errors.entertainment}
                             />
                         )}

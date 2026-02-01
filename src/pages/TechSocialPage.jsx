@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
+import SectionNavigator from '../components/SectionNavigator';
 import { useNews } from '../context/NewsContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -109,8 +110,9 @@ function TechSocialPage() {
         });
 
         // Calculate target counts based on distribution from settings
-        // Default: 10 total items distributed by percentage
-        const totalDisplay = 10;
+        // Default: 25 (User Request)
+        const totalDisplay = settings.sections?.social?.count || 25;
+
         const socialSettings = settings.socialTrends || {
             worldPercent: 30,
             indiaPercent: 30,
@@ -169,41 +171,32 @@ function TechSocialPage() {
         // Sort by publishedAt (newest first)
         result.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
 
-        console.log('[TechSocialPage] Social Trends Distribution:', {
-            world: result.filter(r => r.region === 'world').length,
-            india: result.filter(r => r.region === 'india').length,
-            tamilnadu: result.filter(r => r.region === 'tamilnadu').length,
-            muscat: result.filter(r => r.region === 'muscat').length,
-            total: result.length
-        });
-
         return result;
-    }, [newsData, settings.freshnessLimitHours, settings.socialTrends, filterOldNews]);
+    }, [newsData, settings.freshnessLimitHours, settings.socialTrends, filterOldNews, settings.sections?.social?.count]);
 
     const handleRefresh = () => {
         refreshNews(['technology', 'social', 'world', 'india', 'chennai', 'local']);
     };
 
+    // Navigation Sections
+    const navSections = [
+        { id: 'social-trends', icon: '👥', label: 'Social Trends' },
+        { id: 'tech-news', icon: '🚀', label: 'Tech & Startups' },
+        { id: 'ai-innovation', icon: '🤖', label: 'AI & Innovation' }
+    ];
+
     return (
         <div className="page-container">
             <Header
-                title="Tech & Social"
+                title="Trends & Tech"
                 icon="💻"
                 onRefresh={handleRefresh}
                 loading={loading}
             />
             <main className="main-content">
-                {/* Tech Section */}
-                <NewsSection
-                    title="Tech & Startups"
-                    icon="🚀"
-                    colorClass="news-section__title--world"
-                    news={filterOldNews(newsData.technology)}
-                    maxDisplay={12}
-                />
 
-                {/* Social Trends with Distribution */}
-                <section className="news-section">
+                {/* Social Trends with Distribution (Moved to Top) */}
+                <section id="social-trends" className="news-section">
                     <h2 className="news-section__title news-section__title--social">
                         <span>👥</span> Social Trends
                         <span style={{
@@ -265,8 +258,19 @@ function TechSocialPage() {
                     </div>
                 </section>
 
+                {/* Tech Section */}
+                <NewsSection
+                    id="tech-news"
+                    title="Tech & Startups"
+                    icon="🚀"
+                    colorClass="news-section__title--world"
+                    news={filterOldNews(newsData.technology)}
+                    maxDisplay={settings.sections?.technology?.count || 5} // Dynamic
+                />
+
                 {/* AI & Innovation */}
                 <NewsSection
+                    id="ai-innovation"
                     title="AI & Innovation"
                     icon="🤖"
                     colorClass="news-section__title--entertainment"
@@ -280,6 +284,9 @@ function TechSocialPage() {
                     maxDisplay={6}
                 />
             </main>
+
+            {/* Floating Section Navigator */}
+            <SectionNavigator sections={navSections} />
         </div>
     );
 }

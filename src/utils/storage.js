@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS = {
     // INTERFACE
     // ========================================
     uiMode: 'timeline',  // 'timeline' | 'classic'
-    fontSize: 20,        // Default base font size
+    fontSize: 26,        // Default base font size (User requested +6 from 20)
 
     // ========================================
     // DATA FRESHNESS
@@ -39,15 +39,15 @@ export const DEFAULT_SETTINGS = {
     // NEWS SECTIONS
     // ========================================
     sections: {
-        world: { enabled: true, count: 10 },
-        india: { enabled: true, count: 10 },
-        chennai: { enabled: true, count: 3 },
-        trichy: { enabled: true, count: 2 },
-        local: { enabled: true, count: 3 },
-        social: { enabled: true, count: 10 },
-        entertainment: { enabled: true, count: 8 },
-        business: { enabled: true, count: 10 },
-        technology: { enabled: true, count: 8 }
+        world: { enabled: true, count: 5 },
+        india: { enabled: true, count: 5 },
+        chennai: { enabled: true, count: 5 },
+        trichy: { enabled: true, count: 5 },
+        local: { enabled: true, count: 5 },
+        social: { enabled: true, count: 25 }, // User requested default 25
+        entertainment: { enabled: true, count: 5 },
+        business: { enabled: true, count: 5 },
+        technology: { enabled: true, count: 5 }
     },
 
     // ========================================

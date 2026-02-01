@@ -272,6 +272,9 @@ function isSourceAllowed(sourceName, allowedSources) {
  * Fetches news for a given section.
  */
 export async function fetchSectionNews(section, limit = 10, allowedSources = null) {
+    // Optimization: If limit is 0, don't fetch anything
+    if (limit === 0) return [];
+
     const cacheKey = section;
     let items = [];
     // const cached = memoryCache.get(cacheKey);

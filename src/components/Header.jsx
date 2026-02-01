@@ -23,11 +23,12 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
             ) : (
                 <h1 className="header__title">
                     <span className="header__title-icon">{icon}</span>
-                    {title}
+                    {title && <span className="header__title-text">{title}</span>}
                 </h1>
             )}
 
-            {/* Contextual Pills (Classic Mode) */}
+            {/* Contextual Pills (Classic Mode) - REMOVED or Deprecated if pills move to weather */}
+            {/* Keeping logic for now but MainPage will stop passing pills if we want to remove them here */}
             {pills && (
                 <div className="header__pills">
                     {pills.map((pill) => (
