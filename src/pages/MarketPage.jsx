@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import MutualFundCard from '../components/MutualFundCard';
 import IPOCard from '../components/IPOCard';
 import { useMarket } from '../context/MarketContext';
+import { useSettings } from '../context/SettingsContext';
 
 /**
  * Enhanced Market Dashboard
@@ -15,6 +16,8 @@ import { useMarket } from '../context/MarketContext';
  */
 function MarketPage() {
     const { marketData, loading, error, refreshMarket, lastFetch } = useMarket();
+    const { settings } = useSettings();
+    const marketSettings = settings?.market || {};
 
     const handleRefresh = () => {
         refreshMarket();
@@ -75,77 +78,89 @@ function MarketPage() {
                 </div>
 
                 {/* =========== INDICES =========== */}
-                <section className="market-section">
-                    <h2 className="market-section__title">
-                        <span>📊</span> Market Indices
-                    </h2>
+                {marketSettings.showIndices !== false && (
+                    <section className="market-section">
+                        <h2 className="market-section__title">
+                            <span>📊</span> Market Indices
+                        </h2>
 
-                    <div className="market-indices-grid">
-                        {indices?.map((index, idx) => (
-                            <div key={idx} className={`market-index market-index--${index.direction}`}>
-                                <div className="market-index__name">{index.name}</div>
-                                <div className="market-index__value">{index.value}</div>
-                                <div className={`market-index__change market-index__change--${index.direction}`}>
-                                    {index.direction === 'up' ? '▲' : '▼'}
-                                    {index.change} ({index.changePercent}%)
+                        <div className="market-indices-grid">
+                            {indices?.map((index, idx) => (
+                                <div key={idx} className={`market-index market-index--${index.direction}`}>
+                                    <div className="market-index__name">{index.name}</div>
+                                    <div className="market-index__value">{index.value}</div>
+                                    <div className={`market-index__change market-index__change--${index.direction}`}>
+                                        {index.direction === 'up' ? '▲' : '▼'}
+                                        {index.change} ({index.changePercent}%)
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {/* =========== TOP MOVERS =========== */}
-                <section className="market-section">
-                    <h2 className="market-section__title">
-                        <span>📈</span> Top Movers
-                    </h2>
+                {(marketSettings.showGainers !== false || marketSettings.showLosers !== false) && (
+                    <section className="market-section">
+                        <h2 className="market-section__title">
+                            <span>📈</span> Top Movers
+                        </h2>
 
-                    <div className="movers-grid">
-                        {/* Gainers */}
-                        <div className="movers-column movers-column--gainers">
-                            <h3 className="movers-column__title">🔼 Top Gainers</h3>
-                            {movers?.gainers?.map((stock, idx) => (
-                                <div key={idx} className="mover-item">
-                                    <div className="mover-item__symbol">{stock.symbol}</div>
-                                    <div className="mover-item__price">₹{stock.price}</div>
-                                    <div className="mover-item__change text-success">
-                                        +{stock.changePercent}%
-                                    </div>
+                        <div className="movers-grid">
+                            {/* Gainers */}
+                            {marketSettings.showGainers !== false && (
+                                <div className="movers-column movers-column--gainers">
+                                    <h3 className="movers-column__title">🔼 Top Gainers</h3>
+                                    {movers?.gainers?.map((stock, idx) => (
+                                        <div key={idx} className="mover-item">
+                                            <div className="mover-item__symbol">{stock.symbol}</div>
+                                            <div className="mover-item__price">₹{stock.price}</div>
+                                            <div className="mover-item__change text-success">
+                                                +{stock.changePercent}%
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            )}
 
-                        {/* Losers */}
-                        <div className="movers-column movers-column--losers">
-                            <h3 className="movers-column__title">🔽 Top Losers</h3>
-                            {movers?.losers?.map((stock, idx) => (
-                                <div key={idx} className="mover-item">
-                                    <div className="mover-item__symbol">{stock.symbol}</div>
-                                    <div className="mover-item__price">₹{stock.price}</div>
-                                    <div className="mover-item__change text-danger">
-                                        {stock.changePercent}%
-                                    </div>
+                            {/* Losers */}
+                            {marketSettings.showLosers !== false && (
+                                <div className="movers-column movers-column--losers">
+                                    <h3 className="movers-column__title">🔽 Top Losers</h3>
+                                    {movers?.losers?.map((stock, idx) => (
+                                        <div key={idx} className="mover-item">
+                                            <div className="mover-item__symbol">{stock.symbol}</div>
+                                            <div className="mover-item__price">₹{stock.price}</div>
+                                            <div className="mover-item__change text-danger">
+                                                {stock.changePercent}%
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            )}
                         </div>
-                    </div>
-                </section>
+                    </section>
+                )}
 
                 {/* =========== MUTUAL FUNDS =========== */}
-                <section className="market-section">
-                    <h2 className="market-section__title">
-                        <span>📊</span> Mutual Fund NAVs
-                    </h2>
-                    <MutualFundCard funds={mutualFunds} />
-                </section>
+                {marketSettings.showMutualFunds !== false && (
+                    <section className="market-section">
+                        <h2 className="market-section__title">
+                            <span>📊</span> Mutual Fund NAVs
+                        </h2>
+                        <MutualFundCard funds={mutualFunds} />
+                    </section>
+                )}
 
                 {/* =========== IPO TRACKER =========== */}
-                <section className="market-section">
-                    <h2 className="market-section__title">
-                        <span>🎯</span> IPO Tracker
-                    </h2>
-                    <IPOCard ipoData={ipo} />
-                </section>
+                {marketSettings.showIPO !== false && (
+                    <section className="market-section">
+                        <h2 className="market-section__title">
+                            <span>🎯</span> IPO Tracker
+                        </h2>
+                        <IPOCard ipoData={ipo} />
+                    </section>
+                )}
 
                 {/* =========== DISCLAIMER =========== */}
                 <div className="market-disclaimer">

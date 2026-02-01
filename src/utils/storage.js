@@ -6,61 +6,52 @@ const STORAGE_KEYS = {
     CACHED_DATA: 'dailyEventAI_cachedData'
 };
 
-// Default settings
+// Default settings - REDESIGNED SCHEMA
 export const DEFAULT_SETTINGS = {
-    // API Keys (Removed unused placeholder keys)
-    // newsApiKey: '', // Optional: Add if implementing NewsData.io fully in future
+    // ========================================
+    // INTERFACE
+    // ========================================
+    uiMode: 'timeline',  // 'timeline' | 'classic'
 
-    // Crawler Mode: 'auto' (default), 'manual', 'scheduled', 'disabled'
-    crawlerMode: 'auto',
+    // ========================================
+    // DATA FRESHNESS
+    // ========================================
+    freshnessLimitHours: 36,
+    weatherFreshnessLimit: 4,
+    strictFreshness: true,
 
-    // UI Mode: 'timeline' (New) or 'classic' (Old)
-    uiMode: 'timeline',
-
-    // Agent Settings
-    agent: {
-        strictness: 'fail-closed',  // 'fail-closed' or 'best-effort'
-        isolationLevel: 'snapshot', // 'snapshot' or 'live'
-        enableDriftDetection: true,
-        driftThreshold: 0.3
+    // ========================================
+    // WEATHER CONFIGURATION
+    // ========================================
+    weather: {
+        models: {
+            ecmwf: true,   // European Centre (most accurate)
+            gfs: true,     // NOAA GFS (good precipitation)
+            icon: true     // DWD ICON (excellent coverage)
+        },
+        cities: ['chennai', 'trichy', 'muscat'],
+        showHumidity: true,
+        showWind: false,
     },
 
-    // Data Freshness Settings (Strict & Robust)
-    freshnessLimitHours: 36, // Set to 36h as per user request
-    weatherFreshnessLimit: 4,      // Weather max age
-    staleWarningHours: 12,         // Warning threshold
-    strictFreshness: true,         // Fail-closed mode (hide if old)
-
-    // News section toggles and counts
+    // ========================================
+    // NEWS SECTIONS
+    // ========================================
     sections: {
         world: { enabled: true, count: 10 },
         india: { enabled: true, count: 10 },
         chennai: { enabled: true, count: 3 },
         trichy: { enabled: true, count: 2 },
-        local: { enabled: true, count: 3 },  // Muscat
+        local: { enabled: true, count: 3 },
         social: { enabled: true, count: 10 },
         entertainment: { enabled: true, count: 8 },
         business: { enabled: true, count: 10 },
         technology: { enabled: true, count: 8 }
     },
 
-    // Market settings
-    market: {
-        showBSE: true,
-        showNSE: true,
-        showGainers: true,
-        showLosers: true,
-        showMovers: true
-    },
-
-    // Weather sources
-    weatherSources: {
-        accuWeather: true,
-        ecmwf: true,
-        imd: true
-    },
-
-    // News sources
+    // ========================================
+    // NEWS SOURCES
+    // ========================================
     newsSources: {
         bbc: true,
         reuters: true,
@@ -71,7 +62,6 @@ export const DEFAULT_SETTINGS = {
         dtNext: true,
         omanObserver: true,
         moneyControl: true,
-        // Entertainment sources
         variety: true,
         hollywoodReporter: true,
         bollywoodHungama: true,
@@ -80,8 +70,38 @@ export const DEFAULT_SETTINGS = {
         timesOfOman: true
     },
 
-    // Custom Feeds (Phase 7)
-    customFeeds: []
+    // ========================================
+    // MARKET SETTINGS
+    // ========================================
+    market: {
+        showIndices: true,
+        showGainers: true,
+        showLosers: true,
+        showMutualFunds: true,
+        showIPO: true,
+        cacheMinutes: 15,
+    },
+
+    // ========================================
+    // SOCIAL TRENDS DISTRIBUTION
+    // ========================================
+    socialTrends: {
+        worldPercent: 30,
+        indiaPercent: 30,
+        tamilnaduPercent: 20,
+        muscatPercent: 20,
+    },
+
+    // ========================================
+    // CUSTOM FEEDS
+    // ========================================
+    customFeeds: [],
+
+    // ========================================
+    // ADVANCED
+    // ========================================
+    crawlerMode: 'auto',
+    debugLogs: false,
 };
 
 /**

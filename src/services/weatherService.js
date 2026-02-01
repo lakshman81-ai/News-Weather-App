@@ -17,6 +17,7 @@ import {
     getSuccessfulModels,
     formatModelNames
 } from '../utils/multiModelUtils';
+import { getSettings } from '../utils/storage';
 
 // Model-specific API endpoints
 const MODELS = {
@@ -84,31 +85,34 @@ export async function fetchWeather(locationKey) {
 
     const { lat, lon } = LOCATIONS[locationKey];
 
+    // Get enabled models from settings
+    const settings = getSettings();
+    const modelSettings = settings.weather?.models || { ecmwf: true, gfs: true, icon: true };
+
+    // Filter to only enabled models
+    const enabledModelNames = Object.keys(MODELS).filter(m => modelSettings[m] !== false);
+
+    if (enabledModelNames.length === 0) {
+        console.warn('[WeatherService] No models enabled, using all models');
+        enabledModelNames.push('ecmwf', 'gfs', 'icon');
+    }
+
+    console.log(`[WeatherService] Fetching from models: ${enabledModelNames.join(', ')}`);
+
     try {
-        // Fetch all 3 models in parallel
-        const results = await Promise.allSettled([
-            fetchSingleModel('ecmwf', lat, lon),
-            fetchSingleModel('gfs', lat, lon),
-            fetchSingleModel('icon', lat, lon)
-        ]);
+        // Fetch from enabled models in parallel
+        const results = await Promise.allSettled(
+            enabledModelNames.map(model => fetchSingleModel(model, lat, lon))
+        );
 
-        // Extract successful results
-        const modelData = {
-            ecmwf: results[0].status === 'fulfilled' ? results[0].value : null,
-            gfs: results[1].status === 'fulfilled' ? results[1].value : null,
-            icon: results[2].status === 'fulfilled' ? results[2].value : null
-        };
-
-        // Log failures
-        if (results[0].status === 'rejected') {
-            console.warn('[WeatherService] ⚠️ ECMWF failed:', results[0].reason?.message);
-        }
-        if (results[1].status === 'rejected') {
-            console.warn('[WeatherService] ⚠️ GFS failed:', results[1].reason?.message);
-        }
-        if (results[2].status === 'rejected') {
-            console.warn('[WeatherService] ⚠️ ICON failed:', results[2].reason?.message);
-        }
+        // Extract successful results dynamically
+        const modelData = {};
+        enabledModelNames.forEach((modelName, index) => {
+            modelData[modelName] = results[index].status === 'fulfilled' ? results[index].value : null;
+            if (results[index].status === 'rejected') {
+                console.warn(`[WeatherService] ⚠️ ${modelName.toUpperCase()} failed:`, results[index].reason?.message);
+            }
+        });
 
         // Check if at least one model succeeded
         const successfulModels = getSuccessfulModels(modelData);
@@ -117,7 +121,7 @@ export async function fetchWeather(locationKey) {
             throw new Error('All weather models failed to fetch data');
         }
 
-        console.log(`[WeatherService] ✅ ${successfulModels.length}/3 models succeeded: ${formatModelNames(successfulModels)}`);
+        console.log(`[WeatherService] ✅ ${successfulModels.length}/${enabledModelNames.length} models succeeded: ${formatModelNames(successfulModels)}`);
 
         // Process and combine data
         return processMultiModelData(modelData, locationKey);

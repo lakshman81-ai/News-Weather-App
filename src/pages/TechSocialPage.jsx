@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
 import { useNews } from '../context/NewsContext';
-import { getSettings } from '../utils/storage';
+import { useSettings } from '../context/SettingsContext';
 
 /**
  * Tech & Social Page
@@ -14,14 +14,14 @@ import { getSettings } from '../utils/storage';
  */
 function TechSocialPage() {
     const { newsData, refreshNews, loading } = useNews();
-    const settings = getSettings();
+    const { settings } = useSettings();
 
-    const filterOldNews = (newsArray) => {
+    const filterOldNews = React.useCallback((newsArray) => {
         if (!newsArray) return [];
         const limitMs = (settings.freshnessLimitHours || 72) * 3600000;
         const now = Date.now();
         return newsArray.filter(item => (now - (item.publishedAt || 0)) < limitMs);
-    };
+    }, [settings.freshnessLimitHours]);
 
     // ============================================
     // SOCIAL TRENDS DISTRIBUTION LOGIC
@@ -108,14 +108,20 @@ function TechSocialPage() {
             regionBuckets.muscat.push({ ...item, source: 'local' });
         });
 
-        // Calculate target counts based on distribution
-        // For 10 total items: 3 world, 3 india, 2 TN, 2 muscat
+        // Calculate target counts based on distribution from settings
+        // Default: 10 total items distributed by percentage
         const totalDisplay = 10;
+        const socialSettings = settings.socialTrends || {
+            worldPercent: 30,
+            indiaPercent: 30,
+            tamilnaduPercent: 20,
+            muscatPercent: 20
+        };
         const distribution = {
-            world: Math.round(totalDisplay * 0.30),      // 3
-            india: Math.round(totalDisplay * 0.30),      // 3
-            tamilnadu: Math.round(totalDisplay * 0.20),  // 2
-            muscat: Math.round(totalDisplay * 0.20)      // 2
+            world: Math.round(totalDisplay * (socialSettings.worldPercent / 100)),
+            india: Math.round(totalDisplay * (socialSettings.indiaPercent / 100)),
+            tamilnadu: Math.round(totalDisplay * (socialSettings.tamilnaduPercent / 100)),
+            muscat: Math.round(totalDisplay * (socialSettings.muscatPercent / 100))
         };
 
         // Build final mixed array
@@ -172,7 +178,7 @@ function TechSocialPage() {
         });
 
         return result;
-    }, [newsData, settings.freshnessLimitHours]);
+    }, [newsData, settings.freshnessLimitHours, settings.socialTrends, filterOldNews]);
 
     const handleRefresh = () => {
         refreshNews(['technology', 'social', 'world', 'india', 'chennai', 'local']);
@@ -206,7 +212,7 @@ function TechSocialPage() {
                             color: 'var(--text-muted)',
                             fontWeight: 400
                         }}>
-                            (30% 🌍 | 30% 🇮🇳 | 20% 🏛️ | 20% 🏝️)
+                            ({settings.socialTrends?.worldPercent || 30}% 🌍 | {settings.socialTrends?.indiaPercent || 30}% 🇮🇳 | {settings.socialTrends?.tamilnaduPercent || 20}% 🏛️ | {settings.socialTrends?.muscatPercent || 20}% 🏝️)
                         </span>
                     </h2>
 
