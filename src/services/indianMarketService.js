@@ -17,8 +17,36 @@ const INDICES = {
     niftyMidcap: 'NIFTYMIDCAP150.NS'
 };
 
-// Proxy to avoid CORS (use any Yahoo Finance proxy or self-host)
-const YAHOO_PROXY = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+// Yahoo Finance API Base
+const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+// Helper to fetch with CORS proxy
+async function fetchYahooData(symbol) {
+    const targetUrl = `${YAHOO_BASE}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+
+    // Strategy 1: Direct (works in some environments/extensions)
+    try {
+        const response = await fetch(targetUrl);
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        // Ignore and try proxy
+    }
+
+    // Strategy 2: AllOrigins (CORS Proxy)
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.warn(`[MarketService] Proxy failed for ${symbol}:`, e);
+    }
+
+    throw new Error('Failed to fetch market data');
+}
 
 export async function fetchIndices() {
     console.log('[MarketService] Fetching Indian indices...');
@@ -27,9 +55,7 @@ export async function fetchIndices() {
 
     for (const [name, symbol] of Object.entries(INDICES)) {
         try {
-            const url = `${YAHOO_PROXY}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await fetchYahooData(symbol);
 
             const quote = data.chart?.result?.[0];
             if (!quote) continue;
@@ -188,9 +214,7 @@ export async function fetchTopMovers() {
     // Fetch top 15 stocks
     for (const symbol of TOP_STOCKS.slice(0, 10)) {
         try {
-            const url = `${YAHOO_PROXY}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await fetchYahooData(symbol);
 
             const quote = data.chart?.result?.[0];
             if (!quote) continue;
