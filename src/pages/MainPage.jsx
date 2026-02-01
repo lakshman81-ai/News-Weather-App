@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
+import SectionNavigator from '../components/SectionNavigator';
 import BreakingNews from '../components/BreakingNews';
 import MarketTicker from '../components/MarketTicker';
 import SegmentBadge from '../components/SegmentBadge';
@@ -171,6 +172,15 @@ const MainPage = () => {
 
     const isTimelineMode = uiMode === 'timeline';
 
+    // Navigation Sections for Floating Tabs
+    const navSections = [
+        { id: 'world-news', icon: '🌍', label: 'World' },
+        sections.india?.enabled && { id: 'india-news', icon: '🇮🇳', label: 'India' },
+        sections.local?.enabled && { id: 'local-news', icon: '📍', label: 'Muscat' },
+        sections.social?.enabled && { id: 'social-trends', icon: '📈', label: 'Trends' },
+        sections.entertainment?.enabled && { id: 'entertainment', icon: '🎬', label: 'Entertainment' }
+    ].filter(Boolean);
+
     const headerActions = (
         <div className="header__actions">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', marginRight: 'var(--spacing-sm)' }}>
@@ -191,7 +201,14 @@ const MainPage = () => {
                     pills={timelinePills}
                 />
             ) : (
-                <Header title="Daily Event AI" icon="🌅" actions={headerActions} />
+                <Header
+                    title="Daily Event AI"
+                    icon="🌅"
+                    actions={headerActions}
+                    pills={timelinePills}
+                    activePill={activePill}
+                    onPillChange={setActivePill}
+                />
             )}
 
             <main className={`main-content ${isWebView ? 'main-content--desktop' : ''}`}>
@@ -256,6 +273,7 @@ const MainPage = () => {
                     {/* News Sections */}
                     <div className="news-sections news-sections--grid">
                         <NewsSection
+                            id="world-news"
                             title="Global Updates"
                             icon="🌍"
                             colorClass="news-section__title--world"
@@ -267,6 +285,7 @@ const MainPage = () => {
                         {/* India News */}
                         {sections.india?.enabled && (
                             <NewsSection
+                                id="india-news"
                                 title={isTimelineMode ? "India" : "India News"}
                                 icon="🇮🇳"
                                 colorClass="news-section__title--india"
@@ -279,6 +298,7 @@ const MainPage = () => {
                         {/* Chennai News */}
                         {sections.chennai?.enabled && (
                             <NewsSection
+                                id="chennai-news"
                                 title={isTimelineMode ? "Tamil Nadu" : "Chennai News"}
                                 icon="🏛️"
                                 colorClass="news-section__title--chennai"
@@ -291,6 +311,7 @@ const MainPage = () => {
                         {/* Trichy News */}
                         {sections.trichy?.enabled && (
                             <NewsSection
+                                id="trichy-news"
                                 title={isTimelineMode ? "Trichy" : "Trichy News"}
                                 icon="🏛️"
                                 colorClass="news-section__title--trichy"
@@ -303,6 +324,7 @@ const MainPage = () => {
                         {/* Local News (Muscat) */}
                         {sections.local?.enabled && (
                             <NewsSection
+                                id="local-news"
                                 title={isTimelineMode ? "Local — Muscat" : "Local News (Muscat)"}
                                 icon="📍"
                                 colorClass="news-section__title--local"
@@ -315,6 +337,7 @@ const MainPage = () => {
                         {/* Social Trends */}
                         {sections.social?.enabled && (
                             <NewsSection
+                                id="social-trends"
                                 title={isTimelineMode ? "Social" : "Social Trends"}
                                 icon="👥"
                                 colorClass="news-section__title--social"
@@ -327,6 +350,7 @@ const MainPage = () => {
                         {/* Entertainment */}
                         {sections.entertainment?.enabled && (
                             <NewsSection
+                                id="entertainment"
                                 title="Entertainment"
                                 icon="🎬"
                                 colorClass="news-section__title--entertainment"
@@ -383,6 +407,9 @@ const MainPage = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Floating Section Navigator */}
+            <SectionNavigator sections={navSections} />
         </div>
     );
 }

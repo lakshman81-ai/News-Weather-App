@@ -33,6 +33,13 @@ export function SettingsProvider({ children }) {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [reloadSettings]);
 
+    // Apply font size globally
+    useEffect(() => {
+        if (settings.fontSize) {
+            document.documentElement.style.fontSize = settings.fontSize + 'px';
+        }
+    }, [settings.fontSize]);
+
     return (
         <SettingsContext.Provider value={{ settings, updateSettings, reloadSettings }}>
             {children}
