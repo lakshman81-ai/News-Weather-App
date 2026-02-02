@@ -2406,3 +2406,159 @@ html {
 .mode-newspaper .masthead__logo {
   font-family: var(--font-headline);
 }
+/* ========================================
+   NEW QUICK WEATHER (Apple/Google Style)
+   ======================================== */
+
+.quick-weather-card {
+    border-radius: 24px;
+    padding: 24px;
+    color: #ffffff;
+    margin: var(--spacing-md);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.quick-weather-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+
+/* Dynamic Gradients */
+.qw-bg-morning { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.qw-bg-day { background: linear-gradient(135deg, #00c6fb 0%, #005bea 100%); }
+.qw-bg-evening { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.qw-bg-night { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); }
+.qw-bg-rain { background: linear-gradient(135deg, #373B44 0%, #4286f4 100%); }
+
+.qw-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    z-index: 2;
+    position: relative;
+}
+
+/* Pills in Header */
+.qw-pills-row {
+    display: flex;
+    gap: 6px;
+    background: rgba(0,0,0,0.2);
+    padding: 4px;
+    border-radius: 20px;
+}
+
+.qw-pill-btn {
+    background: transparent;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: background 0.2s;
+    line-height: 1;
+}
+
+.qw-pill-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.qw-pill-btn.active {
+    background: rgba(255,255,255,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Main Display */
+.qw-main-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 0 10px;
+}
+
+.qw-temp-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.qw-temp-large {
+    font-size: 3.8rem;
+    font-weight: 300;
+    line-height: 0.9;
+    letter-spacing: -2px;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.qw-condition-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-top: 8px;
+    opacity: 0.9;
+}
+
+.qw-main-icon {
+    font-size: 4rem;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+/* Details Grid */
+.qw-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 16px;
+    padding: 16px;
+    backdrop-filter: blur(5px);
+}
+
+.qw-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.qw-detail-label {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.qw-detail-value {
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qw-summary-text {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    text-align: center;
+    opacity: 0.9;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.qw-model-badge {
+    text-align: center;
+    font-size: 0.65rem;
+    opacity: 0.6;
+    margin-top: 8px;
+}
+
+/* Mobile Tweaks */
+@media (max-width: 400px) {
+    .qw-temp-large { font-size: 3rem; }
+    .qw-main-icon { font-size: 3rem; }
+    .quick-weather-card { padding: 16px; }
+}

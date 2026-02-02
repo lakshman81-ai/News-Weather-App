@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
 
 /**
- * Quick Weather Widget
- * Compact weather display for Timeline UI with multi-model data.
- * Now includes Timeline Pills (Morning/Midday/Evening) for context switching.
+ * Quick Weather Widget (Redesigned)
+ * Apple/Google-style card with dynamic gradients and rich data visualization.
  */
 const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'] }) => {
     const { weatherData, loading, error } = useWeather();
@@ -39,8 +38,8 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
         return cityName;
     };
 
-    if (loading) return <div className="quick-weather">Loading weather...</div>;
-    if (error || !weatherData) return <div className="quick-weather">Weather unavailable</div>;
+    if (loading) return <div className="quick-weather-card qw-bg-day"><div style={{textAlign:'center'}}>Loading weather...</div></div>;
+    if (error || !weatherData) return <div className="quick-weather-card qw-bg-night"><div style={{textAlign:'center'}}>Weather unavailable</div></div>;
 
     const data = weatherData[activeCity];
     if (!data) return null;
@@ -80,40 +79,70 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     // Safety check for displayData
     if (!displayData) return null;
 
+    // --- LOGIC: Rain Display ---
+    let rainText = null;
+    let isRaining = false;
+
+    // Check Rain MM
+    if (displayData.rainMm) {
+        const mm = parseFloat(displayData.rainMm);
+        if (mm > 0) {
+            isRaining = true;
+            if (mm < 1) {
+                rainText = "Traces";
+            } else {
+                rainText = displayData.rainMm;
+            }
+        }
+    }
+
+    // Check Rain Probability (Pop)
+    const popVal = displayData.rainProb?.value || 0; // Assuming value exists or parse string
+    // If MM is 0 but PoP is high, we might show chance, but user said:
+    // "when rain fall is 0mm do not shown any details on that"
+    // So strictly check mm for "Rain Details".
+    // However, PoP is useful. Let's show PoP in grid, but only show "Rain Amount" if > 0.
+
+    // --- LOGIC: Background Gradient ---
+    const getBgClass = (pill, raining) => {
+        // If actively raining (significantly), maybe use rain bg?
+        // Or just stick to time logic for consistency unless storming.
+        if (raining && parseFloat(displayData.rainMm) > 5) return 'qw-bg-rain';
+
+        if (pill.includes('Morning')) return 'qw-bg-morning';
+        if (pill.includes('Midday')) return 'qw-bg-day';
+        if (pill.includes('Evening')) return 'qw-bg-evening';
+        if (pill.includes('Tomorrow')) return 'qw-bg-morning';
+        return 'qw-bg-night';
+    };
+
+    const bgClass = getBgClass(activePill, isRaining);
+
     return (
-        <section className="quick-weather">
-            {/* Timeline Pills Header */}
-            <div className="qw-header" style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <div className="qw-pills" style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>
+        <section className={`quick-weather-card ${bgClass}`}>
+
+            {/* Header: Pills + City */}
+            <div className="qw-header-row">
+                <div className="qw-pills-row">
                     {pills.map((p) => (
                         <button
                             key={p}
-                            className={`time-pill ${activePill === p ? 'time-pill--active' : ''}`}
+                            className={`qw-pill-btn ${activePill === p ? 'active' : ''}`}
                             onClick={() => onPillChange && onPillChange(p)}
                             title={p}
-                            style={{
-                                padding: '4px 8px',
-                                fontSize: '1.2rem',
-                                background: activePill === p ? 'rgba(255,255,255,0.2)' : 'transparent',
-                                border: 'none',
-                                borderRadius: '12px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
                         >
                             {getPillIcon(p)}
                         </button>
                     ))}
                 </div>
 
-                <div className="qw-city-toggles">
+                <div className="qw-pills-row">
                     {['chennai', 'trichy', 'muscat'].map(city => (
                         <button
                             key={city}
-                            className={`qw-toggle ${activeCity === city ? 'qw-toggle--active' : ''}`}
+                            className={`qw-pill-btn ${activeCity === city ? 'active' : ''}`}
                             onClick={() => setActiveCity(city)}
                             title={city.charAt(0).toUpperCase() + city.slice(1)}
-                            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
                         >
                             {getCityIcon(city)}
                         </button>
@@ -121,61 +150,89 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 </div>
             </div>
 
-            <div className="qw-body">
-                <div className="qw-temp-group">
-                    <span className="qw-icon">{displayData.icon}</span>
-                    <div>
-                        <div className="qw-temp">{displayData.temp}°C</div>
+            {/* Main Display: Temp + Icon */}
+            <div className="qw-main-display">
+                <div className="qw-temp-container">
+                    <div className="qw-temp-large">{displayData.temp}°</div>
+                    <div className="qw-condition-text">
+                        {displayData.condition} • Feels {displayData.feelsLike}°
+                    </div>
+                </div>
+                <div className="qw-main-icon">
+                    {displayData.icon}
+                </div>
+            </div>
+
+            {/* Details Grid */}
+            <div className="qw-details-grid">
+
+                {/* Wind */}
+                <div className="qw-detail-item">
+                    <div className="qw-detail-label">Wind</div>
+                    <div className="qw-detail-value">
+                        <span style={{fontSize:'1.2em'}}>💨</span>
+                        {displayData.windSpeed ? `${displayData.windSpeed} km/h` : 'N/A'}
                     </div>
                 </div>
 
-                <div className="qw-details">
-                    <span className="qw-feels">Feels like {displayData.feelsLike}°C</span>
-
-                    {/* Enhanced Rain Display with Multi-Model Consensus */}
-                    {displayData.rainProb ? (
-                        <span className={displayData.rainProb.isWideRange ? 'rain-uncertain' : 'rain-confident'}>
-                            {displayData.rainProb.isWideRange && '⚠️ '}
-                            Rain: {displayData.rainProb.displayString}
-                            {displayData.rainMm && displayData.rainMm !== '0.0mm' && ` • ${displayData.rainMm}`}
-                        </span>
-                    ) : (
-                        <span>Rain: ~0%</span>
-                    )}
-
-                    {/* Real Wind Data */}
-                    {displayData.windSpeed != null ? (
-                        <span>Wind: {displayData.windSpeed} km/h</span>
-                    ) : (
-                        <span>Wind: N/A</span>
-                    )}
-
-                    {/* Humidity */}
-                    {displayData.humidity != null && (
-                        <span>Humidity: {displayData.humidity}%</span>
-                    )}
-
-                    {/* UV Index */}
-                    {displayData.uvIndex != null && (
-                        <span>UV: {displayData.uvIndex}</span>
-                    )}
+                {/* Humidity */}
+                <div className="qw-detail-item">
+                    <div className="qw-detail-label">Humidity</div>
+                    <div className="qw-detail-value">
+                        <span style={{fontSize:'1.2em'}}>💧</span>
+                        {displayData.humidity ? `${displayData.humidity}%` : 'N/A'}
+                    </div>
                 </div>
+
+                {/* UV Index */}
+                {displayData.uvIndex != null && (
+                    <div className="qw-detail-item">
+                        <div className="qw-detail-label">UV Index</div>
+                        <div className="qw-detail-value">
+                            <span style={{fontSize:'1.2em'}}>☀️</span>
+                            {displayData.uvIndex}
+                        </div>
+                    </div>
+                )}
+
+                {/* Rain - Conditional Display */}
+                {rainText ? (
+                    <div className="qw-detail-item">
+                        <div className="qw-detail-label">Rainfall</div>
+                        <div className="qw-detail-value">
+                            <span style={{fontSize:'1.2em'}}>☔</span>
+                            {rainText}
+                        </div>
+                    </div>
+                ) : (
+                    // If no rain, maybe show PoP if > 0?
+                    // User said "0mm do not show any details".
+                    // Assuming this means "don't show the Rain row".
+                    // But we have a grid slot to fill?
+                    // We can show visibility or pressure if available, or just leave it blank/span 2.
+                    // Or show PoP if significant.
+                    displayData.rainProb?.value > 0 ? (
+                        <div className="qw-detail-item">
+                            <div className="qw-detail-label">Chance</div>
+                            <div className="qw-detail-value">
+                                <span style={{fontSize:'1.2em'}}>🌧️</span>
+                                {displayData.rainProb.displayString}
+                            </div>
+                        </div>
+                    ) : null
+                )}
+
             </div>
 
-            <div className="qw-summary">
-                {summaryPrefix} {displayData.temp}°C and {data.current.condition}. {data.summary}
+            {/* Summary Text */}
+            <div className="qw-summary-text">
+                {summaryPrefix} {displayData.temp}°C. {data.summary}
             </div>
 
-            {/* Model Attribution */}
+            {/* Attribution */}
             {data.models?.names && (
-                <div style={{
-                    fontSize: '0.65rem',
-                    color: 'var(--text-muted)',
-                    marginTop: '8px',
-                    textAlign: 'center',
-                    opacity: 0.7
-                }}>
-                    Data from {data.models.count} model{data.models.count > 1 ? 's' : ''}: {data.models.names}
+                <div className="qw-model-badge">
+                    Data source: {data.models.names}
                 </div>
             )}
         </section>

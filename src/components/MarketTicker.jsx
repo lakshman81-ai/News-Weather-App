@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchIndices, fetchCommodities, fetchCurrencyRates } from '../services/indianMarketService';
 import './MarketTicker.css';
 
 const MarketTicker = () => {
     const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const scrollRef = useRef(null);
+    const isPaused = useRef(false);
 
     useEffect(() => {
         const loadMarkets = async () => {
@@ -38,12 +40,66 @@ const MarketTicker = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // Auto-scroll logic with speed control
+    useEffect(() => {
+        let animationFrameId;
+        let lastTimestamp = 0;
+        const speed = 40; // pixels per second
+        let accumulator = 0;
+
+        const scroll = (timestamp) => {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            if (scrollRef.current && !isPaused.current) {
+                const move = (speed * deltaTime) / 1000;
+                accumulator += move;
+
+                // Only write to DOM when we have at least 1 pixel to move
+                if (accumulator >= 1) {
+                    const pixelsToMove = Math.floor(accumulator);
+                    accumulator -= pixelsToMove;
+
+                    const { scrollLeft, scrollWidth } = scrollRef.current;
+
+                    // Reset if passed halfway point (infinite loop illusion)
+                    if (scrollLeft >= scrollWidth / 2) {
+                         scrollRef.current.scrollLeft = 0;
+                    } else {
+                         scrollRef.current.scrollLeft += pixelsToMove;
+                    }
+                }
+            } else {
+                // If paused, reset timestamp to prevent jumps on resume
+                lastTimestamp = timestamp;
+            }
+            animationFrameId = requestAnimationFrame(scroll);
+        };
+
+        const timeoutId = setTimeout(() => {
+            animationFrameId = requestAnimationFrame(scroll);
+        }, 1000);
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+            clearTimeout(timeoutId);
+        };
+    }, [markets]);
+
     if (loading || markets.length === 0) return null;
 
     return (
         <div className="market-ticker-container">
             <div className="ticker-label">MARKETS</div>
-            <div className="ticker-track-wrapper">
+            <div
+                className="ticker-track-wrapper"
+                ref={scrollRef}
+                onMouseEnter={() => isPaused.current = true}
+                onMouseLeave={() => isPaused.current = false}
+                onTouchStart={() => isPaused.current = true}
+                onTouchEnd={() => isPaused.current = false}
+            >
                 <div className="ticker-track">
                     {/* Double the list for infinite scroll effect */}
                     {[...markets, ...markets].map((item, index) => (

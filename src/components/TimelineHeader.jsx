@@ -1,15 +1,15 @@
 import React from 'react';
 
 /**
- * Timeline Header (Simplified)
- * Just displays the App Icon and Actions (Last Updated / Refresh).
- * Contextual Pills moved to QuickWeather.
+ * Timeline Header
+ * Displays the Current Segment info as the title.
  */
-const TimelineHeader = ({ actions }) => {
+const TimelineHeader = ({ title, icon, actions }) => {
     return (
-        <header className="timeline-header">
-            <h1 className="header__title">
-                <span className="header__title-icon">🌅</span>
+        <header className="header timeline-header">
+            <h1 className="header__title" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
+                <span className="header__title-icon">{icon}</span>
+                <span>{title}</span>
             </h1>
 
             {actions}
