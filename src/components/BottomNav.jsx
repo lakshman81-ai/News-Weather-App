@@ -8,6 +8,7 @@ function BottomNav() {
 
     const navItems = [
         { path: '/', label: 'Main', icon: '🏠' },
+        { path: '/newspaper', label: 'Paper', icon: '📰' },
         { path: '/markets', label: 'Market', icon: '📈' },
         { path: '/tech-social', label: 'Buzz Hub', icon: '🎭' },
         { path: '/weather', label: 'Weather', icon: '☁️' },

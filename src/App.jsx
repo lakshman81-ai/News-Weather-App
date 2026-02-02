@@ -4,6 +4,7 @@ import MainPage from './pages/MainPage';
 import WeatherPage from './pages/WeatherPage';
 import MarketPage from './pages/MarketPage';
 import TechSocialPage from './pages/TechSocialPage';
+import NewspaperPage from './pages/NewspaperPage';
 import SettingsPage from './pages/SettingsPage';
 import RefreshPage from './pages/RefreshPage';
 import BottomNav from './components/BottomNav';
@@ -26,6 +27,7 @@ function App() {
                   <Route path="/weather" element={<WeatherPage />} />
                   <Route path="/markets" element={<MarketPage />} />
                   <Route path="/tech-social" element={<TechSocialPage />} />
+                  <Route path="/newspaper" element={<NewspaperPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/refresh" element={<RefreshPage />} />
                 </Routes>
