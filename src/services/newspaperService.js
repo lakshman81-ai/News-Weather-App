@@ -31,22 +31,23 @@ export const fetchTheHinduPaper = async () => {
 
     const sections = [];
 
-    // Strategy 1: Look for .element (Classic layout)
-    const elements = doc.querySelectorAll('.element, .story-card');
+    // Expanded Selector list for modern Hindu layout
+    // Includes .story-card-33 etc which are used for lead stories
+    const elements = doc.querySelectorAll('.element, .story-card, .story-card-33, .story-card-75, .lead-story, .article, .story');
     let currentSectionTitle = 'Front Page';
     let currentArticles = [];
     let lastPageNum = '';
 
     elements.forEach(el => {
-        const titleEl = el.querySelector('h3.title a, .story-card-news a');
-        const blurbEl = el.querySelector('.sub-text a, .story-card-news h3');
-        const pageNumEl = el.querySelector('.page-num, .page-no');
+        // Expanded Title Selectors to catch different layouts
+        const titleEl = el.querySelector('h3.title a, .story-card-news a, .story-title a, .headline a, h3 a');
+        const blurbEl = el.querySelector('.sub-text a, .story-card-news h3, .story-card-33 h3, .deck');
+        const pageNumEl = el.querySelector('.page-num, .page-no, .page-number');
 
         if (titleEl) {
             const pageNum = pageNumEl ? cleanText(pageNumEl.textContent) : '';
 
-            // Check if this article belongs to Page 1 or 2 (Front Pages)
-            // Or if it's a new section
+            // Switch Section Logic
             if (pageNum && pageNum !== lastPageNum) {
                 if (currentArticles.length > 0) {
                     sections.push({ title: currentSectionTitle, articles: currentArticles });
@@ -60,7 +61,8 @@ export const fetchTheHinduPaper = async () => {
             const link = titleEl.href;
             const blurb = blurbEl ? cleanText(blurbEl.textContent) : '';
 
-            if (title && link) {
+            // Deduplication
+            if (title && link && !currentArticles.find(a => a.link === link)) {
                 currentArticles.push({ title, link, blurb });
             }
         }
@@ -70,12 +72,12 @@ export const fetchTheHinduPaper = async () => {
         sections.push({ title: currentSectionTitle, articles: currentArticles });
     }
 
-    // Strategy 2: If empty, try the new "Section" based layout
+    // Strategy 2: If empty, try the new "Section" based layout (Archive/New Layout)
     if (sections.length === 0) {
-        const sectionContainers = doc.querySelectorAll('.section-container, .tpaper-section');
+        const sectionContainers = doc.querySelectorAll('.section-container, .tpaper-section, .archive-list');
         sectionContainers.forEach(container => {
-             const titleNode = container.querySelector('h2, .section-heading');
-             const articlesNodes = container.querySelectorAll('a.story-card-news, .element a');
+             const titleNode = container.querySelector('h2, .section-heading, .section-header');
+             const articlesNodes = container.querySelectorAll('a.story-card-news, .element a, .archive-list a');
 
              if (titleNode && articlesNodes.length > 0) {
                  const title = cleanText(titleNode.textContent);
@@ -101,22 +103,20 @@ export const fetchTheHinduPaper = async () => {
 
 export const fetchIndianExpressPaper = async () => {
   try {
-    // Strategy: Fetch "Latest News" or "Nation" as Todays Paper might be behind paywall/structure change
-    // But let's try the print-order page first if it exists
     const html = await fetchWithProxy('https://indianexpress.com/todays-paper/');
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
     const sections = [];
-    const sectionDivs = doc.querySelectorAll('.jobs_section, .section-container, .t-paper-sec, .section');
+    const sectionDivs = doc.querySelectorAll('.jobs_section, .section-container, .t-paper-sec, .section, .ie-rest-stories');
 
     if (sectionDivs.length > 0) {
          sectionDivs.forEach(div => {
-             const h2 = div.querySelector('h2, .section-title, .heading');
+             const h2 = div.querySelector('h2, .section-title, .heading, .title');
              if (h2) {
                  const title = cleanText(h2.textContent);
                  const articles = [];
-                 const items = div.querySelectorAll('li, .article-list-item, .story');
+                 const items = div.querySelectorAll('li, .article-list-item, .story, .ev-story');
 
                  items.forEach(li => {
                      const a = li.querySelector('h3 a') || li.querySelector('a');
@@ -133,15 +133,15 @@ export const fetchIndianExpressPaper = async () => {
          });
     }
 
-    // FALLBACK: If "Today's Paper" scraping failed (likely due to layout change),
-    // fetch the "Latest News" page which mimics the front page feed.
+    // FALLBACK 1: Latest News
     if (sections.length === 0) {
         console.warn('Indian Express Todays Paper empty, falling back to Latest News...');
         const fallbackHtml = await fetchWithProxy('https://indianexpress.com/latest-news/');
         const fallbackDoc = parser.parseFromString(fallbackHtml, 'text/html');
 
         const latestArticles = [];
-        const articleNodes = fallbackDoc.querySelectorAll('.nation .articles, .articles .title a, .story h3 a');
+        // Expanded selectors for latest news
+        const articleNodes = fallbackDoc.querySelectorAll('.nation .articles, .articles .title a, .story h3 a, .ue-card-title a, .m-article-landing__title a');
 
         articleNodes.forEach(a => {
             if (a.textContent && a.href) {
@@ -155,6 +155,30 @@ export const fetchIndianExpressPaper = async () => {
 
         if (latestArticles.length > 0) {
             sections.push({ title: 'Latest Stories (Fallback)', articles: latestArticles.slice(0, 20) });
+        }
+    }
+
+    // FALLBACK 2: India Section (If Latest News also fails or returns 0)
+    if (sections.length === 0) {
+        console.warn('Fallback 1 failed, trying India Section...');
+        const indiaHtml = await fetchWithProxy('https://indianexpress.com/section/india/');
+        const indiaDoc = parser.parseFromString(indiaHtml, 'text/html');
+
+        const indiaArticles = [];
+        const nodes = indiaDoc.querySelectorAll('.articles .title a, .story h3 a, .m-article-landing__title a');
+
+        nodes.forEach(a => {
+            if (a.textContent && a.href) {
+                indiaArticles.push({
+                    title: cleanText(a.textContent),
+                    link: a.href,
+                    blurb: ''
+                });
+            }
+        });
+
+        if (indiaArticles.length > 0) {
+             sections.push({ title: 'India News (Fallback)', articles: indiaArticles.slice(0, 20) });
         }
     }
 

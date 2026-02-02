@@ -6,11 +6,11 @@ import NewsSection from '../components/NewsSection';
 import SectionNavigator from '../components/SectionNavigator';
 import BreakingNews from '../components/BreakingNews';
 import MarketTicker from '../components/MarketTicker';
-import SegmentBadge from '../components/SegmentBadge';
 import TimelineHeader from '../components/TimelineHeader';
 import QuickWeather from '../components/QuickWeather';
 import { NewspaperLayout } from '../components/NewspaperLayout';
 import { getTopline } from '../utils/timeSegment';
+import { generateTopline } from '../utils/toplineGenerator';
 import { getTimeSinceRefresh } from '../utils/storage';
 import { useWeather } from '../context/WeatherContext';
 import { useNews } from '../context/NewsContext';
@@ -49,6 +49,7 @@ const MainPage = () => {
     const [activePill, setActivePill] = useState('Morning');
     const [vLog, setVLog] = useState([...logs]);
     const [notifPermission, setNotifPermission] = useState(Notification.permission);
+    const [toplineContent, setToplineContent] = useState(null);
 
     // Responsive Detection
     const { isWebView, isDesktop } = useMediaQuery();
@@ -84,6 +85,13 @@ const MainPage = () => {
         }
 
     }, [currentSegment.id, refreshNews, refreshWeather]);
+
+    // Generate Topline when data is ready
+    useEffect(() => {
+        if (!loading && !weatherLoading) {
+            setToplineContent(generateTopline(newsData, weatherData));
+        }
+    }, [loading, weatherLoading, newsData, weatherData]);
 
     // Request Notification Permission on Mount (interaction usually required)
     const handleRequestPermission = async () => {
@@ -200,9 +208,7 @@ const MainPage = () => {
 
     const headerActions = (
         <div className="header__actions">
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', marginRight: 'var(--spacing-sm)' }}>
-                {currentSegment.label}
-            </div>
+            {/* Consolidated segment info into Title, removed redundant text here */}
             <Link to="/refresh" className="header__action-btn">🔄</Link>
             <Link to="/settings" className="header__action-btn">⚙️</Link>
         </div>
@@ -213,9 +219,17 @@ const MainPage = () => {
 
             {/* Header: Displays Current Segment Label */}
             {isTimelineMode ? (
-                <TimelineHeader actions={headerActions} />
+                <TimelineHeader
+                    title={currentSegment.label}
+                    icon={currentSegment.icon}
+                    actions={headerActions}
+                />
             ) : (
-                <Header title="" icon="🌅" actions={headerActions} />
+                <Header
+                    title={currentSegment.label}
+                    icon={currentSegment.icon}
+                    actions={headerActions}
+                />
             )}
 
             <main className={`main-content ${isWebView ? 'main-content--desktop' : ''}`}>
@@ -234,54 +248,20 @@ const MainPage = () => {
 
                 <div className="content-wrapper">
 
-                    {/* Active Segment Banner (Mobile) */}
-                    <div className="segment-banner" style={{
-                        background: isUrgentMode ? '#330000' : 'var(--bg-card)',
-                        padding: '10px',
-                        marginBottom: '15px',
-                        borderRadius: '8px',
-                        borderLeft: isUrgentMode ? '4px solid red' : '4px solid var(--accent-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                    }}>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                            <span style={{fontSize:'1.5em'}}>{currentSegment.icon}</span>
-                            <div>
-                                <div style={{fontSize:'0.8em', textTransform:'uppercase', color:'var(--text-muted)'}}>Current Segment</div>
-                                <div style={{fontWeight:'bold'}}>{currentSegment.label}</div>
-                            </div>
-                        </div>
-                        {notifPermission !== 'granted' && (
-                            <button
-                                onClick={handleRequestPermission}
-                                style={{
-                                    background: 'var(--accent-primary)',
-                                    color: '#000',
-                                    border: 'none',
-                                    borderRadius: '20px',
-                                    padding: '5px 12px',
-                                    fontSize: '0.7em',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                🔔 Enable Alerts
-                            </button>
-                        )}
-                    </div>
-
                     {/* Classic Mode Features */}
                     {!isTimelineMode && (
                         <>
                             <div className="topline">
-                                <div className="topline__label">TOPLINE</div>
-                                <div className="topline__text">{getTopline(currentSegment)}</div>
-                                <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
-                                    SEGMENT: {currentSegment?.label} (Published)
+                                <div className="topline__label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>{toplineContent?.icon || '📰'}</span>
+                                    <span>{toplineContent?.type || 'TOPLINE'}</span>
                                 </div>
-                            </div>
-                            <div style={{ marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>
-                                <SegmentBadge segment={currentSegment} />
+                                <div className="topline__text">
+                                    {toplineContent?.text || getTopline(currentSegment)}
+                                </div>
+                                <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                    {toplineContent?.type === 'FLASHBACK' ? 'ON THIS DAY' : `SEGMENT: ${currentSegment?.label}`}
+                                </div>
                             </div>
                             <BreakingNews items={breakingNews} />
                         </>

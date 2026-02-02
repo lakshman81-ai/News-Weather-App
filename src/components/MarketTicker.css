@@ -22,31 +22,41 @@
     letter-spacing: 0.05em;
     z-index: 2;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .ticker-track-wrapper {
     flex-grow: 1;
-    overflow: hidden;
+    overflow-x: auto; /* Enable native scrolling */
     height: 100%;
-    position: relative;
+    display: flex;
+    align-items: center;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    cursor: grab;
+}
+
+.ticker-track-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.ticker-track-wrapper:active {
+    cursor: grabbing;
 }
 
 .ticker-track {
     display: flex;
     align-items: center;
     height: 100%;
-    animation: scroll 40s linear infinite;
     white-space: nowrap;
-}
-
-.ticker-track:hover {
-    animation-play-state: paused;
+    /* Animation removed in favor of JS scrolling */
 }
 
 .ticker-item {
     display: inline-flex;
     align-items: center;
     margin-right: 32px;
+    flex-shrink: 0;
 }
 
 .ticker-name {
@@ -71,16 +81,6 @@
 
 .ticker-change.negative {
     color: #f87171;
-}
-
-@keyframes scroll {
-    0% {
-        transform: translateX(0);
-    }
-
-    100% {
-        transform: translateX(-50%);
-    }
 }
 
 /* Mobile Tweaks */
