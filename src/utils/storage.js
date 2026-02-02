@@ -113,6 +113,14 @@ export const DEFAULT_SETTINGS = {
     customFeeds: [],
 
     // ========================================
+    // MANUAL OVERRIDES (Phase 2 & 8)
+    // ========================================
+    sectionOverrides: {
+        // Map of articleID -> sectionName
+        // e.g. "hash123": "chennai"
+    },
+
+    // ========================================
     // NEWSPAPER MODE SETTINGS (Phase 7)
     // ========================================
     newspaper: {
