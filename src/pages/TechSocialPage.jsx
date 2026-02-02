@@ -110,27 +110,18 @@ function TechSocialPage() {
             regionBuckets.muscat.push({ ...item, source: 'local' });
         });
 
-        // Calculate target counts based on distribution from settings
-        // Default: 25 (User Request)
-        const totalDisplay = settings.sections?.social?.count || 25;
-
-        const socialSettings = settings.socialTrends || {
-            worldPercent: 30,
-            indiaPercent: 30,
-            tamilnaduPercent: 20,
-            muscatPercent: 20
-        };
+        // Get target counts from settings (defaults if missing)
         const distribution = {
-            world: Math.round(totalDisplay * (socialSettings.worldPercent / 100)),
-            india: Math.round(totalDisplay * (socialSettings.indiaPercent / 100)),
-            tamilnadu: Math.round(totalDisplay * (socialSettings.tamilnaduPercent / 100)),
-            muscat: Math.round(totalDisplay * (socialSettings.muscatPercent / 100))
+            world: settings.socialTrends?.worldCount ?? 8,
+            india: settings.socialTrends?.indiaCount ?? 8,
+            tamilnadu: settings.socialTrends?.tamilnaduCount ?? 5,
+            muscat: settings.socialTrends?.muscatCount ?? 4
         };
 
         // Build final mixed array
         const result = [];
 
-        // Add from each bucket according to distribution
+        // Add from each bucket according to counts
         Object.entries(distribution).forEach(([region, count]) => {
             const bucket = regionBuckets[region];
             // Sort bucket by date if possible
@@ -148,26 +139,6 @@ function TechSocialPage() {
                 });
             });
         });
-
-        // Fill remaining slots if some buckets were empty
-        const remaining = totalDisplay - result.length;
-        if (remaining > 0) {
-            // Get any available news to fill gaps
-            const allAvailable = [
-                ...regionBuckets.world,
-                ...regionBuckets.india,
-                ...regionBuckets.tamilnadu,
-                ...regionBuckets.muscat
-            ].filter(item => !result.find(r => r.link === item.link));
-
-            allAvailable.slice(0, remaining).forEach(item => {
-                result.push({
-                    ...item,
-                    region: 'mixed',
-                    regionLabel: '📰 Social'
-                });
-            });
-        }
 
         // Sort by publishedAt (newest first)
         result.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
@@ -201,9 +172,6 @@ function TechSocialPage() {
                 <section id="entertainment" className="news-section entertainment-hub">
                     <h2 className="news-section__title news-section__title--entertainment">
                         <span>🎬</span> Entertainment
-                        <span className="distribution-hint">
-                            ({settings.entertainment?.tamilPercent || 40}% 🎭 | {settings.entertainment?.hindiPercent || 35}% 🎪 | {settings.entertainment?.hollywoodPercent || 15}% 🎬 | {settings.entertainment?.ottPercent || 10}% 📺)
-                        </span>
                     </h2>
 
                     <div className="entertainment-tabs">
@@ -211,13 +179,13 @@ function TechSocialPage() {
                             className={`ent-tab ${activeEntTab === 'tamil' ? 'ent-tab--active' : ''}`}
                             onClick={() => setActiveEntTab('tamil')}
                         >
-                            🎭 Tamil/Kollywood
+                            🎭 Tamil
                         </button>
                         <button
                             className={`ent-tab ${activeEntTab === 'hindi' ? 'ent-tab--active' : ''}`}
                             onClick={() => setActiveEntTab('hindi')}
                         >
-                            🎪 Hindi/Bollywood
+                            🎪 Hindi
                         </button>
                         <button
                             className={`ent-tab ${activeEntTab === 'hollywood' ? 'ent-tab--active' : ''}`}
@@ -229,7 +197,7 @@ function TechSocialPage() {
                             className={`ent-tab ${activeEntTab === 'ott' ? 'ent-tab--active' : ''}`}
                             onClick={() => setActiveEntTab('ott')}
                         >
-                            📺 OTT/Streaming
+                            📺 OTT
                         </button>
                     </div>
 
@@ -242,7 +210,12 @@ function TechSocialPage() {
                                 activeEntTab === 'hindi' ? '🎪' :
                                     activeEntTab === 'hollywood' ? '🎬' : '📺'}
                             news={filterOldNews(newsData.entertainment || [])}
-                            maxDisplay={8}
+                            maxDisplay={
+                                activeEntTab === 'tamil' ? (settings.entertainment?.tamilCount ?? 5) :
+                                    activeEntTab === 'hindi' ? (settings.entertainment?.hindiCount ?? 5) :
+                                        activeEntTab === 'hollywood' ? (settings.entertainment?.hollywoodCount ?? 3) :
+                                            (settings.entertainment?.ottCount ?? 2)
+                            }
                             hideTitle
                         />
                     </div>
@@ -252,14 +225,6 @@ function TechSocialPage() {
                 <section id="social-trends" className="news-section">
                     <h2 className="news-section__title news-section__title--social">
                         <span>👥</span> Social Trends
-                        <span style={{
-                            fontSize: '0.65rem',
-                            marginLeft: '8px',
-                            color: 'var(--text-muted)',
-                            fontWeight: 400
-                        }}>
-                            ({settings.socialTrends?.worldPercent || 30}% 🌍 | {settings.socialTrends?.indiaPercent || 30}% 🇮🇳 | {settings.socialTrends?.tamilnaduPercent || 20}% 🏛️ | {settings.socialTrends?.muscatPercent || 20}% 🏝️)
-                        </span>
                     </h2>
 
                     <div className="news-list">

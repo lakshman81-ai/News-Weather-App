@@ -1,11 +1,22 @@
 import React from 'react';
 import { NewspaperMasthead } from './NewspaperMasthead';
 import { ImageCard } from './ImageCard';
+import { useSettings } from '../context/SettingsContext';
 import './NewspaperLayout.css';
 
 export function NewspaperLayout({ newsData, breakingNews, settings }) {
+    const { settings: globalSettings } = useSettings();
+
     // Get all articles and filter ones with images
-    const allArticles = Object.values(newsData).flat();
+    // Filter by enabled sections first AND limit by count
+    const allArticles = Object.entries(newsData)
+        .filter(([key, _]) => globalSettings?.sections?.[key]?.enabled !== false)
+        .map(([key, articles]) => {
+            const limit = globalSettings?.sections?.[key]?.count;
+            return (typeof limit === 'number') ? articles.slice(0, limit) : articles;
+        })
+        .flat();
+
     const articlesWithImages = allArticles.filter(article => article.imageUrl);
     const articlesWithoutImages = allArticles.filter(article => !article.imageUrl);
 
