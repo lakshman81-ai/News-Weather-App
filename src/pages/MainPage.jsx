@@ -9,6 +9,7 @@ import MarketTicker from '../components/MarketTicker';
 import SegmentBadge from '../components/SegmentBadge';
 import TimelineHeader from '../components/TimelineHeader';
 import QuickWeather from '../components/QuickWeather';
+import { NewspaperLayout } from '../components/NewspaperLayout';
 import { getCurrentSegment, getTopline } from '../utils/timeSegment';
 import { getTimeSinceRefresh } from '../utils/storage';
 import { useWeather } from '../context/WeatherContext';
@@ -167,6 +168,7 @@ const MainPage = () => {
     }
 
     const isTimelineMode = uiMode === 'timeline';
+    const isNewspaperMode = uiMode === 'newspaper';
 
     // Navigation Sections for Floating Tabs (Social removed)
     const navSections = [
@@ -198,7 +200,7 @@ const MainPage = () => {
                     title=""
                     icon="🌅"
                     actions={headerActions}
-                    /* Pills removed from header, moved to QuickWeather */
+                /* Pills removed from header, moved to QuickWeather */
                 />
             )}
 
@@ -215,7 +217,7 @@ const MainPage = () => {
 
                 {/* Market Ticker - Visible on Main Page as requested */}
                 {!isWebView && (
-                     <MarketTicker />
+                    <MarketTicker />
                 )}
 
                 {/* Right Content Column (Corrects Grid Layout) */}
@@ -275,83 +277,94 @@ const MainPage = () => {
                         </div>
                     )}
 
-                    {/* News Sections */}
-                    <div className="news-sections news-sections--grid">
-                        <NewsSection
-                            id="world-news"
-                            title="Global Updates"
-                            icon="🌍"
-                            colorClass="news-section__title--world"
-                            news={newsData.world}
-                            maxDisplay={sections.world?.count || 5} // Dynamic
+                    {/* Newspaper Mode Layout (Phase 7) */}
+                    {isNewspaperMode ? (
+                        <NewspaperLayout
+                            newsData={newsData}
+                            breakingNews={breakingNews}
+                            settings={settings.newspaper}
                         />
+                    ) : (
+                        <>
+                            {/* News Sections (Timeline/Classic modes) */}
+                            <div className="news-sections news-sections--grid">
+                                <NewsSection
+                                    id="world-news"
+                                    title="Global Updates"
+                                    icon="🌍"
+                                    colorClass="news-section__title--world"
+                                    news={newsData.world}
+                                    maxDisplay={sections.world?.count || 5} // Dynamic
+                                />
 
 
-                        {/* India News */}
-                        {sections.india?.enabled && (
-                            <NewsSection
-                                id="india-news"
-                                title={isTimelineMode ? "India" : "India News"}
-                                icon="🇮🇳"
-                                colorClass="news-section__title--india"
-                                news={newsData.india}
-                                maxDisplay={sections.india.count || 5} // Dynamic
-                                error={errors.india}
-                            />
-                        )}
+                                {/* India News */}
+                                {sections.india?.enabled && (
+                                    <NewsSection
+                                        id="india-news"
+                                        title={isTimelineMode ? "India" : "India News"}
+                                        icon="🇮🇳"
+                                        colorClass="news-section__title--india"
+                                        news={newsData.india}
+                                        maxDisplay={sections.india.count || 5} // Dynamic
+                                        error={errors.india}
+                                    />
+                                )}
 
-                        {/* Chennai News */}
-                        {sections.chennai?.enabled && (
-                            <NewsSection
-                                id="chennai-news"
-                                title={isTimelineMode ? "Tamil Nadu" : "Chennai News"}
-                                icon="🏛️"
-                                colorClass="news-section__title--chennai"
-                                news={newsData.chennai}
-                                maxDisplay={sections.chennai.count || 5} // Dynamic
-                                error={errors.chennai}
-                            />
-                        )}
+                                {/* Chennai News */}
+                                {sections.chennai?.enabled && (
+                                    <NewsSection
+                                        id="chennai-news"
+                                        title={isTimelineMode ? "Tamil Nadu" : "Chennai News"}
+                                        icon="🏛️"
+                                        colorClass="news-section__title--chennai"
+                                        news={newsData.chennai}
+                                        maxDisplay={sections.chennai.count || 5} // Dynamic
+                                        error={errors.chennai}
+                                    />
+                                )}
 
-                        {/* Trichy News */}
-                        {sections.trichy?.enabled && (
-                            <NewsSection
-                                id="trichy-news"
-                                title={isTimelineMode ? "Trichy" : "Trichy News"}
-                                icon="🏛️"
-                                colorClass="news-section__title--trichy"
-                                news={newsData.trichy}
-                                maxDisplay={sections.trichy.count || 5} // Dynamic
-                                error={errors.trichy}
-                            />
-                        )}
+                                {/* Trichy News */}
+                                {sections.trichy?.enabled && (
+                                    <NewsSection
+                                        id="trichy-news"
+                                        title={isTimelineMode ? "Trichy" : "Trichy News"}
+                                        icon="🏛️"
+                                        colorClass="news-section__title--trichy"
+                                        news={newsData.trichy}
+                                        maxDisplay={sections.trichy.count || 5} // Dynamic
+                                        error={errors.trichy}
+                                    />
+                                )}
 
-                        {/* Local News (Muscat) */}
-                        {sections.local?.enabled && (
-                            <NewsSection
-                                id="local-news"
-                                title={isTimelineMode ? "Local — Muscat" : "Local News (Muscat)"}
-                                icon="📍"
-                                colorClass="news-section__title--local"
-                                news={newsData.local}
-                                maxDisplay={sections.local.count || 5} // Dynamic
-                                error={errors.local}
-                            />
-                        )}
+                                {/* Local News (Muscat) */}
+                                {sections.local?.enabled && (
+                                    <NewsSection
+                                        id="local-news"
+                                        title={isTimelineMode ? "Local — Muscat" : "Local News (Muscat)"}
+                                        icon="📍"
+                                        colorClass="news-section__title--local"
+                                        news={newsData.local}
+                                        maxDisplay={sections.local.count || 5} // Dynamic
+                                        error={errors.local}
+                                    />
+                                )}
 
-                        {/* Entertainment */}
-                        {sections.entertainment?.enabled && (
-                            <NewsSection
-                                id="entertainment"
-                                title="Entertainment"
-                                icon="🎬"
-                                colorClass="news-section__title--entertainment"
-                                news={newsData.entertainment}
-                                maxDisplay={sections.entertainment.count || 5} // Dynamic
-                                error={errors.entertainment}
-                            />
-                        )}
-                    </div>
+                                {/* Entertainment */}
+                                {sections.entertainment?.enabled && (
+                                    <NewsSection
+                                        id="entertainment"
+                                        title="Entertainment"
+                                        icon="🎬"
+                                        colorClass="news-section__title--entertainment"
+                                        news={newsData.entertainment}
+                                        maxDisplay={sections.entertainment.count || 5} // Dynamic
+                                        error={errors.entertainment}
+                                    />
+                                )}
+                            </div>
+                        </>
+                    )}
 
                     {/* Self-Check Summary */}
                     <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>

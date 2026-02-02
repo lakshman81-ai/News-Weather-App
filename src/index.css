@@ -1,5 +1,5 @@
 /* Google Fonts Import - must be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;900&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
   /* Color Palette - Dark Theme Improved Contrast */
@@ -2131,4 +2131,144 @@ html {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ========================================
+   PHASE 7B: MODE-SPECIFIC STYLING
+   ======================================== */
+
+/* --- TIMELINE MODE ENHANCEMENTS --- */
+.mode-timeline {
+  --font-headline: 'Outfit', 'Inter', sans-serif;
+}
+
+.mode-timeline .news-section {
+  position: relative;
+  padding-left: 30px;
+}
+
+/* Vertical Timeline Line */
+.mode-timeline .news-section::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary), transparent);
+  border-radius: 2px;
+}
+
+/* Timeline Dots for Each Item */
+.mode-timeline .news-item {
+  position: relative;
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid transparent;
+  margin-bottom: var(--spacing-md);
+  transition: all var(--transition-base);
+}
+
+.mode-timeline .news-item::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 20px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-secondary);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  z-index: 1;
+}
+
+.mode-timeline .news-item:first-child::before {
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px var(--accent-primary);
+}
+
+.mode-timeline .news-item:hover {
+  border-left-color: var(--accent-primary);
+  background: var(--bg-card-hover);
+  transform: translateX(4px);
+}
+
+.mode-timeline .news-item__headline {
+  font-family: var(--font-headline);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-md);
+}
+
+.mode-timeline .news-section__title {
+  font-family: var(--font-headline);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* --- CLASSIC MODE ENHANCEMENTS --- */
+.mode-classic {
+  --font-headline: 'Inter', sans-serif;
+  --bg-primary: #0D1117;
+  /* Slightly darker "blueprint" feel */
+}
+
+.mode-classic .news-sections--grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+@media (max-width: 768px) {
+  .mode-classic .news-sections--grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mode-classic .news-item {
+  padding: var(--spacing-sm);
+  background: transparent;
+  border-bottom: 1px solid var(--border-default);
+  border-radius: 0;
+}
+
+.mode-classic .news-item__headline {
+  font-weight: 700;
+  line-height: 1.2;
+  border-left: 2px solid var(--accent-primary);
+  padding-left: 8px;
+}
+
+.mode-classic .news-section__title {
+  background: var(--bg-secondary);
+  padding: var(--spacing-md);
+  margin: calc(var(--spacing-md) * -1);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 3px solid var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: var(--font-size-sm);
+}
+
+/* --- NEWSPAPER MODE ENHANCEMENTS --- */
+.mode-newspaper {
+  --font-headline: 'Playfair Display', 'Georgia', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+.mode-newspaper .zone-title {
+  font-family: var(--font-headline);
+}
+
+.mode-newspaper .image-card__headline {
+  font-family: var(--font-headline);
+}
+
+.mode-newspaper .masthead__logo {
+  font-family: var(--font-headline);
 }

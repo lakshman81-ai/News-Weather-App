@@ -156,13 +156,27 @@ function SettingsPage() {
                             <div className="settings-item__label">
                                 <span>Home Layout</span>
                                 <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                                    {settings.uiMode === 'timeline' ? 'Timeline Navigator' : 'Classic Dashboard'}
+                                    {settings.uiMode === 'timeline' && 'Timeline Navigator - Chronological feed'}
+                                    {settings.uiMode === 'classic' && 'Classic Dashboard - Dense information'}
+                                    {settings.uiMode === 'newspaper' && 'Newspaper Layout - Visual & image-rich'}
                                 </small>
                             </div>
-                            <Toggle
-                                checked={settings.uiMode === 'timeline'}
-                                onChange={(val) => updateSettings({ ...settings, uiMode: val ? 'timeline' : 'classic' })}
-                            />
+                            <select
+                                value={settings.uiMode || 'timeline'}
+                                onChange={(e) => updateSettings({ ...settings, uiMode: e.target.value })}
+                                style={{
+                                    padding: '8px 12px',
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-default)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--text-primary)',
+                                    fontSize: 'var(--font-size-sm)'
+                                }}
+                            >
+                                <option value="timeline">📱 Timeline</option>
+                                <option value="classic">📊 Classic</option>
+                                <option value="newspaper">📰 Newspaper</option>
+                            </select>
                         </div>
                     </div>
                 </section>

@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS = {
     // ========================================
     // INTERFACE
     // ========================================
-    uiMode: 'timeline',  // 'timeline' | 'classic'
+    uiMode: 'timeline',  // 'timeline' | 'classic' | 'newspaper'
     fontSize: 26,        // Default base font size (User requested +6 from 20)
 
     // ========================================
@@ -111,6 +111,16 @@ export const DEFAULT_SETTINGS = {
     // CUSTOM FEEDS
     // ========================================
     customFeeds: [],
+
+    // ========================================
+    // NEWSPAPER MODE SETTINGS (Phase 7)
+    // ========================================
+    newspaper: {
+        enableImages: true,        // Fetch images from RSS enclosures
+        headlinesCount: 3,         // Stories in headlines zone
+        leadsCount: 6,             // Stories in section leads
+        briefsCount: 12,           // Stories in briefs section
+    },
 
     // ========================================
     // ADVANCED / PERFORMANCE

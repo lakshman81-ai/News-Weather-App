@@ -489,6 +489,34 @@ function normalizeItem(item, feedSource, section = 'general') {
     const articleId = hash(item.link || item.guid || item.title);
     const description = item.description || "";
 
+    // NEW - Phase 7: Image Extraction
+    let imageUrl = null;
+
+    // Method 1: RSS enclosure (most common)
+    if (item.enclosure && item.enclosure.url) {
+        imageUrl = item.enclosure.url;
+    }
+    // Method 2: media:thumbnail (MediaRSS)
+    else if (item.thumbnail) {
+        imageUrl = item.thumbnail;
+    }
+    // Method 3: media:content
+    else if (item['media:content'] && item['media:content'].url) {
+        imageUrl = item['media:content'].url;
+    }
+    // Method 4: Extract from description HTML
+    else if (description.includes('<img')) {
+        const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+        if (imgMatch) {
+            imageUrl = imgMatch[1];
+        }
+    }
+
+    // Validate image URL
+    if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = null; // Reject invalid URLs
+    }
+
     const isFinanceRelated = ['business', 'market'].includes(section) ||
         /\b(stock|market|shares|trading|sensex|nifty|bank|economy|crypto|ipo|revenue|profit)\b/i.test(item.title + description);
 
@@ -516,7 +544,8 @@ function normalizeItem(item, feedSource, section = 'general') {
             comparative: sentimentData.comparative,
             titleSentiment: sentimentData.titleSentiment,
             descriptionSentiment: sentimentData.descriptionSentiment
-        } : null
+        } : null,
+        imageUrl: imageUrl  // NEW - Phase 7
     };
 }
 
