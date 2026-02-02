@@ -123,6 +123,13 @@ export const DEFAULT_SETTINGS = {
     },
 
     // ========================================
+    // SCORING & PERSONALIZATION (NEW)
+    // ========================================
+    enableNewScoring: true,      // Master switch for new 9-factor scoring
+    enableProximityScoring: false, // Boost local news (default OFF)
+    followedTopics: [],          // Keywords for Currency Scorer
+
+    // ========================================
     // ADVANCED / PERFORMANCE
     // ========================================
     enableCache: true,         // NEW - Phase 6: Enable memory cache for faster loads
