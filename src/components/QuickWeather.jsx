@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
 
 /**
@@ -8,7 +8,21 @@ import { useWeather } from '../context/WeatherContext';
  */
 const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'] }) => {
     const { weatherData, loading, error } = useWeather();
-    const [activeCity, setActiveCity] = useState('chennai');
+    const [activeCity, setActiveCity] = useState(() => {
+        try {
+            return localStorage.getItem('weather_active_city') || 'chennai';
+        } catch (e) {
+            return 'chennai';
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('weather_active_city', activeCity);
+        } catch (e) {
+            // Ignore storage errors
+        }
+    }, [activeCity]);
 
     // Icon Mapping helper
     const getPillIcon = (pillName) => {

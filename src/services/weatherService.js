@@ -234,9 +234,9 @@ function processMultiModelData(modelData, locationName) {
 
         let rainDisplay = totalRainVal.toFixed(1) + 'mm';
 
-        // Trace Logic: If rain < 0.1mm AND any probability, return "Trace"
-        if (totalRainVal < 0.1 && rainfallConsensus && rainfallConsensus.max > 0) {
-            rainDisplay = 'Trace';
+        // Display '-' if rainfall is negligible (< 1mm)
+        if (totalRainVal < 1.0) {
+            rainDisplay = '-';
         }
 
         // Get representative weather code (most common)

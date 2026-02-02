@@ -339,7 +339,6 @@ export async function fetchCurrencyRates() {
     const currencies = [
         { name: 'USD/INR', symbol: 'INR=X' },
         { name: 'EUR/INR', symbol: 'EURINR=X' },
-        { name: 'AED/INR', symbol: 'AEDINR=X' },
         { name: 'OMR/INR', symbol: 'OMRINR=X' }
     ];
 

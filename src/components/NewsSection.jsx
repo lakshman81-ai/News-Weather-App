@@ -17,7 +17,8 @@ function NewsSection({
     news = [],
     maxDisplay = 3,
     showExpand = true,
-    error = null
+    error = null,
+    extraContent = null
 }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -109,6 +110,8 @@ function NewsSection({
                     </span>
                 )}
             </h2>
+
+            {extraContent}
 
             <div className="news-list">
                 {displayNews.map((item, idx) => (
