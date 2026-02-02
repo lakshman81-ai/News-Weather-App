@@ -31,57 +31,38 @@ export const fetchTheHinduPaper = async () => {
 
     const sections = [];
 
-    // Based on actual HTML inspection:
-    // Articles are in <div class="element">
-    // They have <div class="page-num">, <h3 class="title">, <div class="sub-text">
-
-    const elements = doc.querySelectorAll('.element');
+    // Strategy 1: Look for .element (Classic layout)
+    const elements = doc.querySelectorAll('.element, .story-card');
     let currentSectionTitle = 'Front Page';
     let currentArticles = [];
     let lastPageNum = '';
 
     elements.forEach(el => {
-        // Sometimes headers are distinct elements.
-        // If we see a page number change, we can effectively treat it as a new group if we want,
-        // but finding actual section names (like "Sports") is better.
-        // The text dump showed "Sport" SECTION [59].
-        // But in the article list, it might just be flat.
-
-        // Let's look for section headers that might appear between elements?
-        // In the grep output, I didn't see explicit section headers wrapping the elements.
-
-        // However, the article structure is clear.
-        const titleEl = el.querySelector('h3.title a');
-        const blurbEl = el.querySelector('.sub-text a');
-        const pageNumEl = el.querySelector('.page-num');
+        const titleEl = el.querySelector('h3.title a, .story-card-news a');
+        const blurbEl = el.querySelector('.sub-text a, .story-card-news h3');
+        const pageNumEl = el.querySelector('.page-num, .page-no');
 
         if (titleEl) {
             const pageNum = pageNumEl ? cleanText(pageNumEl.textContent) : '';
 
-            // Heuristic: Group by Page Number if we can't find sections
-            // Or just map specific pages to sections?
-            // Page 1 = Front Page. Page 14-15 = Cities/States.
-            // This is brittle.
-
-            // Better: Just return the articles.
-            // If the user *needs* sections, we can try to find them.
-            // But having a flat list is better than broken sections.
-            // We can try to use the "Page No" as the section title if no better title exists.
-
+            // Check if this article belongs to Page 1 or 2 (Front Pages)
+            // Or if it's a new section
             if (pageNum && pageNum !== lastPageNum) {
                 if (currentArticles.length > 0) {
                     sections.push({ title: currentSectionTitle, articles: currentArticles });
                     currentArticles = [];
                 }
-                currentSectionTitle = pageNum;
+                currentSectionTitle = `Page ${pageNum}`;
                 lastPageNum = pageNum;
             }
 
-            currentArticles.push({
-                title: cleanText(titleEl.textContent),
-                link: titleEl.href,
-                blurb: blurbEl ? cleanText(blurbEl.textContent) : ''
-            });
+            const title = cleanText(titleEl.textContent);
+            const link = titleEl.href;
+            const blurb = blurbEl ? cleanText(blurbEl.textContent) : '';
+
+            if (title && link) {
+                currentArticles.push({ title, link, blurb });
+            }
         }
     });
 
@@ -89,11 +70,26 @@ export const fetchTheHinduPaper = async () => {
         sections.push({ title: currentSectionTitle, articles: currentArticles });
     }
 
-    // If we failed to parse using .element (e.g., layout change), fallback to previous generic logic
+    // Strategy 2: If empty, try the new "Section" based layout
     if (sections.length === 0) {
-        // Fallback logic from previous attempt
-        const articleGroups = doc.querySelectorAll('section[id*="section_"], div.tp-section-container');
-        // ... (rest of fallback logic omitted for brevity, relying on the confirmed .element structure)
+        const sectionContainers = doc.querySelectorAll('.section-container, .tpaper-section');
+        sectionContainers.forEach(container => {
+             const titleNode = container.querySelector('h2, .section-heading');
+             const articlesNodes = container.querySelectorAll('a.story-card-news, .element a');
+
+             if (titleNode && articlesNodes.length > 0) {
+                 const title = cleanText(titleNode.textContent);
+                 const articles = Array.from(articlesNodes).map(a => ({
+                     title: cleanText(a.textContent),
+                     link: a.href,
+                     blurb: ''
+                 })).filter(a => a.title);
+
+                 if (articles.length > 0) {
+                     sections.push({ title, articles });
+                 }
+             }
+        });
     }
 
     return sections;
@@ -105,39 +101,30 @@ export const fetchTheHinduPaper = async () => {
 
 export const fetchIndianExpressPaper = async () => {
   try {
+    // Strategy: Fetch "Latest News" or "Nation" as Todays Paper might be behind paywall/structure change
+    // But let's try the print-order page first if it exists
     const html = await fetchWithProxy('https://indianexpress.com/todays-paper/');
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
     const sections = [];
-
-    // Indian Express: "div.sections" or "div.section"
-    // The text dump showed: "01The Front Page", "02The City - Mumbai"
-    // These look like Headers.
-
-    // Selector strategy: Find the headers that define sections
-    // Often IE uses <div class="section"> <h2>Title</h2> <ul>...</ul> </div>
-
-    const sectionDivs = doc.querySelectorAll('.jobs_section, .section-container, .t-paper-sec, #todays-paper-section .section');
+    const sectionDivs = doc.querySelectorAll('.jobs_section, .section-container, .t-paper-sec, .section');
 
     if (sectionDivs.length > 0) {
          sectionDivs.forEach(div => {
-             const h2 = div.querySelector('h2, .section-title');
+             const h2 = div.querySelector('h2, .section-title, .heading');
              if (h2) {
                  const title = cleanText(h2.textContent);
                  const articles = [];
+                 const items = div.querySelectorAll('li, .article-list-item, .story');
 
-                 // IE usually uses <ul><li> for articles
-                 const items = div.querySelectorAll('li, .article-list-item');
                  items.forEach(li => {
                      const a = li.querySelector('h3 a') || li.querySelector('a');
-                     const p = li.querySelector('p, .desc');
-
                      if (a && cleanText(a.textContent)) {
                         articles.push({
                             title: cleanText(a.textContent),
                             link: a.getAttribute('href'),
-                            blurb: p ? cleanText(p.textContent) : ''
+                            blurb: ''
                         });
                      }
                  });
@@ -146,37 +133,29 @@ export const fetchIndianExpressPaper = async () => {
          });
     }
 
-    // Fallback: Use the H2 headers strategy
+    // FALLBACK: If "Today's Paper" scraping failed (likely due to layout change),
+    // fetch the "Latest News" page which mimics the front page feed.
     if (sections.length === 0) {
-        const headers = doc.querySelectorAll('h2'); // Broad selector
-        headers.forEach(header => {
-            // Check if it looks like a section header (e.g. "The Front Page")
-            // And has a list following it
-            const title = cleanText(header.textContent);
-            // Ignore headers that are likely article titles (too long)
-            if (title.length < 50 && title.length > 2) {
-                let sibling = header.nextElementSibling;
-                let articles = [];
-                // Look ahead for UL
-                while(sibling && sibling.tagName !== 'H2' && sibling.tagName !== 'DIV' && articles.length === 0) {
-                     if (sibling.tagName === 'UL') {
-                        sibling.querySelectorAll('li').forEach(li => {
-                             const a = li.querySelector('a');
-                             const p = li.querySelector('p');
-                             if (a) {
-                                 articles.push({
-                                     title: cleanText(a.textContent),
-                                     link: a.getAttribute('href'),
-                                     blurb: p ? cleanText(p.textContent) : ''
-                                 });
-                             }
-                        });
-                     }
-                     sibling = sibling.nextElementSibling;
-                }
-                if (articles.length > 0) sections.push({ title, articles });
+        console.warn('Indian Express Todays Paper empty, falling back to Latest News...');
+        const fallbackHtml = await fetchWithProxy('https://indianexpress.com/latest-news/');
+        const fallbackDoc = parser.parseFromString(fallbackHtml, 'text/html');
+
+        const latestArticles = [];
+        const articleNodes = fallbackDoc.querySelectorAll('.nation .articles, .articles .title a, .story h3 a');
+
+        articleNodes.forEach(a => {
+            if (a.textContent && a.href) {
+                latestArticles.push({
+                    title: cleanText(a.textContent),
+                    link: a.href,
+                    blurb: ''
+                });
             }
         });
+
+        if (latestArticles.length > 0) {
+            sections.push({ title: 'Latest Stories (Fallback)', articles: latestArticles.slice(0, 20) });
+        }
     }
 
     return sections;
@@ -186,8 +165,15 @@ export const fetchIndianExpressPaper = async () => {
   }
 };
 
+export const openPerplexitySummary = (text) => {
+    // Open Perplexity with a query to summarize.
+    // Truncate text to avoid URL length issues (approx 2000 chars safe limit)
+    const truncatedText = text.substring(0, 1500);
+    const query = `Summarize these news headlines and blurbs:\n${truncatedText}`;
+    window.open(`https://www.perplexity.ai/?q=${encodeURIComponent(query)}`, '_blank');
+};
+
+// Deprecated
 export const openDDGSummary = (text) => {
-    // Open DDG with a query to summarize.
-    const query = `Summarize this news: ${text.substring(0, 1000)}`;
-    window.open(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=chat`, '_blank');
+    openPerplexitySummary(text);
 };

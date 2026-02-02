@@ -51,6 +51,23 @@ async function fetchYahooData(symbol) {
     throw new Error('Failed to fetch market data');
 }
 
+// Helper to extract price data from Yahoo response
+function extractYahooPrice(data) {
+    const quote = data.chart?.result?.[0]?.meta;
+    if (!quote) return null;
+
+    const currentPrice = quote.regularMarketPrice;
+    const prevClose = quote.chartPreviousClose || quote.previousClose;
+    const change = currentPrice - prevClose;
+    const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+
+    return {
+        price: currentPrice,
+        change: change,
+        changePercent: changePercent.toFixed(2)
+    };
+}
+
 export async function fetchIndices() {
     console.log('[MarketService] Fetching Indian indices...');
 
@@ -59,15 +76,9 @@ export async function fetchIndices() {
     for (const [name, symbol] of Object.entries(INDICES)) {
         try {
             const data = await fetchYahooData(symbol);
+            const priceData = extractYahooPrice(data);
 
-            const quote = data.chart?.result?.[0];
-            if (!quote) continue;
-
-            const meta = quote.meta;
-            const currentPrice = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose || meta.previousClose;
-            const change = currentPrice - prevClose;
-            const changePercent = ((change / prevClose) * 100).toFixed(2);
+            if (!priceData) continue;
 
             results.push({
                 name: name === 'nifty50' ? 'NIFTY 50' :
@@ -75,14 +86,14 @@ export async function fetchIndices() {
                         name === 'niftyBank' ? 'BANK NIFTY' :
                             name === 'niftyIT' ? 'NIFTY IT' : 'MIDCAP 150',
                 symbol: symbol,
-                value: currentPrice.toLocaleString('en-IN'),
-                change: change.toFixed(2),
-                changePercent: changePercent,
-                direction: change >= 0 ? 'up' : 'down',
+                value: priceData.price.toLocaleString('en-IN'),
+                change: priceData.change.toFixed(2),
+                changePercent: priceData.changePercent,
+                direction: priceData.change >= 0 ? 'up' : 'down',
                 currency: '₹'
             });
 
-            console.log(`[MarketService] ✅ ${name}: ${currentPrice}`);
+            console.log(`[MarketService] ✅ ${name}: ${priceData.price}`);
         } catch (err) {
             console.warn(`[MarketService] ⚠️ Failed to fetch ${name}:`, err.message);
         }
@@ -218,22 +229,19 @@ export async function fetchTopMovers() {
     for (const symbol of TOP_STOCKS.slice(0, 10)) {
         try {
             const data = await fetchYahooData(symbol);
+            const priceData = extractYahooPrice(data);
+
+            if (!priceData) continue;
 
             const quote = data.chart?.result?.[0];
-            if (!quote) continue;
-
             const meta = quote.meta;
-            const currentPrice = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose || meta.previousClose;
-            const change = currentPrice - prevClose;
-            const changePercent = ((change / prevClose) * 100).toFixed(2);
 
             results.push({
                 symbol: symbol.replace('.NS', ''),
-                price: currentPrice.toFixed(2),
-                change: change.toFixed(2),
-                changePercent: parseFloat(changePercent),
-                direction: change >= 0 ? 'up' : 'down',
+                price: priceData.price.toFixed(2),
+                change: priceData.change.toFixed(2),
+                changePercent: parseFloat(priceData.changePercent),
+                direction: priceData.change >= 0 ? 'up' : 'down',
                 volume: meta.regularMarketVolume || 0
             });
         } catch (err) {
@@ -268,11 +276,15 @@ export async function fetchSectoralIndices() {
     const results = await Promise.allSettled(
         sectorals.map(async (sector) => {
             const data = await fetchYahooData(sector.symbol);
+            const priceData = extractYahooPrice(data);
+
+            if (!priceData) throw new Error('No data');
+
             return {
                 name: sector.name,
-                value: data.price,
-                change: data.change,
-                changePercent: data.changePercent
+                value: priceData.price.toFixed(2),
+                change: priceData.change.toFixed(2),
+                changePercent: priceData.changePercent
             };
         })
     );
@@ -298,11 +310,15 @@ export async function fetchCommodities() {
     const results = await Promise.allSettled(
         commodities.map(async (commodity) => {
             const data = await fetchYahooData(commodity.symbol);
+            const priceData = extractYahooPrice(data);
+
+            if (!priceData) throw new Error('No data');
+
             return {
                 name: commodity.name,
-                value: (data.price * commodity.multiplier).toFixed(2),
-                change: (data.change * commodity.multiplier).toFixed(2),
-                changePercent: data.changePercent,
+                value: (priceData.price * commodity.multiplier).toFixed(2),
+                change: (priceData.change * commodity.multiplier).toFixed(2),
+                changePercent: priceData.changePercent,
                 unit: commodity.name === 'Crude Oil' ? '₹/barrel' : '₹/oz'
             };
         })
@@ -330,11 +346,15 @@ export async function fetchCurrencyRates() {
     const results = await Promise.allSettled(
         currencies.map(async (currency) => {
             const data = await fetchYahooData(currency.symbol);
+            const priceData = extractYahooPrice(data);
+
+            if (!priceData) throw new Error('No data');
+
             return {
                 name: currency.name,
-                value: data.price,
-                change: data.change,
-                changePercent: data.changePercent
+                value: priceData.price.toFixed(2),
+                change: priceData.change.toFixed(2),
+                changePercent: priceData.changePercent
             };
         })
     );
