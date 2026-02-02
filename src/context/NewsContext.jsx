@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchSectionNews } from '../services/rssAggregator';
+import { fetchSectionNews, clearNewsCache } from '../services/rssAggregator';
 import { getSettings } from '../utils/storage';
 
 const NewsContext = createContext();
@@ -10,6 +10,8 @@ export function NewsProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [errors, setErrors] = useState({});
     const [lastFetch, setLastFetch] = useState(0);
+    const [settingsHash, setSettingsHash] = useState(''); // NEW - Phase 6: Track settings changes
+
 
     const refreshNews = useCallback(async (specificSections = null) => {
         setLoading(true);
@@ -97,6 +99,23 @@ export function NewsProvider({ children }) {
             setLoading(false);
         }
     }, []);
+
+    // Watch for settings changes and invalidate cache (Phase 6)
+    useEffect(() => {
+        const settings = getSettings();
+        const newHash = JSON.stringify({
+            sources: settings.newsSources,
+            freshness: settings.freshnessLimitHours,
+            enableCache: settings.enableCache
+        });
+
+        if (settingsHash && settingsHash !== newHash) {
+            console.log('[NewsContext] ⚙️ Settings changed - clearing cache and refreshing');
+            clearNewsCache();
+            refreshNews();
+        }
+        setSettingsHash(newHash);
+    }, [refreshNews, settingsHash]); // Only run when hash changes
 
     useEffect(() => {
         console.log('[NewsContext] Mounting - Initial fetch');

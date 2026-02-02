@@ -4,7 +4,15 @@ import { Link } from 'react-router-dom';
 /**
  * Header Component with optional back navigation
  */
-function Header({ title, icon, showBack = false, backTo = '/', actions }) {
+function Header({ title, icon, showBack = false, backTo = '/', actions, pills, activePill, onPillChange }) {
+    // Icon Mapping helper
+    const getPillIcon = (pillName) => {
+        if (pillName.includes('Morning')) return '🌅';
+        if (pillName.includes('Midday')) return '☀️';
+        if (pillName.includes('Evening')) return '🌙';
+        return pillName;
+    };
+
     return (
         <header className="header">
             {showBack ? (
@@ -15,9 +23,27 @@ function Header({ title, icon, showBack = false, backTo = '/', actions }) {
             ) : (
                 <h1 className="header__title">
                     <span className="header__title-icon">{icon}</span>
-                    {title}
+                    {title && <span className="header__title-text">{title}</span>}
                 </h1>
             )}
+
+            {/* Contextual Pills (Classic Mode) - REMOVED or Deprecated if pills move to weather */}
+            {/* Keeping logic for now but MainPage will stop passing pills if we want to remove them here */}
+            {pills && (
+                <div className="header__pills">
+                    {pills.map((pill) => (
+                        <button
+                            key={pill}
+                            className={`time-pill time-pill--matte ${activePill === pill ? 'time-pill--active' : ''}`}
+                            onClick={() => onPillChange && onPillChange(pill)}
+                            title={pill}
+                        >
+                            {getPillIcon(pill)}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {actions}
         </header>
     );

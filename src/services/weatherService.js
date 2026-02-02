@@ -227,10 +227,17 @@ function processMultiModelData(modelData, locationName) {
             ? Math.round(segmentApparent.reduce((a, b) => a + b, 0) / segmentApparent.length)
             : avgTemp;
 
-        const totalRain = segmentPrecip.reduce((a, b) => a + b, 0).toFixed(1);
+        const totalRainVal = segmentPrecip.reduce((a, b) => a + b, 0);
 
         // Calculate rainfall consensus
         const rainfallConsensus = calculateRainfallConsensus(segmentPrecipProb);
+
+        let rainDisplay = totalRainVal.toFixed(1) + 'mm';
+
+        // Trace Logic: If rain < 0.1mm AND any probability, return "Trace"
+        if (totalRainVal < 0.1 && rainfallConsensus && rainfallConsensus.max > 0) {
+            rainDisplay = 'Trace';
+        }
 
         // Get representative weather code (most common)
         const midCode = segmentWeatherCodes.length > 0
@@ -258,7 +265,7 @@ function processMultiModelData(modelData, locationName) {
             temp: avgTemp,
             feelsLike: feelsLike,
             icon: icon,
-            rainMm: totalRain + 'mm',
+            rainMm: rainDisplay,
             rainProb: rainfallConsensus || { avg: 0, min: 0, max: 0, displayString: '~0%', isWideRange: false },
             humidity: avgHumidity,
             windSpeed: avgWindSpeed,

@@ -55,6 +55,7 @@ function SettingsPage() {
     const handleSave = () => {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
+        reloadSettings(); // Trigger refresh/reload of data
     };
 
     const handleReset = () => {
@@ -96,15 +97,15 @@ function SettingsPage() {
 
     // Section configs
     const sectionConfig = [
-        { key: 'world', icon: '🌐', label: 'World News', min: 5, max: 15 },
-        { key: 'india', icon: '🇮🇳', label: 'India News', min: 5, max: 15 },
-        { key: 'chennai', icon: '🏛️', label: 'Chennai', min: 2, max: 5 },
-        { key: 'trichy', icon: '🏛️', label: 'Trichy', min: 1, max: 3 },
-        { key: 'local', icon: '📍', label: 'Muscat', min: 2, max: 5 },
-        { key: 'social', icon: '👥', label: 'Social', min: 5, max: 15 },
-        { key: 'entertainment', icon: '🎬', label: 'Entertainment', min: 3, max: 10 },
-        { key: 'business', icon: '💼', label: 'Business', min: 3, max: 10 },
-        { key: 'technology', icon: '💻', label: 'Technology', min: 3, max: 10 }
+        { key: 'world', icon: '🌐', label: 'World News' },
+        { key: 'india', icon: '🇮🇳', label: 'India News' },
+        { key: 'chennai', icon: '🏛️', label: 'Chennai' },
+        { key: 'trichy', icon: '🏛️', label: 'Trichy' },
+        { key: 'local', icon: '📍', label: 'Muscat' },
+        { key: 'social', icon: '👥', label: 'Social' },
+        { key: 'entertainment', icon: '🎬', label: 'Entertainment' },
+        { key: 'business', icon: '💼', label: 'Business' },
+        { key: 'technology', icon: '💻', label: 'Technology' }
     ];
 
     const newsSourceConfig = [
@@ -131,6 +132,12 @@ function SettingsPage() {
         (settings.socialTrends?.tamilnaduPercent || 0) +
         (settings.socialTrends?.muscatPercent || 0);
 
+    // Calculate total entertainment distribution percentage
+    const entertainmentTotal = (settings.entertainment?.tamilPercent || 0) +
+        (settings.entertainment?.hindiPercent || 0) +
+        (settings.entertainment?.hollywoodPercent || 0) +
+        (settings.entertainment?.ottPercent || 0);
+
     return (
         <>
             <Header title="Settings" showBack backTo="/" />
@@ -156,6 +163,37 @@ function SettingsPage() {
                                 checked={settings.uiMode === 'timeline'}
                                 onChange={(val) => updateSettings({ ...settings, uiMode: val ? 'timeline' : 'classic' })}
                             />
+                        </div>
+                    </div>
+                </section>
+
+                {/* ========================================
+                    SECTION: APPEARANCE
+                    ======================================== */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>👁️</span> Appearance
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span className="settings-item__label">Font Size</span>
+                                <span style={{ fontWeight: 'bold' }}>{settings.fontSize || 26}px</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="14"
+                                max="34"
+                                step="1"
+                                value={settings.fontSize || 26}
+                                onChange={(e) => updateSettings({ ...settings, fontSize: parseInt(e.target.value) })}
+                                style={{ width: '100%' }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                <span>Small</span>
+                                <span>Default (26px)</span>
+                                <span>Large</span>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -258,30 +296,38 @@ function SettingsPage() {
                         <span>📰</span> News Sections
                     </h2>
                     <div className="settings-card">
-                        {sectionConfig.map(({ key, icon, label, min, max }) => (
-                            <div key={key} className="settings-item">
-                                <div className="settings-item__label">
-                                    <span>{icon}</span> {label}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {sectionConfig.map(({ key, icon, label }) => {
+                            // Default defaults: Social=25, Others=5
+                            const defaultCount = key === 'social' ? 25 : 5;
+                            // Use nullish coalescing to allow 0, but fallback to default if undefined
+                            const currentCount = settings.sections?.[key]?.count ?? defaultCount;
+
+                            return (
+                                <div key={key} className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <div className="settings-item__label">
+                                            <span>{icon}</span> {label}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{currentCount}</span>
+                                            <Toggle
+                                                checked={settings.sections?.[key]?.enabled !== false}
+                                                onChange={(val) => updateNested(`sections.${key}.enabled`, val)}
+                                            />
+                                        </div>
+                                    </div>
                                     <input
-                                        type="number"
-                                        className="settings-item__count"
-                                        min={min}
-                                        max={max}
-                                        value={settings.sections?.[key]?.count || min}
-                                        onChange={(e) => {
-                                            const val = Math.min(max, Math.max(min, parseInt(e.target.value) || min));
-                                            updateNested(`sections.${key}.count`, val);
-                                        }}
-                                    />
-                                    <Toggle
-                                        checked={settings.sections?.[key]?.enabled !== false}
-                                        onChange={(val) => updateNested(`sections.${key}.enabled`, val)}
+                                        type="range"
+                                        min="0"
+                                        max="25"
+                                        step="1"
+                                        value={currentCount}
+                                        onChange={(e) => updateNested(`sections.${key}.count`, parseInt(e.target.value))}
+                                        style={{ width: '100%' }}
                                     />
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </section>
 
@@ -349,6 +395,79 @@ function SettingsPage() {
                                 checked={settings.market?.showIPO !== false}
                                 onChange={(val) => updateNested('market.showIPO', val)}
                             />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Sectoral Indices</span>
+                            <Toggle
+                                checked={settings.market?.showSectorals !== false}
+                                onChange={(val) => updateNested('market.showSectorals', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Commodities (Gold/Silver)</span>
+                            <Toggle
+                                checked={settings.market?.showCommodities !== false}
+                                onChange={(val) => updateNested('market.showCommodities', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show Currency Rates</span>
+                            <Toggle
+                                checked={settings.market?.showCurrency !== false}
+                                onChange={(val) => updateNested('market.showCurrency', val)}
+                            />
+                        </div>
+                        <div className="settings-item">
+                            <span className="settings-item__label">Show FII/DII Activity</span>
+                            <Toggle
+                                checked={settings.market?.showFIIDII !== false}
+                                onChange={(val) => updateNested('market.showFIIDII', val)}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* ========================================
+                    SECTION: ENTERTAINMENT MIX
+                    ======================================== */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🎬</span> Entertainment Mix
+                    </h2>
+                    <div className="settings-card">
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
+                            Adjust cinema/entertainment content by region. Should total 100%.
+                        </div>
+                        {[
+                            { key: 'tamilPercent', label: '🎭 Tamil/Kollywood' },
+                            { key: 'hindiPercent', label: '🎪 Hindi/Bollywood' },
+                            { key: 'hollywoodPercent', label: '🎬 Hollywood' },
+                            { key: 'ottPercent', label: '📺 OTT/Streaming' }
+                        ].map(({ key, label }) => (
+                            <div key={key} className="settings-item">
+                                <span className="settings-item__label">{label}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="5"
+                                        value={settings.entertainment?.[key] || 25}
+                                        onChange={(e) => updateNested(`entertainment.${key}`, parseInt(e.target.value))}
+                                        style={{ width: '80px' }}
+                                    />
+                                    <span style={{ width: '40px', textAlign: 'right', fontSize: '0.9rem' }}>
+                                        {settings.entertainment?.[key] || 25}%
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                        <div style={{
+                            fontSize: '0.75rem',
+                            padding: '8px 12px',
+                            color: entertainmentTotal !== 100 ? 'var(--accent-danger)' : 'var(--accent-success)'
+                        }}>
+                            Total: {entertainmentTotal}% {entertainmentTotal !== 100 && '(should be 100%)'}
                         </div>
                     </div>
                 </section>
@@ -468,6 +587,18 @@ function SettingsPage() {
                     </h2>
                     {showAdvanced && (
                         <div className="settings-card">
+                            <div className="settings-item">
+                                <div className="settings-item__label">
+                                    <span>⚡ Enable News Cache</span>
+                                    <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                        Cache news for 5min for faster loads (10-20x speed boost)
+                                    </small>
+                                </div>
+                                <Toggle
+                                    checked={settings.enableCache !== false}
+                                    onChange={(val) => updateSettings({ ...settings, enableCache: val })}
+                                />
+                            </div>
                             <div className="settings-item">
                                 <span className="settings-item__label">Crawler Mode</span>
                                 <select

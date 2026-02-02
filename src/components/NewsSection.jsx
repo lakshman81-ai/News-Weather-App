@@ -10,6 +10,7 @@ import { getCredibilityStars } from '../data/sourceMetrics';
  * - Source count displayed
  */
 function NewsSection({
+    id,
     title,
     icon,
     colorClass,
@@ -57,7 +58,7 @@ function NewsSection({
 
     if (error) {
         return (
-            <section className="news-section">
+            <section className="news-section" id={id}>
                 <h2 className={`news-section__title ${colorClass}`}>
                     <span>{icon}</span>
                     {title}
@@ -72,7 +73,7 @@ function NewsSection({
 
     if (news.length === 0) {
         return (
-            <section className="news-section">
+            <section className="news-section" id={id}>
                 <h2 className={`news-section__title ${colorClass}`}>
                     <span>{icon}</span>
                     {title}
@@ -86,7 +87,7 @@ function NewsSection({
     }
 
     return (
-        <section className="news-section">
+        <section className="news-section" id={id}>
             <h2 className={`news-section__title ${colorClass}`}>
                 <span>{icon}</span>
                 {title}

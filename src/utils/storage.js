@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
     // INTERFACE
     // ========================================
     uiMode: 'timeline',  // 'timeline' | 'classic'
+    fontSize: 26,        // Default base font size (User requested +6 from 20)
 
     // ========================================
     // DATA FRESHNESS
@@ -38,15 +39,15 @@ export const DEFAULT_SETTINGS = {
     // NEWS SECTIONS
     // ========================================
     sections: {
-        world: { enabled: true, count: 10 },
-        india: { enabled: true, count: 10 },
-        chennai: { enabled: true, count: 3 },
-        trichy: { enabled: true, count: 2 },
-        local: { enabled: true, count: 3 },
-        social: { enabled: true, count: 10 },
-        entertainment: { enabled: true, count: 8 },
-        business: { enabled: true, count: 10 },
-        technology: { enabled: true, count: 8 }
+        world: { enabled: true, count: 5 },
+        india: { enabled: true, count: 5 },
+        chennai: { enabled: true, count: 5 },
+        trichy: { enabled: true, count: 5 },
+        local: { enabled: true, count: 5 },
+        social: { enabled: true, count: 25 }, // User requested default 25
+        entertainment: { enabled: true, count: 5 },
+        business: { enabled: true, count: 5 },
+        technology: { enabled: true, count: 5 }
     },
 
     // ========================================
@@ -79,7 +80,21 @@ export const DEFAULT_SETTINGS = {
         showLosers: true,
         showMutualFunds: true,
         showIPO: true,
+        showSectorals: true,      // NEW - Phase 2
+        showCommodities: true,    // NEW - Phase 2
+        showCurrency: true,       // NEW - Phase 2
+        showFIIDII: true,         // NEW - Phase 2
         cacheMinutes: 15,
+    },
+
+    // ========================================
+    // ENTERTAINMENT DISTRIBUTION
+    // ========================================
+    entertainment: {
+        tamilPercent: 40,      // Tamil/Kollywood
+        hindiPercent: 35,      // Hindi/Bollywood
+        hollywoodPercent: 15,  // Hollywood
+        ottPercent: 10         // OTT/Streaming
     },
 
     // ========================================
@@ -98,8 +113,9 @@ export const DEFAULT_SETTINGS = {
     customFeeds: [],
 
     // ========================================
-    // ADVANCED
+    // ADVANCED / PERFORMANCE
     // ========================================
+    enableCache: true,         // NEW - Phase 6: Enable memory cache for faster loads
     crawlerMode: 'auto',
     debugLogs: false,
 };

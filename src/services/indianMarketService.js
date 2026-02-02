@@ -14,11 +14,42 @@ const INDICES = {
     sensex: '^BSESN',
     niftyBank: '^NSEBANK',
     niftyIT: '^CNXIT',
-    niftyMidcap: 'NIFTYMIDCAP150.NS'
+    niftyMidcap: 'NIFTYMIDCAP150.NS',
+    // Sectoral Indices (Phase 2)
+    niftyPharma: '^CNXPHARMA',
+    niftyAuto: '^CNXAUTO'
 };
 
-// Proxy to avoid CORS (use any Yahoo Finance proxy or self-host)
-const YAHOO_PROXY = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+// Yahoo Finance API Base
+const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+// Helper to fetch with CORS proxy
+async function fetchYahooData(symbol) {
+    const targetUrl = `${YAHOO_BASE}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+
+    // Strategy 1: Direct (works in some environments/extensions)
+    try {
+        const response = await fetch(targetUrl);
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        // Ignore and try proxy
+    }
+
+    // Strategy 2: AllOrigins (CORS Proxy)
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.warn(`[MarketService] Proxy failed for ${symbol}:`, e);
+    }
+
+    throw new Error('Failed to fetch market data');
+}
 
 export async function fetchIndices() {
     console.log('[MarketService] Fetching Indian indices...');
@@ -27,9 +58,7 @@ export async function fetchIndices() {
 
     for (const [name, symbol] of Object.entries(INDICES)) {
         try {
-            const url = `${YAHOO_PROXY}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await fetchYahooData(symbol);
 
             const quote = data.chart?.result?.[0];
             if (!quote) continue;
@@ -188,9 +217,7 @@ export async function fetchTopMovers() {
     // Fetch top 15 stocks
     for (const symbol of TOP_STOCKS.slice(0, 10)) {
         try {
-            const url = `${YAHOO_PROXY}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await fetchYahooData(symbol);
 
             const quote = data.chart?.result?.[0];
             if (!quote) continue;
@@ -225,17 +252,137 @@ export async function fetchTopMovers() {
 }
 
 // ============================================
-// 5. COMBINED MARKET DATA FETCH
+// 5. SECTORAL INDICES (Phase 2)
+// ============================================
+
+export async function fetchSectoralIndices() {
+    console.log('[MarketService] Fetching sectoral indices...');
+
+    const sectorals = [
+        { key: 'niftyBank', name: 'Bank Nifty', symbol: INDICES.niftyBank },
+        { key: 'niftyIT', name: 'Nifty IT', symbol: INDICES.niftyIT },
+        { key: 'niftyPharma', name: 'Nifty Pharma', symbol: INDICES.niftyPharma },
+        { key: 'niftyAuto', name: 'Nifty Auto', symbol: INDICES.niftyAuto }
+    ];
+
+    const results = await Promise.allSettled(
+        sectorals.map(async (sector) => {
+            const data = await fetchYahooData(sector.symbol);
+            return {
+                name: sector.name,
+                value: data.price,
+                change: data.change,
+                changePercent: data.changePercent
+            };
+        })
+    );
+
+    return results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
+}
+
+// ============================================
+// 6. COMMODITIES (Gold, Silver, Crude in INR)
+// ============================================
+
+export async function fetchCommodities() {
+    console.log('[MarketService] Fetching commodities...');
+
+    const commodities = [
+        { name: 'Gold', symbol: 'GC=F', multiplier: 83 },
+        { name: 'Silver', symbol: 'SI=F', multiplier: 83 },
+        { name: 'Crude Oil', symbol: 'CL=F', multiplier: 83 }
+    ];
+
+    const results = await Promise.allSettled(
+        commodities.map(async (commodity) => {
+            const data = await fetchYahooData(commodity.symbol);
+            return {
+                name: commodity.name,
+                value: (data.price * commodity.multiplier).toFixed(2),
+                change: (data.change * commodity.multiplier).toFixed(2),
+                changePercent: data.changePercent,
+                unit: commodity.name === 'Crude Oil' ? '₹/barrel' : '₹/oz'
+            };
+        })
+    );
+
+    return results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
+}
+
+// ============================================
+// 7. CURRENCY RATES (USD, EUR, AED to INR)
+// ============================================
+
+export async function fetchCurrencyRates() {
+    console.log('[MarketService] Fetching currency rates...');
+
+    const currencies = [
+        { name: 'USD/INR', symbol: 'INR=X' },
+        { name: 'EUR/INR', symbol: 'EURINR=X' },
+        { name: 'AED/INR', symbol: 'AEDINR=X' }
+    ];
+
+    const results = await Promise.allSettled(
+        currencies.map(async (currency) => {
+            const data = await fetchYahooData(currency.symbol);
+            return {
+                name: currency.name,
+                value: data.price,
+                change: data.change,
+                changePercent: data.changePercent
+            };
+        })
+    );
+
+    return results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
+}
+
+// ============================================
+// 8. FII/DII ACTIVITY (Mock data)
+// ============================================
+
+export async function fetchFIIDII() {
+    console.log('[MarketService] Fetching FII/DII activity...');
+
+    // Note: Real FII/DII data requires NSE authentication
+    // Using mock data for demonstration
+    return {
+        fii: {
+            buy: 12500.5,
+            sell: 11800.3,
+            net: 700.2
+        },
+        dii: {
+            buy: 8900.7,
+            sell: 9200.4,
+            net: -299.7
+        },
+        date: new Date().toISOString().split('T')[0]
+    };
+}
+
+// ============================================
+// 9. COMBINED MARKET DATA FETCH
 // ============================================
 
 export async function fetchAllMarketData() {
     console.log('[MarketService] 🚀 Fetching all market data...');
 
-    const [indices, mutualFunds, ipoData, movers] = await Promise.allSettled([
+    const [indices, mutualFunds, ipoData, movers, sectorals, commodities, currencies, fiidii] = await Promise.allSettled([
         fetchIndices(),
         fetchMutualFunds(),
         fetchIPOData(),
-        fetchTopMovers()
+        fetchTopMovers(),
+        fetchSectoralIndices(),
+        fetchCommodities(),
+        fetchCurrencyRates(),
+        fetchFIIDII()
     ]);
 
     const result = {
@@ -243,12 +390,20 @@ export async function fetchAllMarketData() {
         mutualFunds: mutualFunds.status === 'fulfilled' ? mutualFunds.value : [],
         ipo: ipoData.status === 'fulfilled' ? ipoData.value : { upcoming: [], live: [], recent: [] },
         movers: movers.status === 'fulfilled' ? movers.value : { gainers: [], losers: [] },
+        sectorals: sectorals.status === 'fulfilled' ? sectorals.value : [],
+        commodities: commodities.status === 'fulfilled' ? commodities.value : [],
+        currencies: currencies.status === 'fulfilled' ? currencies.value : [],
+        fiidii: fiidii.status === 'fulfilled' ? fiidii.value : { fii: {}, dii: {}, date: '' },
         fetchedAt: Date.now(),
         errors: {
             indices: indices.status === 'rejected' ? indices.reason?.message : null,
             mutualFunds: mutualFunds.status === 'rejected' ? mutualFunds.reason?.message : null,
             ipo: ipoData.status === 'rejected' ? ipoData.reason?.message : null,
-            movers: movers.status === 'rejected' ? movers.reason?.message : null
+            movers: movers.status === 'rejected' ? movers.reason?.message : null,
+            sectorals: sectorals.status === 'rejected' ? sectorals.reason?.message : null,
+            commodities: commodities.status === 'rejected' ? commodities.reason?.message : null,
+            currencies: currencies.status === 'rejected' ? currencies.reason?.message : null,
+            fiidii: fiidii.status === 'rejected' ? fiidii.reason?.message : null
         }
     };
 
@@ -262,5 +417,9 @@ export default {
     fetchMutualFunds,
     fetchIPOData,
     fetchTopMovers,
+    fetchSectoralIndices,
+    fetchCommodities,
+    fetchCurrencyRates,
+    fetchFIIDII,
     fetchAllMarketData
 };

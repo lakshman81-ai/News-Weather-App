@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
+import SectionNavigator from '../components/SectionNavigator';
 import { useNews } from '../context/NewsContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -15,6 +16,7 @@ import { useSettings } from '../context/SettingsContext';
 function TechSocialPage() {
     const { newsData, refreshNews, loading } = useNews();
     const { settings } = useSettings();
+    const [activeEntTab, setActiveEntTab] = useState('tamil');
 
     const filterOldNews = React.useCallback((newsArray) => {
         if (!newsArray) return [];
@@ -109,8 +111,9 @@ function TechSocialPage() {
         });
 
         // Calculate target counts based on distribution from settings
-        // Default: 10 total items distributed by percentage
-        const totalDisplay = 10;
+        // Default: 25 (User Request)
+        const totalDisplay = settings.sections?.social?.count || 25;
+
         const socialSettings = settings.socialTrends || {
             worldPercent: 30,
             indiaPercent: 30,
@@ -169,41 +172,84 @@ function TechSocialPage() {
         // Sort by publishedAt (newest first)
         result.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
 
-        console.log('[TechSocialPage] Social Trends Distribution:', {
-            world: result.filter(r => r.region === 'world').length,
-            india: result.filter(r => r.region === 'india').length,
-            tamilnadu: result.filter(r => r.region === 'tamilnadu').length,
-            muscat: result.filter(r => r.region === 'muscat').length,
-            total: result.length
-        });
-
         return result;
-    }, [newsData, settings.freshnessLimitHours, settings.socialTrends, filterOldNews]);
+    }, [newsData, settings.freshnessLimitHours, settings.socialTrends, filterOldNews, settings.sections?.social?.count]);
 
     const handleRefresh = () => {
         refreshNews(['technology', 'social', 'world', 'india', 'chennai', 'local']);
     };
 
+    // Navigation Sections
+    const navSections = [
+        { id: 'entertainment', icon: '🎬', label: 'Entertainment' },
+        { id: 'social-trends', icon: '👥', label: 'Social Trends' },
+        { id: 'tech-news', icon: '🚀', label: 'Tech & Startups' },
+        { id: 'ai-innovation', icon: '🤖', label: 'AI & Innovation' }
+    ];
+
     return (
         <div className="page-container">
             <Header
-                title="Tech & Social"
-                icon="💻"
+                title="Buzz Hub"
+                icon="🎭"
                 onRefresh={handleRefresh}
                 loading={loading}
             />
             <main className="main-content">
-                {/* Tech Section */}
-                <NewsSection
-                    title="Tech & Startups"
-                    icon="🚀"
-                    colorClass="news-section__title--world"
-                    news={filterOldNews(newsData.technology)}
-                    maxDisplay={12}
-                />
 
-                {/* Social Trends with Distribution */}
-                <section className="news-section">
+                {/* Entertainment Hub */}
+                <section id="entertainment" className="news-section entertainment-hub">
+                    <h2 className="news-section__title news-section__title--entertainment">
+                        <span>🎬</span> Entertainment
+                        <span className="distribution-hint">
+                            ({settings.entertainment?.tamilPercent || 40}% 🎭 | {settings.entertainment?.hindiPercent || 35}% 🎪 | {settings.entertainment?.hollywoodPercent || 15}% 🎬 | {settings.entertainment?.ottPercent || 10}% 📺)
+                        </span>
+                    </h2>
+
+                    <div className="entertainment-tabs">
+                        <button
+                            className={`ent-tab ${activeEntTab === 'tamil' ? 'ent-tab--active' : ''}`}
+                            onClick={() => setActiveEntTab('tamil')}
+                        >
+                            🎭 Tamil/Kollywood
+                        </button>
+                        <button
+                            className={`ent-tab ${activeEntTab === 'hindi' ? 'ent-tab--active' : ''}`}
+                            onClick={() => setActiveEntTab('hindi')}
+                        >
+                            🎪 Hindi/Bollywood
+                        </button>
+                        <button
+                            className={`ent-tab ${activeEntTab === 'hollywood' ? 'ent-tab--active' : ''}`}
+                            onClick={() => setActiveEntTab('hollywood')}
+                        >
+                            🎬 Hollywood
+                        </button>
+                        <button
+                            className={`ent-tab ${activeEntTab === 'ott' ? 'ent-tab--active' : ''}`}
+                            onClick={() => setActiveEntTab('ott')}
+                        >
+                            📺 OTT/Streaming
+                        </button>
+                    </div>
+
+                    <div className="entertainment-content">
+                        <NewsSection
+                            title={activeEntTab === 'tamil' ? 'Tamil Cinema' :
+                                activeEntTab === 'hindi' ? 'Hindi Cinema' :
+                                    activeEntTab === 'hollywood' ? 'Hollywood' : 'OTT & Streaming'}
+                            icon={activeEntTab === 'tamil' ? '🎭' :
+                                activeEntTab === 'hindi' ? '🎪' :
+                                    activeEntTab === 'hollywood' ? '🎬' : '📺'}
+                            news={filterOldNews(newsData.entertainment || [])}
+                            maxDisplay={8}
+                            hideTitle
+                        />
+                    </div>
+                </section>
+
+                {/* Social Trends with Distribution (Moved to Top) */}
+                <section id="social-trends" className="news-section">
                     <h2 className="news-section__title news-section__title--social">
                         <span>👥</span> Social Trends
                         <span style={{
@@ -265,8 +311,19 @@ function TechSocialPage() {
                     </div>
                 </section>
 
+                {/* Tech Section */}
+                <NewsSection
+                    id="tech-news"
+                    title="Tech & Startups"
+                    icon="🚀"
+                    colorClass="news-section__title--world"
+                    news={filterOldNews(newsData.technology)}
+                    maxDisplay={settings.sections?.technology?.count || 5} // Dynamic
+                />
+
                 {/* AI & Innovation */}
                 <NewsSection
+                    id="ai-innovation"
                     title="AI & Innovation"
                     icon="🤖"
                     colorClass="news-section__title--entertainment"
@@ -280,6 +337,9 @@ function TechSocialPage() {
                     maxDisplay={6}
                 />
             </main>
+
+            {/* Floating Section Navigator */}
+            <SectionNavigator sections={navSections} />
         </div>
     );
 }

@@ -5,6 +5,7 @@
 
 import { GOOGLE_FEEDS } from './googleNewsService';
 import { getSettings } from '../utils/storage';
+import { fetchAllEntertainment } from './entertainmentService';
 import { analyzeArticleSentiment } from '../utils/sentimentAnalyzer';
 import { deduplicateAndCluster } from '../utils/similarity';
 import { breakingDetector } from '../utils/breakingNewsDetector';
@@ -272,13 +273,44 @@ function isSourceAllowed(sourceName, allowedSources) {
  * Fetches news for a given section.
  */
 export async function fetchSectionNews(section, limit = 10, allowedSources = null) {
+    // Optimization: If limit is 0, don't fetch anything
+    if (limit === 0) return [];
+
     const cacheKey = section;
     let items = [];
-    // const cached = memoryCache.get(cacheKey);
 
-    // Check cache logic here if needed...
+    // Check if cache is enabled in settings (Phase 6)
+    const settings = getSettings();
+    const cacheEnabled = settings.enableCache !== false; // Default to true
 
-    console.log(`[RSS] Fetching live for ${section} (Cache IGNORED)`);
+    // Check cache first if enabled
+    if (cacheEnabled) {
+        const cached = memoryCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+            const ageSeconds = Math.round((Date.now() - cached.timestamp) / 1000);
+            console.log(`[RSS] ✅ Cache HIT for ${section} (age: ${ageSeconds}s)`);
+            return rankAndFilter(cached.data, section, limit, allowedSources);
+        }
+        console.log(`[RSS] ⚠️ Cache MISS for ${section} - Fetching fresh data`);
+    } else {
+        console.log(`[RSS] ℹ️ Cache DISABLED by user settings for ${section}`);
+    }
+
+    // Special handling for entertainment section
+    if (section === 'entertainment') {
+        console.log('[RSS] Using entertainmentService for entertainment section');
+        try {
+            const settings = getSettings();
+            const entertainmentSettings = settings?.entertainment || {};
+            const articles = await fetchAllEntertainment(entertainmentSettings);
+            console.log(`[RSS] Entertainment: Got ${articles.length} articles with distribution`);
+            return articles.slice(0, limit);
+        } catch (error) {
+            console.error('[RSS] Entertainment service failed:', error);
+            // Fallback to regular RSS feeds
+        }
+    }
+
     const feeds = SECTION_FEEDS[section] || [];
 
     if (feeds.length === 0) {
@@ -319,10 +351,16 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
             totalItems: items.length
         });
 
-        memoryCache.set(cacheKey, {
-            timestamp: Date.now(),
-            data: items
-        });
+        // Only cache if enabled (Phase 6)
+        const settings = getSettings();
+        if (settings.enableCache !== false) {
+            memoryCache.set(cacheKey, {
+                timestamp: Date.now(),
+                data: items
+            });
+            console.log(`[RSS] 💾 Cached ${items.length} items for ${section}`);
+        }
+
 
     } catch (error) {
         console.error(`[RSS] Unexpected error fetching section ${section}:`, {
@@ -348,7 +386,7 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
 
 /* ---------- Core Logic ---------- */
 
-async function fetchAndParseFeed(feedUrl, section) {
+export async function fetchAndParseFeed(feedUrl, section) {
     try {
         // Strategy 1: RSS2JSON
         const response = await fetch(`${RSS_PROXY_BASE}${encodeURIComponent(feedUrl)}`);
@@ -521,4 +559,42 @@ async function rankAndFilter(items, section, limit, allowedSources) {
         console.error(`[RSS] Ranking error for ${section}:`, error);
         throw error;
     }
+}
+
+/* ---------- Cache Management API (Phase 6) ---------- */
+
+/**
+ * Get cache statistics for debugging
+ * @returns {Object} Cache stats including entries and ages
+ */
+export function getCacheStats() {
+    const stats = {
+        totalEntries: memoryCache.size,
+        cacheEnabled: getSettings().enableCache !== false,
+        cacheTTL: CACHE_TTL_MS / 1000, // in seconds
+        entries: []
+    };
+
+    memoryCache.forEach((value, key) => {
+        const ageSeconds = Math.round((Date.now() - value.timestamp) / 1000);
+        stats.entries.push({
+            section: key,
+            ageSeconds,
+            itemCount: value.data?.length || 0,
+            isExpired: ageSeconds > (CACHE_TTL_MS / 1000)
+        });
+    });
+
+    return stats;
+}
+
+/**
+ * Clear all cached news data
+ * Useful when settings change or manual refresh needed
+ */
+export function clearNewsCache() {
+    const size = memoryCache.size;
+    memoryCache.clear();
+    console.log(`[RSS] 🗑️ Cleared ${size} cache entries`);
+    return size;
 }
