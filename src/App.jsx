@@ -11,15 +11,17 @@ import { WeatherProvider } from './context/WeatherContext';
 import { NewsProvider } from './context/NewsContext';
 import { MarketProvider } from './context/MarketContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { SegmentProvider } from './context/SegmentContext';
 import './index.css';
 
 function App() {
   return (
     <SettingsProvider>
-      <WeatherProvider>
-        <NewsProvider>
-          <MarketProvider>
-            <HashRouter>
+      <SegmentProvider>
+        <WeatherProvider>
+          <NewsProvider>
+            <MarketProvider>
+              <HashRouter>
               <div className="app">
                 <Routes>
                   <Route path="/" element={<MainPage />} />
@@ -31,10 +33,11 @@ function App() {
                 </Routes>
                 <BottomNav />
               </div>
-            </HashRouter>
-          </MarketProvider>
-        </NewsProvider>
-      </WeatherProvider>
+              </HashRouter>
+            </MarketProvider>
+          </NewsProvider>
+        </WeatherProvider>
+      </SegmentProvider>
     </SettingsProvider>
   );
 }
