@@ -209,7 +209,7 @@ function TechSocialPage() {
                             icon={activeEntTab === 'tamil' ? '🎭' :
                                 activeEntTab === 'hindi' ? '🎪' :
                                     activeEntTab === 'hollywood' ? '🎬' : '📺'}
-                            news={filterOldNews(newsData.entertainment || [])}
+                            news={filterOldNews((newsData.entertainment || []).filter(item => item.region === activeEntTab))}
                             maxDisplay={
                                 activeEntTab === 'tamil' ? (settings.entertainment?.tamilCount ?? 5) :
                                     activeEntTab === 'hindi' ? (settings.entertainment?.hindiCount ?? 5) :
