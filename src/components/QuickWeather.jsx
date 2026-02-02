@@ -97,11 +97,8 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     }
 
     // Check Rain Probability (Pop)
-    const popVal = displayData.rainProb?.value || 0; // Assuming value exists or parse string
-    // If MM is 0 but PoP is high, we might show chance, but user said:
-    // "when rain fall is 0mm do not shown any details on that"
-    // So strictly check mm for "Rain Details".
-    // However, PoP is useful. Let's show PoP in grid, but only show "Rain Amount" if > 0.
+    const popVal = displayData.rainProb?.value || 0;
+    const showRainChance = popVal > 0;
 
     // --- LOGIC: Background Gradient ---
     const getBgClass = (pill, raining) => {
@@ -148,6 +145,11 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Location Label - Dynamic */}
+            <div style={{ textAlign: 'right', marginTop: '-12px', marginBottom: '12px', paddingRight: '12px', fontSize: '0.9rem', fontWeight: 600, opacity: 0.8, color: 'var(--weather-sun)' }}>
+                {activeCity.charAt(0).toUpperCase() + activeCity.slice(1)}
             </div>
 
             {/* Main Display: Temp + Icon */}
@@ -205,13 +207,8 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                         </div>
                     </div>
                 ) : (
-                    // If no rain, maybe show PoP if > 0?
-                    // User said "0mm do not show any details".
-                    // Assuming this means "don't show the Rain row".
-                    // But we have a grid slot to fill?
-                    // We can show visibility or pressure if available, or just leave it blank/span 2.
-                    // Or show PoP if significant.
-                    displayData.rainProb?.value > 0 ? (
+                    // Only show Chance if Probability > 0%
+                    showRainChance ? (
                         <div className="qw-detail-item">
                             <div className="qw-detail-label">Chance</div>
                             <div className="qw-detail-value">

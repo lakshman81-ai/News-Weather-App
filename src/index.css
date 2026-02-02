@@ -2450,6 +2450,13 @@ html {
     background: rgba(0,0,0,0.2);
     padding: 4px;
     border-radius: 20px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+}
+
+.qw-pills-row::-webkit-scrollbar {
+    display: none;
 }
 
 .qw-pill-btn {
@@ -2561,4 +2568,51 @@ html {
     .qw-temp-large { font-size: 3rem; }
     .qw-main-icon { font-size: 3rem; }
     .quick-weather-card { padding: 16px; }
+}
+
+/* ========================================
+   ENTERTAINMENT TABS
+   ======================================== */
+
+.entertainment-tabs {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-secondary);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.entertainment-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ent-tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.ent-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.ent-tab--active {
+  background: var(--bg-card);
+  color: var(--accent-primary);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid var(--border-default);
 }

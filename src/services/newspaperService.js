@@ -94,6 +94,40 @@ export const fetchTheHinduPaper = async () => {
         });
     }
 
+    // FALLBACK: If still empty, try National Section
+    if (sections.length === 0) {
+        console.warn('The Hindu Todays Paper empty, trying National Section...');
+        try {
+            const nationalHtml = await fetchWithProxy('https://www.thehindu.com/news/national/');
+            const natDoc = new DOMParser().parseFromString(nationalHtml, 'text/html');
+
+            const nationalArticles = [];
+            // Selectors for National Page
+            const cards = natDoc.querySelectorAll('.story-card, .element, .story-card-news, .article');
+
+            cards.forEach(card => {
+                 const titleEl = card.querySelector('h3 a, .title a, .headline a');
+                 const blurbEl = card.querySelector('.sub-text, .deck, p');
+
+                 if (titleEl) {
+                     const title = cleanText(titleEl.textContent);
+                     const link = titleEl.href;
+                     const blurb = blurbEl ? cleanText(blurbEl.textContent) : '';
+
+                     if (title && link && !nationalArticles.find(a => a.link === link)) {
+                         nationalArticles.push({ title, link, blurb });
+                     }
+                 }
+            });
+
+            if (nationalArticles.length > 0) {
+                sections.push({ title: 'National News (Fallback)', articles: nationalArticles.slice(0, 20) });
+            }
+        } catch (fbErr) {
+            console.error('The Hindu Fallback failed:', fbErr);
+        }
+    }
+
     return sections;
   } catch (error) {
     console.error('Error fetching The Hindu:', error);
