@@ -18,6 +18,13 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
         return pillName;
     };
 
+    const getCityIcon = (cityName) => {
+        if (cityName === 'chennai') return '🏛️';
+        if (cityName === 'trichy') return '🏯';
+        if (cityName === 'muscat') return '📍';
+        return cityName;
+    };
+
     if (loading) return <div className="quick-weather">Loading weather...</div>;
     if (error || !weatherData) return <div className="quick-weather">Weather unavailable</div>;
 
@@ -91,8 +98,10 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                             key={city}
                             className={`qw-toggle ${activeCity === city ? 'qw-toggle--active' : ''}`}
                             onClick={() => setActiveCity(city)}
+                            title={city.charAt(0).toUpperCase() + city.slice(1)}
+                            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
                         >
-                            {city.charAt(0).toUpperCase() + city.slice(1)}
+                            {getCityIcon(city)}
                         </button>
                     ))}
                 </div>

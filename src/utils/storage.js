@@ -91,20 +91,20 @@ export const DEFAULT_SETTINGS = {
     // ENTERTAINMENT DISTRIBUTION
     // ========================================
     entertainment: {
-        tamilPercent: 40,      // Tamil/Kollywood
-        hindiPercent: 35,      // Hindi/Bollywood
-        hollywoodPercent: 15,  // Hollywood
-        ottPercent: 10         // OTT/Streaming
+        tamilCount: 5,      // Tamil/Kollywood
+        hindiCount: 5,      // Hindi/Bollywood
+        hollywoodCount: 3,  // Hollywood
+        ottCount: 2         // OTT/Streaming
     },
 
     // ========================================
     // SOCIAL TRENDS DISTRIBUTION
     // ========================================
     socialTrends: {
-        worldPercent: 30,
-        indiaPercent: 30,
-        tamilnaduPercent: 20,
-        muscatPercent: 20,
+        worldCount: 8,
+        indiaCount: 8,
+        tamilnaduCount: 5,
+        muscatCount: 4,
     },
 
     // ========================================

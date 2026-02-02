@@ -126,18 +126,6 @@ function SettingsPage() {
         { key: 'filmCompanion', label: 'Film Companion' }
     ];
 
-    // Calculate total social distribution percentage
-    const socialTotal = (settings.socialTrends?.worldPercent || 0) +
-        (settings.socialTrends?.indiaPercent || 0) +
-        (settings.socialTrends?.tamilnaduPercent || 0) +
-        (settings.socialTrends?.muscatPercent || 0);
-
-    // Calculate total entertainment distribution percentage
-    const entertainmentTotal = (settings.entertainment?.tamilPercent || 0) +
-        (settings.entertainment?.hindiPercent || 0) +
-        (settings.entertainment?.hollywoodPercent || 0) +
-        (settings.entertainment?.ottPercent || 0);
-
     return (
         <>
             <Header title="Settings" showBack backTo="/" />
@@ -450,13 +438,13 @@ function SettingsPage() {
                     </h2>
                     <div className="settings-card">
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
-                            Adjust cinema/entertainment content by region. Should total 100%.
+                            Adjust number of stories per category.
                         </div>
                         {[
-                            { key: 'tamilPercent', label: '🎭 Tamil/Kollywood' },
-                            { key: 'hindiPercent', label: '🎪 Hindi/Bollywood' },
-                            { key: 'hollywoodPercent', label: '🎬 Hollywood' },
-                            { key: 'ottPercent', label: '📺 OTT/Streaming' }
+                            { key: 'tamilCount', label: '🎭 Tamil/Kollywood' },
+                            { key: 'hindiCount', label: '🎪 Hindi/Bollywood' },
+                            { key: 'hollywoodCount', label: '🎬 Hollywood' },
+                            { key: 'ottCount', label: '📺 OTT/Streaming' }
                         ].map(({ key, label }) => (
                             <div key={key} className="settings-item">
                                 <span className="settings-item__label">{label}</span>
@@ -464,25 +452,18 @@ function SettingsPage() {
                                     <input
                                         type="range"
                                         min="0"
-                                        max="100"
-                                        step="5"
-                                        value={settings.entertainment?.[key] || 25}
+                                        max="20"
+                                        step="1"
+                                        value={settings.entertainment?.[key] || 0}
                                         onChange={(e) => updateNested(`entertainment.${key}`, parseInt(e.target.value))}
                                         style={{ width: '80px' }}
                                     />
                                     <span style={{ width: '40px', textAlign: 'right', fontSize: '0.9rem' }}>
-                                        {settings.entertainment?.[key] || 25}%
+                                        {settings.entertainment?.[key] || 0}
                                     </span>
                                 </div>
                             </div>
                         ))}
-                        <div style={{
-                            fontSize: '0.75rem',
-                            padding: '8px 12px',
-                            color: entertainmentTotal !== 100 ? 'var(--accent-danger)' : 'var(--accent-success)'
-                        }}>
-                            Total: {entertainmentTotal}% {entertainmentTotal !== 100 && '(should be 100%)'}
-                        </div>
                     </div>
                 </section>
 
@@ -495,13 +476,13 @@ function SettingsPage() {
                     </h2>
                     <div className="settings-card">
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
-                            Adjust the percentage distribution of social trends by region. Should total 100%.
+                            Adjust number of stories per region.
                         </div>
                         {[
-                            { key: 'worldPercent', label: '🌍 World' },
-                            { key: 'indiaPercent', label: '🇮🇳 India' },
-                            { key: 'tamilnaduPercent', label: '🏛️ Tamil Nadu' },
-                            { key: 'muscatPercent', label: '🏝️ Muscat' }
+                            { key: 'worldCount', label: '🌍 World' },
+                            { key: 'indiaCount', label: '🇮🇳 India' },
+                            { key: 'tamilnaduCount', label: '🏛️ Tamil Nadu' },
+                            { key: 'muscatCount', label: '🏝️ Muscat' }
                         ].map(({ key, label }) => (
                             <div key={key} className="settings-item">
                                 <span className="settings-item__label">{label}</span>
@@ -509,25 +490,18 @@ function SettingsPage() {
                                     <input
                                         type="range"
                                         min="0"
-                                        max="100"
-                                        step="5"
-                                        value={settings.socialTrends?.[key] || 25}
+                                        max="20"
+                                        step="1"
+                                        value={settings.socialTrends?.[key] || 0}
                                         onChange={(e) => updateNested(`socialTrends.${key}`, parseInt(e.target.value))}
                                         style={{ width: '80px' }}
                                     />
                                     <span style={{ width: '40px', textAlign: 'right', fontSize: '0.9rem' }}>
-                                        {settings.socialTrends?.[key] || 25}%
+                                        {settings.socialTrends?.[key] || 0}
                                     </span>
                                 </div>
                             </div>
                         ))}
-                        <div style={{
-                            fontSize: '0.75rem',
-                            padding: '8px 12px',
-                            color: socialTotal !== 100 ? 'var(--accent-danger)' : 'var(--accent-success)'
-                        }}>
-                            Total: {socialTotal}% {socialTotal !== 100 && '(should be 100%)'}
-                        </div>
                     </div>
                 </section>
 

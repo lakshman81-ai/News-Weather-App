@@ -23,7 +23,6 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
             ) : (
                 <h1 className="header__title">
                     <span className="header__title-icon">{icon}</span>
-                    {title && <span className="header__title-text">{title}</span>}
                 </h1>
             )}
 
