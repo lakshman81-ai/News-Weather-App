@@ -16,6 +16,7 @@ import { calculateNoveltyScore } from '../utils/noveltyScorer.js';
 import { calculateCurrencyScore } from '../utils/currencyScorer.js';
 import { calculateHumanInterestScore } from '../utils/humanInterestScorer.js';
 import { calculateVisualScore } from '../utils/visualScorer.js';
+import { classifySection } from '../utils/sectionClassifier.js';
 
 const RSS_PROXY_BASE = "https://api.rss2json.com/v1/api.json?rss_url=";
 
@@ -520,6 +521,11 @@ function normalizeItem(item, feedSource, section = 'general') {
     const articleId = hash(item.link || item.guid || item.title);
     const description = item.description || "";
 
+    // Dynamic Section Classification
+    const detectedSection = classifySection(item.title || '', description || '', source);
+    // If classification found a match, use it. Otherwise, stick to the feed's section.
+    const finalSection = detectedSection || section;
+
     // NEW - Phase 7: Image Extraction
     let imageUrl = null;
 
@@ -569,6 +575,7 @@ function normalizeItem(item, feedSource, section = 'general') {
         fetchedAt: Date.now(),
         time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         impactScore: 0,
+        section: finalSection, // Use the classified section
         criticsView: generateCriticsOneLiner(item.title, cleanDescription(description), source),
         sentiment: sentimentData ? {
             label: sentimentData.label,
@@ -598,11 +605,16 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 if (allowedSources) return isSourceAllowed(item.source, allowedSources);
                 return true;
             })
-            .map(item => ({
-                ...item,
-                section,
-                impactScore: computeImpactScore(item, section)
-            }))
+            .map(item => {
+                // Use the item's section (which might have been re-classified)
+                // or fallback to the requested section if missing
+                const itemSection = item.section || section;
+                return {
+                    ...item,
+                    section: itemSection,
+                    impactScore: computeImpactScore(item, itemSection)
+                };
+            })
             .filter(item => {
                 if (seen.has(item.id)) return false;
                 seen.add(item.id);

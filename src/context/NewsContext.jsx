@@ -70,12 +70,65 @@ export function NewsProvider({ children }) {
                 }
             }));
 
-            setNewsData(prev => ({ ...prev, ...newResults }));
+            // --- REDISTRIBUTION PASS (Phase 2) ---
+            // 1. Flatten all fetched articles
+            const allFetched = Object.values(newResults).flat();
+
+            // 2. Redistribute based on classified section
+            const redistributed = {};
+
+            // Initialize buckets for all fetched keys to ensure we clear them if they become empty after move
+            sectionsToFetch.forEach(key => redistributed[key] = []);
+
+            allFetched.forEach(item => {
+                const section = item.section || 'uncategorized';
+                if (!redistributed[section]) redistributed[section] = [];
+                redistributed[section].push(item);
+            });
+
+            // 3. Sort each bucket by impactScore
+            Object.keys(redistributed).forEach(key => {
+                redistributed[key].sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
+            });
+
+            // 4. Update State with merged results
+            setNewsData(prev => {
+                const nextState = { ...prev };
+
+                Object.keys(redistributed).forEach(key => {
+                    // Logic: If we explicitly fetched this section, we replace it completely (fresh start)
+                    // If we didn't fetch it but got data for it (e.g. moved from another section), we append/merge.
+
+                    if (sectionsToFetch.includes(key)) {
+                        nextState[key] = redistributed[key];
+                    } else {
+                        // Merge case (incidental data)
+                        const existing = nextState[key] || [];
+                        const newItems = redistributed[key];
+
+                        // Simple dedupe by ID
+                        const combined = [...newItems, ...existing];
+                        const unique = [];
+                        const seen = new Set();
+                        combined.forEach(i => {
+                            if(!seen.has(i.id)) {
+                                seen.add(i.id);
+                                unique.push(i);
+                            }
+                        });
+                        // Re-sort
+                        unique.sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
+                        nextState[key] = unique;
+                    }
+                });
+                return nextState;
+            });
+
             setErrors(prev => ({ ...prev, ...newErrors }));
             setLastFetch(Date.now());
 
             // Breaking News
-            const allFetchedArticles = Object.values(newResults).flat();
+            const allFetchedArticles = Object.values(redistributed).flat();
             if (allFetchedArticles.length > 0) {
                 const breaking = allFetchedArticles
                     .filter(item => item.isBreaking || (item.breakingScore && item.breakingScore > 1.5))
