@@ -1820,8 +1820,14 @@ html {
 /* Movers Grid */
 .movers-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .movers-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .movers-column {

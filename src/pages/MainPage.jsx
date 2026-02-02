@@ -47,6 +47,7 @@ const MainPage = () => {
     const { settings } = useSettings();
     const { currentSegment } = useSegment();
     const [activePill, setActivePill] = useState('Morning');
+    const [entertainmentFilter, setEntertainmentFilter] = useState('All');
     const [vLog, setVLog] = useState([...logs]);
     const [notifPermission, setNotifPermission] = useState(Notification.permission);
 
@@ -373,9 +374,26 @@ const MainPage = () => {
                                             title="Entertainment"
                                             icon="🎬"
                                             colorClass="news-section__title--entertainment"
-                                            news={newsData.entertainment}
+                                            news={newsData.entertainment?.filter(item => {
+                                                if (entertainmentFilter === 'All') return true;
+                                                return item.region === entertainmentFilter.toLowerCase();
+                                            })}
                                             maxDisplay={sections.entertainment.count || 5}
                                             error={errors.entertainment}
+                                            extraContent={
+                                                <div className="timeline-pills" style={{ marginBottom: '15px', paddingBottom: '5px' }}>
+                                                    {['All', 'Tamil', 'Hindi', 'Hollywood', 'OTT'].map(filter => (
+                                                        <button
+                                                            key={filter}
+                                                            className={`time-pill ${entertainmentFilter === filter ? 'time-pill--active' : ''}`}
+                                                            onClick={() => setEntertainmentFilter(filter)}
+                                                            style={{ fontSize: '0.8rem', padding: '4px 12px' }}
+                                                        >
+                                                            {filter}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            }
                                         />
                                     )}
                                 </>

@@ -19,6 +19,21 @@ function WeatherPage() {
         refreshWeather(true);
     };
 
+    // Prevent crash when weatherData is null (loading or error state)
+    if (loading && !weatherData) {
+        return (
+            <div className="page-container">
+                <Header title="Weather Forecast" icon="☁️" />
+                <main className="main-content">
+                    <div className="loading">
+                        <div className="loading__spinner"></div>
+                        <span>Loading Forecast...</span>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
     return (
         <div className="page-container">
             <Header
@@ -43,7 +58,16 @@ function WeatherPage() {
                     </div>
                 )}
 
-                <WeatherCard weatherData={displayData} />
+                {/* Only render WeatherCard if data is available */}
+                {displayData ? (
+                    <WeatherCard weatherData={displayData} />
+                ) : (
+                    <div className="empty-state">
+                        <div className="empty-state__icon">☁️</div>
+                        <p>Weather data unavailable.</p>
+                        <button onClick={handleRefresh} className="btn btn--secondary mt-md">Retry</button>
+                    </div>
+                )}
             </main>
         </div>
     );
