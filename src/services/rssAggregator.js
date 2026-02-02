@@ -10,6 +10,12 @@ import { analyzeArticleSentiment } from '../utils/sentimentAnalyzer';
 import { deduplicateAndCluster } from '../utils/similarity';
 import { breakingDetector } from '../utils/breakingNewsDetector';
 import { calculateSourceScore, getSourceWeightForCategory, SOURCE_METRICS } from '../data/sourceMetrics';
+import { calculateImpactScore } from '../utils/impactScorer.js';
+import { calculateProximityScore } from '../utils/proximityScorer.js';
+import { calculateNoveltyScore } from '../utils/noveltyScorer.js';
+import { calculateCurrencyScore } from '../utils/currencyScorer.js';
+import { calculateHumanInterestScore } from '../utils/humanInterestScorer.js';
+import { calculateVisualScore } from '../utils/visualScorer.js';
 
 const RSS_PROXY_BASE = "https://api.rss2json.com/v1/api.json?rss_url=";
 
@@ -213,7 +219,7 @@ function generateCriticsOneLiner(title, description, source) {
     return null;
 }
 
-function computeImpactScore(item, section) {
+export function computeImpactScore(item, section) {
     // 1. Freshness Decay (Linear)
     // 24 hours = 0 score. 0 hours = 1 score.
     const ageInHours = (Date.now() - item.publishedAt) / (1000 * 60 * 60);
@@ -244,8 +250,33 @@ function computeImpactScore(item, section) {
     item.breakingScore = breakingResult.breakingScore;
     const breakingBoost = breakingResult.multiplier;
 
-    // Total Score
-    const total = (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+    // --- NEW SCORING LOGIC CHECK ---
+    const settings = getSettings();
+    if (settings.enableNewScoring === false) {
+        // ORIGINAL SCORING (Status Quo)
+        return (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+    }
+
+    // --- NEW SCORING LOGIC (9-Factor) ---
+    // Calculate new multipliers
+    const impactMultiplier = calculateImpactScore(item.title, item.description);
+    const proximityMultiplier = calculateProximityScore(item.title, item.description);
+    const noveltyMultiplier = calculateNoveltyScore(item.title, item.description, section);
+    // Note: passing null for keywords array as it's not currently extracted in normalizeItem
+    const currencyMultiplier = calculateCurrencyScore(item.title, null);
+    const humanInterestMultiplier = calculateHumanInterestScore(item.title, item.description);
+    const visualMultiplier = calculateVisualScore(item.imageUrl);
+
+    // Base Score (Sum of additive components)
+    const baseScore = freshness + sourceComponent + keywordBoost + sentimentBoost;
+
+    // Multipliers (Product of multiplicative components)
+    const multipliers = impactMultiplier * proximityMultiplier * noveltyMultiplier *
+        currencyMultiplier * humanInterestMultiplier * visualMultiplier;
+
+    // Final Calculation with multipliers
+    const total = baseScore * multipliers * sectionPriority * breakingBoost;
+
     return total;
 }
 
