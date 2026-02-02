@@ -281,14 +281,26 @@ export function getWeatherTimeBlocks(date = new Date()) {
  * @returns {string} Formatted time range
  */
 export function formatSegmentTime(segment) {
+    if (!segment) return '';
+
+    // Fallback: If segment object lacks detailed time info (e.g. from scheduler), look it up
+    let targetSegment = segment;
+    if (segment.startHour === undefined && segment.id) {
+        const found = Object.values(SEGMENTS).find(s => s.id === segment.id);
+        if (found) targetSegment = found;
+    }
+
+    // If we still don't have valid time data, return empty string or a default
+    if (targetSegment.startHour === undefined) return '';
+
     const formatTime = (h, m) => {
         const hour = h % 12 || 12;
         const ampm = h < 12 ? 'AM' : 'PM';
-        const min = m.toString().padStart(2, '0');
+        const min = (m || 0).toString().padStart(2, '0');
         return `${hour}:${min} ${ampm}`;
     };
 
-    return `${formatTime(segment.startHour, segment.startMinute)} - ${formatTime(segment.endHour, segment.endMinute)}`;
+    return `${formatTime(targetSegment.startHour, targetSegment.startMinute)} - ${formatTime(targetSegment.endHour, targetSegment.endMinute)}`;
 }
 
 /**
