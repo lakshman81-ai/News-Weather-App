@@ -135,18 +135,31 @@ export const DEFAULT_SETTINGS = {
  * @returns {Object} Settings object
  */
 export function getSettings() {
+    // Determine dynamic default font size based on device
+    // Desktop (>= 1024px): 18px (26 - 8)
+    // Mobile: 26px (Unchanged)
+    let defaultFontSize = DEFAULT_SETTINGS.fontSize;
+    if (typeof window !== 'undefined') {
+        defaultFontSize = window.innerWidth >= 1024 ? 18 : 26;
+    }
+
+    const dynamicDefaults = {
+        ...DEFAULT_SETTINGS,
+        fontSize: defaultFontSize
+    };
+
     try {
         const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
         if (stored) {
             const parsed = JSON.parse(stored);
             // Merge with defaults to ensure all keys exist
-            return deepMerge(DEFAULT_SETTINGS, parsed);
+            return deepMerge(dynamicDefaults, parsed);
         }
     } catch (error) {
         void error;
         console.error('Error reading settings:', error);
     }
-    return { ...DEFAULT_SETTINGS };
+    return { ...dynamicDefaults };
 }
 
 /**

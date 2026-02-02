@@ -71,6 +71,26 @@ The app uses a hybrid approach:
 4.  Push to the branch.
 5.  Open a Pull Request.
 
+## Install as App (PWA)
+
+This application is a Progressive Web App (PWA), meaning you can install it on your device for a native-like experience (offline access, full screen, home screen icon).
+
+### Android (Chrome)
+1. Open the app in Chrome.
+2. Tap the three-dot menu (⋮) in the top-right corner.
+3. Tap **"Add to Home screen"** or **"Install App"**.
+4. Follow the prompt to install.
+
+### iOS (Safari)
+1. Open the app in Safari.
+2. Tap the **Share** button (square with arrow) at the bottom.
+3. Scroll down and tap **"Add to Home Screen"**.
+4. Tap **"Add"** in the top-right corner.
+
+### Desktop (Chrome/Edge)
+1. Look for the install icon (usually a computer with a down arrow) in the right side of the address bar.
+2. Click it and select **"Install"**.
+
 ## License
 
 MIT
