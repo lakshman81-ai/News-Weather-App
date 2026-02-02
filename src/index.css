@@ -1871,6 +1871,134 @@ html {
   font-size: 0.75rem;
 }
 
+/* Market Grids - Consistent 2-column mobile, 3+ desktop */
+.sectoral-grid,
+.commodity-grid,
+.currency-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+@media (min-width: 768px) {
+  .sectoral-grid,
+  .commodity-grid,
+  .currency-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Market Cards - Uniform look */
+.sectoral-card,
+.commodity-card,
+.currency-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+}
+
+.sectoral-card:hover,
+.commodity-card:hover,
+.currency-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  background: var(--bg-card-hover);
+}
+
+/* Typography inside cards */
+.sectoral-card__name,
+.commodity-card__name,
+.currency-card__name {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.sectoral-card__value,
+.commodity-card__value,
+.currency-card__value {
+  font-size: 1.25rem; /* Large and clear */
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.commodity-card__unit {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.sectoral-card__change,
+.commodity-card__change,
+.currency-card__change {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* FII/DII Specific Styles */
+.fiidii-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .fiidii-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.fiidii-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.fiidii-block__title {
+  font-size: var(--font-size-sm);
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-sm);
+  text-align: center;
+}
+
+.fiidii-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fiidii-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--border-default);
+}
+
+.fiidii-stat:last-child {
+  border-bottom: none;
+}
+
+.fiidii-date {
+  grid-column: 1 / -1;
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 /* ========================================
    MUTUAL FUND CARD STYLES
    ======================================== */

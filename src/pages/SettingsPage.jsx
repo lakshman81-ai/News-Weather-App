@@ -437,18 +437,23 @@ function SettingsPage() {
                         <span>🎬</span> Entertainment Mix
                     </h2>
                     <div className="settings-card">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px', borderBottom: '1px solid var(--border-default)' }}>
                             Adjust number of stories per category.
                         </div>
-                        {[
-                            { key: 'tamilCount', label: '🎭 Tamil/Kollywood' },
-                            { key: 'hindiCount', label: '🎪 Hindi/Bollywood' },
-                            { key: 'hollywoodCount', label: '🎬 Hollywood' },
-                            { key: 'ottCount', label: '📺 OTT/Streaming' }
-                        ].map(({ key, label }) => (
-                            <div key={key} className="settings-item">
-                                <span className="settings-item__label">{label}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--border-default)' }}>
+                            {[
+                                { key: 'tamilCount', label: '🎭 Tamil' },
+                                { key: 'hindiCount', label: '🎪 Hindi' },
+                                { key: 'hollywoodCount', label: '🎬 Hollywood' },
+                                { key: 'ottCount', label: '📺 OTT' }
+                            ].map(({ key, label }) => (
+                                <div key={key} style={{ padding: '12px', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span className="settings-item__label" style={{ fontSize: '0.85rem' }}>{label}</span>
+                                        <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--accent-primary)' }}>
+                                            {settings.entertainment?.[key] || 0}
+                                        </span>
+                                    </div>
                                     <input
                                         type="range"
                                         min="0"
@@ -456,14 +461,11 @@ function SettingsPage() {
                                         step="1"
                                         value={settings.entertainment?.[key] || 0}
                                         onChange={(e) => updateNested(`entertainment.${key}`, parseInt(e.target.value))}
-                                        style={{ width: '80px' }}
+                                        style={{ width: '100%', cursor: 'pointer' }}
                                     />
-                                    <span style={{ width: '40px', textAlign: 'right', fontSize: '0.9rem' }}>
-                                        {settings.entertainment?.[key] || 0}
-                                    </span>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </section>
 
@@ -475,18 +477,23 @@ function SettingsPage() {
                         <span>👥</span> Social Trends Mix
                     </h2>
                     <div className="settings-card">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px', borderBottom: '1px solid var(--border-default)' }}>
                             Adjust number of stories per region.
                         </div>
-                        {[
-                            { key: 'worldCount', label: '🌍 World' },
-                            { key: 'indiaCount', label: '🇮🇳 India' },
-                            { key: 'tamilnaduCount', label: '🏛️ Tamil Nadu' },
-                            { key: 'muscatCount', label: '🏝️ Muscat' }
-                        ].map(({ key, label }) => (
-                            <div key={key} className="settings-item">
-                                <span className="settings-item__label">{label}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--border-default)' }}>
+                            {[
+                                { key: 'worldCount', label: '🌍 World' },
+                                { key: 'indiaCount', label: '🇮🇳 India' },
+                                { key: 'tamilnaduCount', label: '🏛️ Tamil Nadu' },
+                                { key: 'muscatCount', label: '🏝️ Muscat' }
+                            ].map(({ key, label }) => (
+                                <div key={key} style={{ padding: '12px', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span className="settings-item__label" style={{ fontSize: '0.85rem' }}>{label}</span>
+                                        <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--accent-primary)' }}>
+                                            {settings.socialTrends?.[key] || 0}
+                                        </span>
+                                    </div>
                                     <input
                                         type="range"
                                         min="0"
@@ -494,14 +501,11 @@ function SettingsPage() {
                                         step="1"
                                         value={settings.socialTrends?.[key] || 0}
                                         onChange={(e) => updateNested(`socialTrends.${key}`, parseInt(e.target.value))}
-                                        style={{ width: '80px' }}
+                                        style={{ width: '100%', cursor: 'pointer' }}
                                     />
-                                    <span style={{ width: '40px', textAlign: 'right', fontSize: '0.9rem' }}>
-                                        {settings.socialTrends?.[key] || 0}
-                                    </span>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </section>
 

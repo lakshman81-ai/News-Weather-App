@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaNewspaper, FaRobot, FaExternalLinkAlt } from 'react-icons/fa';
-import { fetchTheHinduPaper, fetchIndianExpressPaper, openDDGSummary, NEWSPAPER_SOURCES } from '../services/newspaperService';
+import { fetchTheHinduPaper, fetchIndianExpressPaper, openPerplexitySummary, NEWSPAPER_SOURCES } from '../services/newspaperService';
 
 const NewspaperPage = () => {
   const [activeSource, setActiveSource] = useState(NEWSPAPER_SOURCES.THE_HINDU);
@@ -25,7 +25,7 @@ const NewspaperPage = () => {
         }
 
         if (isMounted) {
-          if (data.length === 0) {
+          if (!data || data.length === 0) {
               setError("No articles found. The source might be updating or inaccessible.");
           } else {
               setSections(data);
@@ -45,13 +45,17 @@ const NewspaperPage = () => {
   }, [activeSource]);
 
   const handleSummarize = () => {
+    if (!sections || sections.length === 0) return;
+
     // Collect top headlines to summarize
-    const summaryText = sections.slice(0, 3).map(sec =>
-        sec.articles.slice(0, 3).map(art => `${art.title}: ${art.blurb}`).join('\n')
+    const summaryText = sections.slice(0, 5).map(sec =>
+        (sec.articles || []).slice(0, 5).map(art =>
+            `- ${art.title}${art.blurb ? ': ' + art.blurb : ''}`
+        ).join('\n')
     ).join('\n\n');
 
     if (summaryText) {
-        openDDGSummary(summaryText);
+        openPerplexitySummary(summaryText);
     }
   };
 
@@ -86,7 +90,7 @@ const NewspaperPage = () => {
             style={{ width: '100%', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--accent-secondary)', borderColor: 'var(--accent-secondary)' }}
             disabled={loading || sections.length === 0}
         >
-            <FaRobot /> Analyze with DDG AI
+            <FaRobot /> Analyze with Perplexity AI
         </button>
       </div>
 
@@ -110,10 +114,15 @@ const NewspaperPage = () => {
                   {section.title}
                 </h2>
                 <div className="news-list">
-                  {section.articles.map((article, aIdx) => (
+                  {section.articles?.map((article, aIdx) => (
                     <div key={aIdx} className="news-item" style={{ background: 'var(--bg-secondary)', border: 'none', borderBottom: '1px solid var(--border-default)', borderRadius: 0 }}>
                       <h3 className="news-item__headline" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem' }}>
-                        <a href={article.link.startsWith('/') ? `https://www.thehindu.com${article.link}` : article.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <a
+                            href={article.link?.startsWith('/') ? `https://www.thehindu.com${article.link}` : article.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
                            {article.title}
                         </a>
                       </h3>
@@ -123,7 +132,12 @@ const NewspaperPage = () => {
                         </p>
                       )}
                       <div className="news-item__meta" style={{ marginTop: '8px' }}>
-                         <a href={article.link.startsWith('/') ? `https://www.thehindu.com${article.link}` : article.link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                         <a
+                            href={article.link?.startsWith('/') ? `https://www.thehindu.com${article.link}` : article.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                         >
                             Read Original <FaExternalLinkAlt style={{ fontSize: '0.7em' }}/>
                          </a>
                       </div>
@@ -135,7 +149,7 @@ const NewspaperPage = () => {
 
             <div className="market-disclaimer">
                 Content fetched from {activeSource} Today's Paper edition.
-                Summarization powered by DuckDuckGo AI.
+                Summarization powered by Perplexity AI.
             </div>
           </div>
         )}
