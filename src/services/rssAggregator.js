@@ -166,6 +166,12 @@ function hash(value) {
  */
 function cleanSource(sourceName) {
     if (!sourceName) return "Unknown";
+
+    // Fix for Google News Search feeds where title is "Query - Google News"
+    if (sourceName.includes(" - Google News")) {
+        return "Google News";
+    }
+
     // Search for known keys in the source name
     const foundKey = Object.keys(SOURCE_METRICS).find(key =>
         key !== 'default' && sourceName.toLowerCase().includes(key.toLowerCase())
@@ -609,6 +615,10 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 if (settings.filteringMode === 'keyword') {
                     // Strict Keyword Mode: Must match high-impact keywords
                     if (!checkKeywords(item.title, item.description)) return false;
+        } else if (settings.topWebsitesOnly) {
+             // Phase 8: Top Websites Only Mode
+             const TOP_SOURCES = ['BBC', 'Reuters', 'NDTV', 'The Hindu', 'Times of India', 'Moneycontrol'];
+             if (!TOP_SOURCES.some(s => item.source.includes(s))) return false;
                 } else {
                     // Source Mode (Default): Check allowlist
                     if (allowedSources && !isSourceAllowed(item.source, allowedSources)) return false;

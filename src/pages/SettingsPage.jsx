@@ -372,14 +372,79 @@ function SettingsPage() {
                         <span>📡</span> News Sources
                     </h2>
                     <div className="settings-card">
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--border-default)' }}>
+                        {/* Top Websites Toggle */}
+                        <div className="settings-item" style={{ borderBottom: '1px solid var(--border-default)', background: 'rgba(255, 255, 255, 0.03)' }}>
+                            <div className="settings-item__label">
+                                <span>🏆 Top Websites Only</span>
+                                <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                    BBC, Reuters, NDTV, Hindu, TOI, MoneyControl
+                                </small>
+                            </div>
+                            <Toggle
+                                checked={settings.topWebsitesOnly === true}
+                                onChange={(val) => updateSettings({ ...settings, topWebsitesOnly: val })}
+                            />
+                        </div>
+
+                        {/* Source Grid */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: '1px',
+                            background: 'var(--border-default)',
+                            opacity: settings.topWebsitesOnly ? 0.5 : 1,
+                            pointerEvents: settings.topWebsitesOnly ? 'none' : 'auto',
+                            filter: settings.topWebsitesOnly ? 'grayscale(0.5)' : 'none'
+                        }}>
                             {newsSourceConfig.map(({ key, label }) => (
-                                <div key={key} className="settings-item" style={{ background: 'var(--bg-card)', margin: 0, borderRadius: 0 }}>
-                                    <span className="settings-item__label" style={{ fontSize: '0.85rem' }}>{label}</span>
+                                <div key={key} className="settings-item" style={{ background: 'var(--bg-card)', margin: 0, borderRadius: 0, padding: '10px' }}>
+                                    <span className="settings-item__label" style={{ fontSize: '0.8rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>{label}</span>
                                     <Toggle
                                         checked={settings.newsSources?.[key] !== false}
                                         onChange={(val) => updateNested(`newsSources.${key}`, val)}
                                     />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Custom Feed Input (Moved) */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', borderTop: '1px solid var(--border-default)' }}>
+                            <div className="settings-item__label" style={{ fontSize: '0.85rem' }}>Add Custom Source</div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    type="text"
+                                    className="api-input"
+                                    value={newFeedUrl}
+                                    onChange={(e) => setNewFeedUrl(e.target.value)}
+                                    placeholder="Enter RSS feed URL or website"
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    className="api-btn api-btn--test"
+                                    onClick={handleAddFeed}
+                                    disabled={isDiscovering}
+                                >
+                                    {isDiscovering ? '...' : 'Add'}
+                                </button>
+                            </div>
+                            {discoveryError && (
+                                <div style={{ color: 'var(--accent-danger)', fontSize: '0.75rem' }}>
+                                    {discoveryError}
+                                </div>
+                            )}
+                            {/* List of Custom Feeds */}
+                            {settings.customFeeds?.map((feed, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        {feed.title || feed.url}
+                                    </span>
+                                    <button
+                                        className="btn btn--danger"
+                                        style={{ padding: '2px 8px', fontSize: '0.65rem', minHeight: 'auto' }}
+                                        onClick={() => removeCustomFeed(i)}
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -540,59 +605,6 @@ function SettingsPage() {
                     </div>
                 </section>
 
-                {/* ========================================
-                    SECTION 8: CUSTOM FEEDS
-                    ======================================== */}
-                <section className="settings-section">
-                    <h2 className="settings-section__title">
-                        <span>🔗</span> Custom Feeds
-                    </h2>
-                    <div className="settings-card">
-                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <input
-                                    type="text"
-                                    className="api-input"
-                                    value={newFeedUrl}
-                                    onChange={(e) => setNewFeedUrl(e.target.value)}
-                                    placeholder="Enter RSS feed URL or website"
-                                    style={{ flex: 1 }}
-                                />
-                                <button
-                                    className="api-btn api-btn--test"
-                                    onClick={handleAddFeed}
-                                    disabled={isDiscovering}
-                                >
-                                    {isDiscovering ? '...' : 'Add'}
-                                </button>
-                            </div>
-                            {discoveryError && (
-                                <div style={{ color: 'var(--accent-danger)', fontSize: '0.75rem' }}>
-                                    {discoveryError}
-                                </div>
-                            )}
-                        </div>
-                        {settings.customFeeds?.map((feed, i) => (
-                            <div key={i} className="settings-item">
-                                <span className="settings-item__label" style={{ fontSize: '0.85rem' }}>
-                                    {feed.title || feed.url}
-                                </span>
-                                <button
-                                    className="btn btn--danger"
-                                    style={{ padding: '4px 12px', fontSize: '0.75rem' }}
-                                    onClick={() => removeCustomFeed(i)}
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        ))}
-                        {(!settings.customFeeds || settings.customFeeds.length === 0) && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px' }}>
-                                No custom feeds added yet
-                            </div>
-                        )}
-                    </div>
-                </section>
 
                 {/* ========================================
                     SECTION 9: ADVANCED (Collapsible)
