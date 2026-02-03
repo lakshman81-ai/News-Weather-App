@@ -59,27 +59,33 @@ function IPOCard({ ipoData }) {
                     currentList.map((ipo, idx) => (
                         <div key={idx} className="ipo-item">
                             <div className="ipo-item__header">
-                                <div className="ipo-item__name">{ipo.name}</div>
+                                <div className="ipo-item__name">
+                                    {ipo.name}
+                                    {ipo.isSME && <span style={{fontSize:'0.6rem', marginLeft:'6px', background:'#333', padding:'2px 4px', borderRadius:'4px'}}>SME</span>}
+                                </div>
                                 <div className={`ipo-item__status ipo-item__status--${ipo.status || activeTab}`}>
                                     {ipo.status || activeTab}
                                 </div>
                             </div>
                             <div className="ipo-item__details">
+                                {ipo.issuePrice && (
+                                    <div className="ipo-item__detail">
+                                        <span className="ipo-item__label">Price Band:</span>
+                                        <span className="ipo-item__value">{ipo.issuePrice}</span>
+                                    </div>
+                                )}
                                 <div className="ipo-item__detail">
-                                    <span className="ipo-item__label">Price Band:</span>
-                                    <span className="ipo-item__value">{ipo.issuePrice || 'TBA'}</span>
+                                    <span className="ipo-item__label">Open:</span>
+                                    <span className="ipo-item__value">{ipo.openDate}</span>
                                 </div>
                                 <div className="ipo-item__detail">
-                                    <span className="ipo-item__label">Issue Size:</span>
-                                    <span className="ipo-item__value">{ipo.issueSize || 'TBA'}</span>
+                                    <span className="ipo-item__label">Close:</span>
+                                    <span className="ipo-item__value">{ipo.closeDate}</span>
                                 </div>
-                                <div className="ipo-item__detail">
-                                    <span className="ipo-item__label">Lot Size:</span>
-                                    <span className="ipo-item__value">{ipo.lotSize || 'TBA'}</span>
-                                </div>
-                                {ipo.openDate && (
-                                    <div className="ipo-item__dates">
-                                        📅 {ipo.openDate} - {ipo.closeDate}
+                                {ipo.issueSize && ipo.issueSize !== '-' && (
+                                    <div className="ipo-item__detail">
+                                        <span className="ipo-item__label">Size:</span>
+                                        <span className="ipo-item__value">{ipo.issueSize}</span>
                                     </div>
                                 )}
                             </div>

@@ -27,117 +27,75 @@ export function NewsProvider({ children }) {
             const allSections = ['world', 'india', 'chennai', 'trichy', 'local', 'social', 'entertainment', 'business', 'technology'];
             const sectionsToFetch = specificSections || allSections;
 
-            const newResults = {};
-            const newErrors = {};
+            // Prioritize Sections: Main Page (High) -> Others (Low)
+            const highPriority = sectionsToFetch.filter(s => ['world', 'india', 'chennai', 'trichy'].includes(s));
+            const lowPriority = sectionsToFetch.filter(s => !['world', 'india', 'chennai', 'trichy'].includes(s));
 
-            await Promise.all(sectionsToFetch.map(async (key) => {
-                if (settings.sections[key]?.enabled) {
-                    try {
-                        const count = settings.sections[key]?.count || 10;
+            const batches = [highPriority, lowPriority].filter(b => b.length > 0);
 
-                        console.log(`[NewsContext] Fetching ${key}...`);
-                        const articles = await fetchSectionNews(
-                            key,
-                            count + 5,
-                            settings.newsSources
-                        );
+            let allCollectedResults = {};
 
-                        if (articles && Array.isArray(articles)) {
-                            if (articles.length > 0) {
-                                newResults[key] = articles;
-                                console.log(`[NewsContext] ✅ ${key}: Got ${articles.length} articles`);
+            for (const batch of batches) {
+                const batchResults = {};
+                const batchErrors = {};
+
+                console.log(`[NewsContext] Fetching batch: ${batch.join(', ')}`);
+
+                await Promise.all(batch.map(async (key) => {
+                    if (settings.sections[key]?.enabled) {
+                        try {
+                            const count = settings.sections[key]?.count || 10;
+                            const articles = await fetchSectionNews(key, count + 5, settings.newsSources);
+
+                            if (articles && Array.isArray(articles)) {
+                                batchResults[key] = articles;
                             } else {
-                                newResults[key] = [];
-                                console.warn(`[NewsContext] ⚠️ ${key}: No articles found (may be empty feed)`);
+                                batchResults[key] = [];
                             }
-                        } else {
-                            throw new Error(
-                                `Invalid response format. Got: ${typeof articles}. Expected: Array`
-                            );
+                        } catch (err) {
+                            console.error(`[NewsContext] Error ${key}:`, err);
+                            batchErrors[key] = err.message;
+                            batchResults[key] = [];
                         }
-
-                    } catch (err) {
-                        console.error(`[NewsContext] ❌ Error fetching ${key}:`, {
-                            errorMessage: err.message,
-                            errorStack: err.stack,
-                            errorType: err.name,
-                            timestamp: new Date().toISOString()
-                        });
-
-                        newErrors[key] = err.message || 'Failed to load news.';
-                        newResults[key] = []; // Fallback
                     }
-                }
-            }));
+                }));
 
-            // --- REDISTRIBUTION PASS (Phase 2) ---
-            // 1. Flatten all fetched articles
-            const allFetched = Object.values(newResults).flat();
+                // Incremental Update Logic
+                // We need to redistribute the *accumulated* results to ensure classification moves items correctly
+                // across sections that might be in different batches.
+                // However, doing full redistribution on partial data is fine.
 
-            // 2. Redistribute based on classified section
-            const redistributed = {};
+                Object.assign(allCollectedResults, batchResults);
 
-            // Initialize buckets for all fetched keys to ensure we clear them if they become empty after move
-            sectionsToFetch.forEach(key => redistributed[key] = []);
+                // --- REDISTRIBUTION PASS ---
+                const allFetched = Object.values(allCollectedResults).flat();
+                const redistributed = {};
 
-            allFetched.forEach(item => {
-                const section = item.section || 'uncategorized';
-                if (!redistributed[section]) redistributed[section] = [];
-                redistributed[section].push(item);
-            });
+                // Initialize buckets for all fetched keys to ensure clearing
+                Object.keys(allCollectedResults).forEach(key => redistributed[key] = []);
 
-            // 3. Sort each bucket by impactScore
-            Object.keys(redistributed).forEach(key => {
-                redistributed[key].sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
-            });
-
-            // 4. Update State with merged results
-            setNewsData(prev => {
-                const nextState = { ...prev };
+                allFetched.forEach(item => {
+                    const section = item.section || 'uncategorized';
+                    if (!redistributed[section]) redistributed[section] = [];
+                    redistributed[section].push(item);
+                });
 
                 Object.keys(redistributed).forEach(key => {
-                    // Logic: If we explicitly fetched this section, we replace it completely (fresh start)
-                    // If we didn't fetch it but got data for it (e.g. moved from another section), we append/merge.
-
-                    if (sectionsToFetch.includes(key)) {
-                        nextState[key] = redistributed[key];
-                    } else {
-                        // Merge case (incidental data)
-                        const existing = nextState[key] || [];
-                        const newItems = redistributed[key];
-
-                        // Simple dedupe by ID
-                        const combined = [...newItems, ...existing];
-                        const unique = [];
-                        const seen = new Set();
-                        combined.forEach(i => {
-                            if(!seen.has(i.id)) {
-                                seen.add(i.id);
-                                unique.push(i);
-                            }
-                        });
-                        // Re-sort
-                        unique.sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
-                        nextState[key] = unique;
-                    }
+                    redistributed[key].sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
                 });
-                return nextState;
-            });
 
-            setErrors(prev => ({ ...prev, ...newErrors }));
-            setLastFetch(Date.now());
+                setNewsData(prev => ({ ...prev, ...redistributed }));
+                setErrors(prev => ({ ...prev, ...batchErrors }));
 
-            // Breaking News
-            const allFetchedArticles = Object.values(redistributed).flat();
-            if (allFetchedArticles.length > 0) {
-                const breaking = allFetchedArticles
+                // Breaking News Update (Incremental)
+                const breaking = allFetched
                     .filter(item => item.isBreaking || (item.breakingScore && item.breakingScore > 1.5))
                     .sort((a, b) => (b.breakingScore || 0) - (a.breakingScore || 0))
                     .slice(0, 3);
-
                 setBreakingNews(breaking);
-                console.log(`[NewsContext] ✅ Breaking news: ${breaking.length} items`);
             }
+
+            setLastFetch(Date.now());
 
             const fetchDuration = Date.now() - fetchStartTime;
             console.log(`[NewsContext] ✅ Refresh complete in ${fetchDuration}ms`);

@@ -263,6 +263,7 @@ function TechSocialPage() {
                                             (settings.entertainment?.ottCount ?? 2)
                             }
                             hideTitle
+                            showCritics={false}
                         />
                     </div>
                 </section>
@@ -330,6 +331,7 @@ function TechSocialPage() {
                     colorClass="news-section__title--world"
                     news={filterOldNews(newsData.technology)}
                     maxDisplay={settings.sections?.technology?.count || 5} // Dynamic
+                    showCritics={false}
                 />
 
                 {/* AI & Innovation */}
@@ -346,6 +348,7 @@ function TechSocialPage() {
                             item.title?.toLowerCase().includes('gemini')
                     ))}
                     maxDisplay={6}
+                    showCritics={false}
                 />
             </main>
 

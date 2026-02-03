@@ -40,6 +40,11 @@ export function SettingsProvider({ children }) {
         }
     }, [settings.fontSize]);
 
+    // Apply Theme
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', settings.theme || 'dark');
+    }, [settings.theme]);
+
     return (
         <SettingsContext.Provider value={{ settings, updateSettings, reloadSettings }}>
             {children}

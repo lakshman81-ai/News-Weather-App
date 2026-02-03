@@ -47,7 +47,6 @@ const MainPage = () => {
     const { settings } = useSettings();
     const { currentSegment } = useSegment();
     const [activePill, setActivePill] = useState('Morning');
-    const [entertainmentFilter, setEntertainmentFilter] = useState('All');
     const [vLog, setVLog] = useState([...logs]);
     const [notifPermission, setNotifPermission] = useState(Notification.permission);
     const [toplineContent, setToplineContent] = useState(null);
@@ -126,6 +125,24 @@ const MainPage = () => {
         return () => logSubscribers.delete(sub);
     }, []);
 
+    // Back to Top Logic
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 400) {
+                setShowBackToTop(true);
+            } else {
+                setShowBackToTop(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     // Detect uiMode changes
     useEffect(() => {
         console.log('[MainPage] UI mode changed:', uiMode);
@@ -184,17 +201,6 @@ const MainPage = () => {
     // Determine loading state
     const isLoading = (weatherLoading && !weatherData) || (loading && Object.keys(newsData).length === 0);
 
-    if (isLoading) {
-        return (
-            <div className="main-page">
-                <div className="loading">
-                    <div className="loading__spinner"></div>
-                    <span>Loading Updates...</span>
-                </div>
-            </div>
-        );
-    }
-
     const isTimelineMode = uiMode === 'timeline';
     const isNewspaperMode = uiMode === 'newspaper';
     const isUrgentMode = currentSegment.id === 'urgent_only';
@@ -203,8 +209,7 @@ const MainPage = () => {
     const navSections = [
         { id: 'world-news', icon: '🌍', label: 'World' },
         sections.india?.enabled && { id: 'india-news', icon: '🇮🇳', label: 'India' },
-        sections.local?.enabled && { id: 'local-news', icon: '📍', label: 'Muscat' },
-        sections.entertainment?.enabled && { id: 'entertainment', icon: '🎬', label: 'Entertainment' }
+        sections.local?.enabled && { id: 'local-news', icon: '📍', label: 'Muscat' }
     ].filter(Boolean);
 
     const headerActions = (
@@ -244,10 +249,17 @@ const MainPage = () => {
                     />
                 )}
 
-                {/* Market Ticker */}
-                {!isWebView && <MarketTicker />}
+                {/* Market Ticker - Visible on Desktop too */}
+                <MarketTicker />
 
                 <div className="content-wrapper">
+
+                    {isLoading && (
+                        <div className="loading" style={{padding: '40px'}}>
+                            <div className="loading__spinner"></div>
+                            <span>Loading Updates...</span>
+                        </div>
+                    )}
 
                     {/* Classic Mode Features */}
                     {!isTimelineMode && (
@@ -348,34 +360,6 @@ const MainPage = () => {
                                         />
                                     )}
 
-                                    {sections.entertainment?.enabled && !isUrgentMode && (
-                                        <NewsSection
-                                            id="entertainment"
-                                            title="Entertainment"
-                                            icon="🎬"
-                                            colorClass="news-section__title--entertainment"
-                                            news={newsData.entertainment?.filter(item => {
-                                                if (entertainmentFilter === 'All') return true;
-                                                return item.region === entertainmentFilter.toLowerCase();
-                                            })}
-                                            maxDisplay={sections.entertainment.count || 5}
-                                            error={errors.entertainment}
-                                            extraContent={
-                                                <div className="timeline-pills" style={{ marginBottom: '15px', paddingBottom: '5px' }}>
-                                                    {['All', 'Tamil', 'Hindi', 'Hollywood', 'OTT'].map(filter => (
-                                                        <button
-                                                            key={filter}
-                                                            className={`time-pill ${entertainmentFilter === filter ? 'time-pill--active' : ''}`}
-                                                            onClick={() => setEntertainmentFilter(filter)}
-                                                            style={{ fontSize: '0.8rem', padding: '4px 12px' }}
-                                                        >
-                                                            {filter}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            }
-                                        />
-                                    )}
                                 </>
                             )}
 
@@ -435,6 +419,38 @@ const MainPage = () => {
             </main>
 
             <SectionNavigator sections={navSections} />
+
+            {/* Back to Top Button */}
+            <button
+                onClick={scrollToTop}
+                style={{
+                    position: 'fixed',
+                    bottom: '90px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: 'rgba(var(--bg-card), 0.6)',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    fontSize: '1.2rem',
+                    cursor: 'pointer',
+                    opacity: showBackToTop ? 1 : 0,
+                    pointerEvents: showBackToTop ? 'auto' : 'none',
+                    transition: 'all 0.3s ease',
+                    zIndex: 900,
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                }}
+                className="back-to-top"
+            >
+                ↑
+            </button>
         </div>
     );
 }

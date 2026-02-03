@@ -12,14 +12,18 @@ export const DEFAULT_SETTINGS = {
     // INTERFACE
     // ========================================
     uiMode: 'timeline',  // 'timeline' | 'classic' | 'newspaper'
+    theme: 'dark',       // 'dark' | 'light'
     fontSize: 26,        // Default base font size (User requested +6 from 20)
 
     // ========================================
-    // DATA FRESHNESS
+    // DATA FRESHNESS & FILTERING
     // ========================================
-    freshnessLimitHours: 36,
+    freshnessLimitHours: 36, // Deprecated? User asked for "Hide stories older than X hours" default 60.
+    hideOlderThanHours: 60,  // New strict cutoff
     weatherFreshnessLimit: 4,
     strictFreshness: true,
+    filteringMode: 'source', // 'source' | 'keyword'
+    rankingMode: 'smart',    // 'smart' | 'legacy'
 
     // ========================================
     // WEATHER CONFIGURATION

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getWeatherTimeBlocks } from '../utils/timeSegment';
 
 /**
@@ -13,8 +13,16 @@ import { getWeatherTimeBlocks } from '../utils/timeSegment';
  * - Model source attribution
  */
 function WeatherCard({ weatherData }) {
+    const [expandedHourly, setExpandedHourly] = useState({});
     const timeBlocks = getWeatherTimeBlocks();
     const cities = ['chennai', 'trichy', 'muscat'];
+
+    const toggleHourly = (key) => {
+        setExpandedHourly(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    // Stale Data Check (4 hours)
+    const isStale = weatherData.fetchedAt && (Date.now() - weatherData.fetchedAt > 4 * 3600 * 1000);
 
     // Check if any city has severe weather
     const hasSevereWeather = cities.some(city => weatherData[city]?.isSevere);
@@ -55,6 +63,12 @@ function WeatherCard({ weatherData }) {
                 <span>☁️</span>
                 Weather Forecast
                 {hasSevereWeather && <span style={{ marginLeft: '8px' }}>⚠️</span>}
+                {isStale && (
+                    <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--accent-warning)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>🕰️</span>
+                        Stale Data
+                    </span>
+                )}
             </h2>
 
             <div className="card">
@@ -94,16 +108,48 @@ function WeatherCard({ weatherData }) {
                                         <div className="weather-temp">{data.temp}°C</div>
                                         <div className="weather-feels">Feels {data.feelsLike}°</div>
 
-                                        {/* Enhanced Rainfall Display with Consensus Indicator */}
-                                        <div className="weather-rain">
-                                            <span className={`weather-rain-prob ${data.rainProb?.isWideRange ? 'rain-uncertain' : 'rain-confident'}`}>
-                                                {data.rainProb?.isWideRange && <span className="rain-warning-icon">⚠️ </span>}
-                                                🌧️ {data.rainProb?.displayString || '~0%'}
-                                            </span>
-                                            {data.rainMm && data.rainMm !== '0.0mm' && (
+                                        {/* Enhanced Rainfall Display - Strict Conditional */}
+                                        {data.rainMm && data.rainMm !== '0.0mm' && data.rainMm !== '-' && (
+                                            <div className="weather-rain">
+                                                <span className={`weather-rain-prob ${data.rainProb?.isWideRange ? 'rain-uncertain' : 'rain-confident'}`}>
+                                                    {data.rainProb?.isWideRange && <span className="rain-warning-icon">⚠️ </span>}
+                                                    🌧️ {data.rainProb?.displayString || '~0%'}
+                                                </span>
                                                 <span className="weather-rain-mm">{data.rainMm}</span>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
+
+                                        {/* Hourly Forecast Expansion if Precip > 5mm */}
+                                        {data.rainMm && parseFloat(data.rainMm) > 5 && (
+                                            <div style={{ marginTop: '8px' }}>
+                                                <button
+                                                    onClick={() => toggleHourly(`${city}-${block.period}`)}
+                                                    style={{
+                                                        background: 'rgba(255,255,255,0.1)',
+                                                        border: 'none',
+                                                        borderRadius: '12px',
+                                                        padding: '4px 8px',
+                                                        fontSize: '0.7rem',
+                                                        cursor: 'pointer',
+                                                        color: 'var(--accent-primary)',
+                                                        width: '100%'
+                                                    }}
+                                                >
+                                                    {expandedHourly[`${city}-${block.period}`] ? 'Hide Hourly' : 'Show Hourly'}
+                                                </button>
+
+                                                {expandedHourly[`${city}-${block.period}`] && data.hourly && (
+                                                    <div style={{ marginTop: '8px', fontSize: '0.7rem' }}>
+                                                        {data.hourly.map((h, i) => (
+                                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                <span>{h.time}</span>
+                                                                <span style={{color:'var(--weather-rain)'}}>{h.precip?.toFixed(1)}mm ({h.prob}%)</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {/* Additional Metrics */}
                                         <div className="weather-extra-metrics">
