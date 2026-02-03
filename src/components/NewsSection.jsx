@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getCredibilityStars } from '../data/sourceMetrics';
+import { addReadArticle } from '../utils/storage';
 
 /**
  * News Section Component
@@ -18,7 +19,8 @@ function NewsSection({
     maxDisplay = 3,
     showExpand = true,
     error = null,
-    extraContent = null
+    extraContent = null,
+    onArticleClick = null
 }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -51,9 +53,17 @@ function NewsSection({
         return "Just now";
     };
 
-    const handleStoryClick = (url) => {
-        if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
+    const handleStoryClick = (item) => {
+        // Track history
+        addReadArticle(item);
+
+        // External handler
+        if (onArticleClick) {
+            onArticleClick(item);
+        }
+
+        if (item.url) {
+            window.open(item.url, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -118,7 +128,7 @@ function NewsSection({
                     <article
                         key={item.id || idx}
                         className="news-item"
-                        onClick={() => handleStoryClick(item.url)}
+                        onClick={() => handleStoryClick(item)}
                         style={{ cursor: item.url ? 'pointer' : 'default' }}
                     >
                         <h3 className="news-item__headline">
