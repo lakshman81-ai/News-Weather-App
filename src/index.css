@@ -2080,10 +2080,26 @@ html {
   margin-bottom: var(--spacing-xs);
 }
 
+.mf-fund__info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0; /* Enable truncation in flex child */
+  margin-right: var(--spacing-sm);
+}
+
+.mf-fund__nav {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  min-width: max-content;
+}
+
 .mf-fund__name {
   font-size: 0.85rem;
   font-weight: 500;
-  max-width: 60%;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

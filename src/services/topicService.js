@@ -1,6 +1,6 @@
 import { buildTopicQuery } from '../utils/topicQueryBuilder.js';
 import { fetchAndParseFeed } from './rssAggregator.js';
-import { updateTopicLastFetched } from '../utils/storage.js';
+import { updateTopicLastFetched, getSettings } from '../utils/storage.js';
 
 /**
  * Fetches news articles for a specific followed topic
@@ -20,8 +20,28 @@ export async function fetchTopicNews(topic) {
         // Update last fetched timestamp
         updateTopicLastFetched(topic.id);
 
+        // --- FILTERING LOGIC (Fix for old data) ---
+        const settings = getSettings();
+        const limitHours = settings.hideOlderThanHours || 60;
+        const now = Date.now();
+        const maxAge = limitHours * 60 * 60 * 1000;
+        const strictFreshness = settings.strictFreshness !== false; // Default true
+
+        let filteredArticles = articles;
+
+        if (strictFreshness) {
+            filteredArticles = articles.filter(article => {
+                // Ensure publishedAt is valid
+                if (!article.publishedAt) return false;
+                const age = now - article.publishedAt;
+                return age <= maxAge;
+            });
+            console.log(`[TopicService] Filtered ${articles.length - filteredArticles.length} old articles for "${topic.name}" (Limit: ${limitHours}h)`);
+        }
+        // ---------------------------
+
         // Add topic metadata to each article
-        const articlesWithTopic = articles.map(article => ({
+        const articlesWithTopic = filteredArticles.map(article => ({
             ...article,
             topicId: topic.id,
             topicName: topic.name,

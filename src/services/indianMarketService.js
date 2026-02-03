@@ -23,7 +23,17 @@ const INDICES = {
 // Yahoo Finance API Base
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
-// Helper to fetch with CORS proxy
+// Proxy Rotation Strategy
+const PROXIES = [
+    // Strategy 1: AllOrigins (Generally reliable, JSON wrap)
+    (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    // Strategy 2: CodeTabs (Good fallback)
+    (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    // Strategy 3: CORSProxy.io (Direct, sometimes limited)
+    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+];
+
+// Helper to fetch with CORS proxy rotation
 async function fetchYahooData(symbol) {
     const targetUrl = `${YAHOO_BASE}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 
@@ -40,35 +50,40 @@ async function fetchYahooData(symbol) {
         }
     };
 
-    // Strategy 1: Direct (works in some environments/extensions)
+    // Try Direct First (Works in some environments/extensions)
     try {
         const response = await fetchWithTimeout(targetUrl);
         if (response.ok) {
             return await response.json();
         }
     } catch (e) {
-        // Ignore and try proxy
+        // Ignore and try proxies
     }
 
-    // Strategy 2: AllOrigins (CORS Proxy)
-    try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        const response = await fetchWithTimeout(proxyUrl);
-        if (response.ok) {
-            return await response.json();
+    // Try Proxies sequentially
+    for (const proxyGen of PROXIES) {
+        try {
+            const proxyUrl = proxyGen(targetUrl);
+            const response = await fetchWithTimeout(proxyUrl);
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (e) {
+            console.warn(`[MarketService] Proxy failed: ${e.message}`);
+            // Continue to next proxy
         }
-    } catch (e) {
-        console.warn(`[MarketService] Proxy failed for ${symbol}:`, e);
     }
 
-    throw new Error('Failed to fetch market data');
+    throw new Error(`Failed to fetch market data for ${symbol}`);
 }
 
 // Helper to extract price data from Yahoo response
 function extractYahooPrice(data) {
-    const quote = data.chart?.result?.[0]?.meta;
-    if (!quote) return null;
+    // Yahoo often wraps in chart.result[0]
+    const result = data.chart?.result?.[0] || data.finance?.result?.[0];
+    if (!result || !result.meta) return null;
 
+    const quote = result.meta;
     const currentPrice = quote.regularMarketPrice;
     const prevClose = quote.chartPreviousClose || quote.previousClose;
     const change = currentPrice - prevClose;
@@ -97,8 +112,10 @@ export async function fetchIndices() {
             return {
                 name: name === 'nifty50' ? 'NIFTY 50' :
                     name === 'sensex' ? 'SENSEX' :
-                        name === 'niftyBank' ? 'BANK NIFTY' :
-                            name === 'niftyIT' ? 'NIFTY IT' : 'MIDCAP 150',
+                    name === 'niftyBank' ? 'BANK NIFTY' :
+                    name === 'niftyIT' ? 'NIFTY IT' :
+                    name === 'niftyPharma' ? 'NIFTY PHARMA' :
+                    name === 'niftyAuto' ? 'NIFTY AUTO' : 'MIDCAP 150',
                 symbol: symbol,
                 value: priceData.price.toLocaleString('en-IN'),
                 change: priceData.change.toFixed(2),
@@ -123,7 +140,7 @@ export async function fetchIndices() {
 
 const MF_API = 'https://api.mfapi.in/mf/';
 
-// Popular scheme codes (can be expanded)
+// Popular scheme codes
 const POPULAR_MF_SCHEMES = [
     { code: '119551', name: 'SBI Bluechip Fund' },
     { code: '120503', name: 'HDFC Mid-Cap Opportunities' },
@@ -168,8 +185,6 @@ export async function fetchMutualFunds() {
         .filter(r => r.status === 'fulfilled')
         .map(r => r.value);
 
-    console.log(`[MarketService] ✅ Fetched ${successful.length}/${POPULAR_MF_SCHEMES.length} MF NAVs`);
-
     return successful;
 }
 
@@ -180,6 +195,7 @@ export async function fetchMutualFunds() {
 export async function fetchIPOData() {
     console.log('[MarketService] Fetching IPO data from IPOWatch...');
     const targetUrl = 'https://ipowatch.in/upcoming-ipo-calendar-ipo-list/';
+    // Using AllOrigins to get HTML
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
     try {
@@ -192,12 +208,14 @@ export async function fetchIPOData() {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Find the main table (usually the first one with "IPO" in header)
+        // Find the main table (Updated logic for 2026 format)
+        // Table often contains "IPO" and "Price" in header
         const tables = doc.querySelectorAll('table');
         let table = null;
 
         for (const t of tables) {
-            if (t.textContent.includes('IPO Name') || t.textContent.includes('Open')) {
+            const text = t.textContent.toLowerCase();
+            if ((text.includes('ipo') && text.includes('price')) || text.includes('ipo name')) {
                 table = t;
                 break;
             }
@@ -211,43 +229,46 @@ export async function fetchIPOData() {
         // Parse rows (Skip header)
         for (let i = 1; i < rows.length; i++) {
             const cols = rows[i].querySelectorAll('td');
-            if (cols.length < 2) continue;
+            // Expecting at least 4 cols: Name, Status, Date, Price
+            if (cols.length < 3) continue;
 
             const name = cols[0]?.textContent?.trim() || 'Unknown';
-            const openDate = cols[2]?.textContent?.trim() || 'TBA';
-            const closeDate = cols[3]?.textContent?.trim() || 'TBA';
+            // Column 1 is usually Status in new layout ("Upcoming", "Closed")
+            // But sometimes it might be old layout. Let's heuristic.
 
-            // Skip SME IPOs if preferred (user said "Indian IPOs only", usually implies Mainboard)
-            // But let's include them for now or filter if title says "SME".
-            // IPOWatch usually lists SME separately or tags them.
-            const isSME = name.includes('SME');
+            let statusRaw = 'Upcoming';
+            let dateRaw = 'TBA';
+            let priceRaw = '-';
 
-            // Determine status based on dates
+            // Check if Col 1 is a date or status
+            const col1Text = cols[1]?.textContent?.trim();
+            const col2Text = cols[2]?.textContent?.trim();
+
+            // Simple heuristic: Status is usually single word or short phrase
+            if (col1Text) statusRaw = col1Text;
+            if (col2Text) dateRaw = col2Text;
+
+            // Determine standardized status
             let status = 'upcoming';
-            const now = new Date();
-            const open = new Date(openDate);
-            const close = new Date(closeDate);
-
-            // Simple date parsing heuristic
-            if (!isNaN(open) && !isNaN(close)) {
-                if (now < open) status = 'upcoming';
-                else if (now >= open && now <= close) status = 'live';
-                else status = 'recent';
-            } else {
-                // If dates are strings like "Feb 10", try to parse relative to current year
-                // Or fallback to 'upcoming' if unknown
+            const lowerStatus = statusRaw.toLowerCase();
+            if (lowerStatus.includes('live') || lowerStatus.includes('open')) {
+                status = 'live';
+            } else if (lowerStatus.includes('close')) {
+                status = 'recent';
+            } else if (lowerStatus.includes('upcoming')) {
+                status = 'upcoming';
             }
 
-            // Override status based on simple string checks if date parsing fails
-            if (openDate.includes('TBA')) status = 'upcoming';
+            // Simple check if name contains SME
+            const isSME = name.includes('SME') || table.textContent.includes('SME');
 
             ipos.push({
                 name,
-                openDate,
-                closeDate,
+                openDate: dateRaw, // Display raw date range string
+                closeDate: '',     // No separate close date column in simple table
                 status,
                 isSME,
-                issueSize: '-' // Not always available in main list
+                issueSize: '-'
             });
         }
 
@@ -255,9 +276,6 @@ export async function fetchIPOData() {
         const upcoming = ipos.filter(i => i.status === 'upcoming').slice(0, 5);
         const live = ipos.filter(i => i.status === 'live');
         const recent = ipos.filter(i => i.status === 'recent').slice(0, 5);
-
-        // If detection failed (all upcoming), force distribution based on array index for demo
-        // Real logic should improve date parsing.
 
         return {
             upcoming: upcoming.length ? upcoming : ipos.slice(0, 3),
@@ -298,19 +316,15 @@ export async function fetchTopMovers() {
 
             if (!priceData) return null;
 
-            const quote = data.chart?.result?.[0];
-            const meta = quote.meta;
-
             return {
                 symbol: symbol.replace('.NS', ''),
                 price: priceData.price.toFixed(2),
                 change: priceData.change.toFixed(2),
                 changePercent: parseFloat(priceData.changePercent),
                 direction: priceData.change >= 0 ? 'up' : 'down',
-                volume: meta.regularMarketVolume || 0
+                volume: 0 // Volume data often missing in chart result meta
             };
         } catch (err) {
-            console.warn(`[MarketService] ⚠️ Failed ${symbol}`);
             return null;
         }
     });
@@ -318,7 +332,6 @@ export async function fetchTopMovers() {
     const results = await Promise.all(promises);
     const validResults = results.filter(r => r !== null);
 
-    // Sort to get gainers and losers
     const sorted = validResults.sort((a, b) => b.changePercent - a.changePercent);
 
     return {
@@ -372,14 +385,10 @@ export async function fetchCommodities() {
     console.log('[MarketService] Fetching commodities...');
 
     try {
-        // 1. Fetch USD/INR Rate first (for conversion)
         const usdInrData = await fetchYahooData('INR=X');
         const usdPriceData = extractYahooPrice(usdInrData);
-        // Default to 84.0 if fetch fails, but it usually works
         const usdRate = usdPriceData ? usdPriceData.price : 84.0;
-        console.log(`[MarketService] Live USD Rate: ${usdRate}`);
 
-        // 2. Fetch Commodities (Gold, Silver, Crude)
         const commoditiesList = [
             { name: 'Gold', symbol: 'GC=F', type: 'gold' },
             { name: 'Silver', symbol: 'SI=F', type: 'silver' },
@@ -388,49 +397,36 @@ export async function fetchCommodities() {
 
         const results = await Promise.allSettled(
             commoditiesList.map(async (commodity) => {
-                try {
-                    const data = await fetchYahooData(commodity.symbol);
-                    const priceData = extractYahooPrice(data);
+                const data = await fetchYahooData(commodity.symbol);
+                const priceData = extractYahooPrice(data);
 
-                    if (!priceData) throw new Error('No data');
+                if (!priceData) throw new Error('No data');
 
-                    console.log(`[MarketService] ${commodity.name} Raw: Price=${priceData.price}, USD=${usdRate}`);
+                let value, change, unit;
 
-                    let value, change, unit;
-
-                    if (commodity.type === 'gold') {
-                        // Gold: Price per gram
-                        // Formula: (USD/oz * USD_INR / 31.1035)
-                        value = (priceData.price * usdRate) / 31.1035;
-                        change = (priceData.change * usdRate) / 31.1035;
-                        unit = '₹/g';
-                    } else if (commodity.type === 'silver') {
-                        // Silver: Price per kg
-                        // Formula: (USD/oz * USD_INR / 31.1035) * 1000
-                        value = ((priceData.price * usdRate) / 31.1035) * 1000;
-                        change = ((priceData.change * usdRate) / 31.1035) * 1000;
-                        unit = '₹/kg';
-                    } else {
-                        // Crude: Price per barrel
-                        // Formula: USD/bbl * USD_INR
-                        value = priceData.price * usdRate;
-                        change = priceData.change * usdRate;
-                        unit = '₹/bbl';
-                    }
-
-                    return {
-                        name: commodity.name,
-                        value: value.toFixed(2),
-                        change: change.toFixed(2),
-                        changePercent: priceData.changePercent,
-                        unit: unit,
-                        direction: change >= 0 ? 'up' : 'down',
-                        timestamp: priceData.timestamp
-                    };
-                } catch (err) {
-                    console.error(`[MarketService] Failed ${commodity.name}: ${err.message}`);
-                    throw err;
+                if (commodity.type === 'gold') {
+                    value = (priceData.price * usdRate) / 31.1035;
+                    change = (priceData.change * usdRate) / 31.1035;
+                    unit = '₹/g';
+                } else if (commodity.type === 'silver') {
+                    value = ((priceData.price * usdRate) / 31.1035) * 1000;
+                    change = ((priceData.change * usdRate) / 31.1035) * 1000;
+                    unit = '₹/kg';
+                } else {
+                    value = priceData.price * usdRate;
+                    change = priceData.change * usdRate;
+                    unit = '₹/bbl';
                 }
+
+                return {
+                    name: commodity.name,
+                    value: value.toFixed(2),
+                    change: change.toFixed(2),
+                    changePercent: priceData.changePercent,
+                    unit: unit,
+                    direction: change >= 0 ? 'up' : 'down',
+                    timestamp: priceData.timestamp
+                };
             })
         );
 
@@ -439,13 +435,12 @@ export async function fetchCommodities() {
             .map(r => r.value);
 
     } catch (error) {
-        console.error('[MarketService] Failed to fetch commodities:', error);
         return [];
     }
 }
 
 // ============================================
-// 7. CURRENCY RATES (USD, EUR, AED to INR)
+// 7. CURRENCY RATES
 // ============================================
 
 export async function fetchCurrencyRates() {
@@ -480,31 +475,20 @@ export async function fetchCurrencyRates() {
 }
 
 // ============================================
-// 8. FII/DII ACTIVITY (Mock data)
+// 8. FII/DII ACTIVITY (Mock)
 // ============================================
 
 export async function fetchFIIDII() {
-    console.log('[MarketService] Fetching FII/DII activity...');
-
-    // Note: Real FII/DII data requires NSE authentication
-    // Using mock data for demonstration
+    // Mock data as real API needs auth
     return {
-        fii: {
-            buy: 12500.5,
-            sell: 11800.3,
-            net: 700.2
-        },
-        dii: {
-            buy: 8900.7,
-            sell: 9200.4,
-            net: -299.7
-        },
+        fii: { buy: 12500.5, sell: 11800.3, net: 700.2 },
+        dii: { buy: 8900.7, sell: 9200.4, net: -299.7 },
         date: new Date().toISOString().split('T')[0]
     };
 }
 
 // ============================================
-// 9. COMBINED MARKET DATA FETCH
+// 9. COMBINED FETCH
 // ============================================
 
 export async function fetchAllMarketData() {
@@ -532,23 +516,16 @@ export async function fetchAllMarketData() {
         fiidii: fiidii.status === 'fulfilled' ? fiidii.value : { fii: {}, dii: {}, date: '' },
         fetchedAt: Date.now(),
         errors: {
-            indices: indices.status === 'rejected' ? indices.reason?.message : null,
-            mutualFunds: mutualFunds.status === 'rejected' ? mutualFunds.reason?.message : null,
-            ipo: ipoData.status === 'rejected' ? ipoData.reason?.message : null,
-            movers: movers.status === 'rejected' ? movers.reason?.message : null,
-            sectorals: sectorals.status === 'rejected' ? sectorals.reason?.message : null,
-            commodities: commodities.status === 'rejected' ? commodities.reason?.message : null,
-            currencies: currencies.status === 'rejected' ? currencies.reason?.message : null,
-            fiidii: fiidii.status === 'rejected' ? fiidii.reason?.message : null
+            // Include errors for debugging
+            indices: indices.status === 'rejected' ? indices.reason?.message : null
         }
     };
 
-    console.log('[MarketService] ✅ All market data fetched');
     return result;
 }
 
-// Export individual functions for flexibility
 export default {
+    fetchAllMarketData,
     fetchIndices,
     fetchMutualFunds,
     fetchIPOData,
@@ -556,6 +533,5 @@ export default {
     fetchSectoralIndices,
     fetchCommodities,
     fetchCurrencyRates,
-    fetchFIIDII,
-    fetchAllMarketData
+    fetchFIIDII
 };
