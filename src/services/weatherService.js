@@ -369,7 +369,7 @@ function processMultiModelData(modelData, locationName) {
     if (parseFloat(totalPrecip) > 0) {
         summaryText += `Today's max rain probability: ${maxPrecipProb}%. Total precip: ${totalPrecip}mm. `;
     }
-    summaryText += `Condition: ${getCondition(currentWeatherCode)}. UV Index: ${maxUV || 'N/A'}. Data from ${successfulModels.length} model${successfulModels.length > 1 ? 's' : ''}: ${formatModelNames(successfulModels)}.`;
+    summaryText += `Condition: ${getCondition(currentWeatherCode)}. UV Index: ${maxUV || 'N/A'}.`;
 
     return {
         name: locationName.charAt(0).toUpperCase() + locationName.slice(1),

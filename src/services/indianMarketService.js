@@ -391,14 +391,19 @@ export async function fetchCommodities() {
 
         const commoditiesList = [
             { name: 'Gold', symbol: 'GC=F', type: 'gold' },
-            { name: 'Silver', symbol: 'SI=F', type: 'silver' },
+            { name: 'Silver', symbol: 'SI=F', type: 'silver' }, // SI=F is proper, but sometimes flaky
             { name: 'Crude Oil', symbol: 'CL=F', type: 'crude' }
         ];
 
         const results = await Promise.allSettled(
             commoditiesList.map(async (commodity) => {
-                const data = await fetchYahooData(commodity.symbol);
-                const priceData = extractYahooPrice(data);
+                let priceData = null;
+                try {
+                    const data = await fetchYahooData(commodity.symbol);
+                    priceData = extractYahooPrice(data);
+                } catch (e) {
+                    console.warn(`[MarketService] Failed to fetch ${commodity.name} (${commodity.symbol})`);
+                }
 
                 if (!priceData) throw new Error('No data');
 
@@ -448,30 +453,79 @@ export async function fetchCurrencyRates() {
 
     const currencies = [
         { name: 'USD/INR', symbol: 'INR=X' },
-        { name: 'EUR/INR', symbol: 'EURINR=X' },
         { name: 'OMR/INR', symbol: 'OMRINR=X' }
     ];
 
-    const results = await Promise.allSettled(
-        currencies.map(async (currency) => {
+    // Attempt 1: Yahoo Finance
+    const yahooPromises = currencies.map(async (currency) => {
+        try {
             const data = await fetchYahooData(currency.symbol);
             const priceData = extractYahooPrice(data);
-
             if (!priceData) throw new Error('No data');
-
             return {
                 name: currency.name,
                 value: priceData.price.toFixed(2),
                 change: priceData.change.toFixed(2),
                 changePercent: priceData.changePercent,
-                timestamp: priceData.timestamp
+                timestamp: priceData.timestamp,
+                source: 'yahoo'
             };
-        })
-    );
+        } catch (e) {
+            return null;
+        }
+    });
 
-    return results
-        .filter(r => r.status === 'fulfilled')
-        .map(r => r.value);
+    const yahooResults = await Promise.all(yahooPromises);
+
+    // Check if we have valid results for all
+    const validYahoo = yahooResults.filter(r => r !== null);
+    if (validYahoo.length === currencies.length) {
+        return validYahoo;
+    }
+
+    // Attempt 2: Fallback API (Open Exchange Rates)
+    console.log('[MarketService] ⚠️ Yahoo Currency failed, using fallback...');
+    try {
+        const response = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await response.json();
+
+        if (!data || !data.rates) throw new Error('Fallback API failed');
+
+        const inr = data.rates.INR;
+        const omr = data.rates.OMR;
+
+        const fallbackResults = [];
+
+        // USD/INR
+        fallbackResults.push({
+            name: 'USD/INR',
+            value: inr.toFixed(2),
+            change: '0.00', // API doesn't provide change
+            changePercent: '0.00',
+            timestamp: Date.now(),
+            source: 'fallback'
+        });
+
+        // OMR/INR = (USD/INR) / (USD/OMR)
+        if (omr) {
+            const omrInr = inr / omr;
+            fallbackResults.push({
+                name: 'OMR/INR',
+                value: omrInr.toFixed(2),
+                change: '0.00',
+                changePercent: '0.00',
+                timestamp: Date.now(),
+                source: 'fallback'
+            });
+        }
+
+        return fallbackResults;
+
+    } catch (e) {
+        console.error('[MarketService] ❌ All currency sources failed:', e);
+        // Return whatever valid Yahoo results we had, if any
+        return validYahoo;
+    }
 }
 
 // ============================================
