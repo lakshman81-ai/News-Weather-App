@@ -1581,8 +1581,18 @@ body {
 }
 
 .bottom-nav__label {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+  overflow: visible;
+}
+
+@media (max-width: 360px) {
+  .bottom-nav__label {
+    font-size: 0.55rem;
+    transform: scale(0.95);
+  }
 }
 
 /* Page Containers */
@@ -1650,11 +1660,21 @@ body {
     gap: var(--spacing-md);
   }
 
-  /* Ensure cards take full height in grid */
-  .news-sections--grid .card {
+  /* Make News Sections look like Dashboard Cards on Desktop */
+  .news-sections--grid .news-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+  .news-sections--grid .news-section__title {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-default);
   }
 
   /* Bottom nav repositions to top as horizontal navbar */

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import MarketTicker from './MarketTicker';
+import appIcon from '../assets/app-icon.png';
 
 /**
  * Header Component with optional back navigation
@@ -23,9 +25,11 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
                 </Link>
             ) : (
                 <h1 className="header__title">
-                    <span className="header__title-icon">{icon}</span>
+                    <img src={appIcon} alt="App Icon" style={{ width: '24px', height: '24px' }} />
                 </h1>
             )}
+
+            {!showBack && <MarketTicker />}
 
             {/* Contextual Pills (Classic Mode) - REMOVED or Deprecated if pills move to weather */}
             {/* Keeping logic for now but MainPage will stop passing pills if we want to remove them here */}
