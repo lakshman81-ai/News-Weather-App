@@ -17,8 +17,7 @@ import { calculateCurrencyScore } from '../utils/currencyScorer.js';
 import { calculateHumanInterestScore } from '../utils/humanInterestScorer.js';
 import { calculateVisualScore } from '../utils/visualScorer.js';
 import { classifySection } from '../utils/sectionClassifier.js';
-
-const RSS_PROXY_BASE = "https://api.rss2json.com/v1/api.json?rss_url=";
+import { proxyManager } from './proxyManager.js';
 
 /**
  * @typedef {Object} NewsItem
@@ -425,95 +424,13 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
 /* ---------- Core Logic ---------- */
 
 export async function fetchAndParseFeed(feedUrl, section) {
-    try {
-        // Strategy 1: RSS2JSON
-        const response = await fetch(`${RSS_PROXY_BASE}${encodeURIComponent(feedUrl)}`);
+    // Delegate to ProxyManager for rotation and failover
+    // ProxyManager returns { title: string, items: Array<RawItem> }
+    const { title: feedTitle, items } = await proxyManager.fetchViaProxy(feedUrl);
 
-        if (response.ok) {
-            const data = await response.json();
-            if (data.status === 'ok') {
-                const feedSource = data.feed?.title || "Unknown Source";
-                const items = (data.items || []).map(item => normalizeItem(item, feedSource, section));
-                console.log(`[RSS] rss2json success for ${feedUrl}: ${items.length} items`);
-                return items;
-            }
-        }
-
-        throw new Error('RSS2JSON Failed or returned error status');
-
-    } catch (error) {
-        console.warn(`[RSS] Primary proxy failed for ${feedUrl}, trying fallback...`);
-        return fetchWithAllOrigins(feedUrl, section);
-    }
-}
-
-async function fetchWithAllOrigins(feedUrl, section) {
-    const ALL_ORIGINS = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
-
-    try {
-        const response = await fetch(ALL_ORIGINS);
-        if (!response.ok) throw new Error('AllOrigins Network Error');
-
-        const data = await response.json();
-        const xmlString = data.contents;
-        if (!xmlString) throw new Error('AllOrigins empty content');
-
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-
-        if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
-            throw new Error('XML Parsing Error');
-        }
-
-        const items = Array.from(xmlDoc.querySelectorAll("item"));
-        const feedTitle = xmlDoc.querySelector("channel > title")?.textContent || "Unknown Source";
-
-        return items.map(node => {
-            const title = node.querySelector("title")?.textContent || "No Title";
-            const link = node.querySelector("link")?.textContent || "";
-            const pubDate = node.querySelector("pubDate")?.textContent || "";
-            const description = node.querySelector("description")?.textContent || "";
-            const sourceNode = node.querySelector("source");
-            const author = node.querySelector("author") || node.querySelector("dc\\:creator");
-
-            const publishedAt = Date.parse(pubDate) || Date.now();
-            let source = feedTitle;
-            if (sourceNode) source = sourceNode.textContent;
-            else if (author) source = author.textContent;
-
-            source = cleanSource(source);
-            const summary = cleanDescription(description);
-
-            const isFinanceRelated = ['business', 'market'].includes(section) ||
-                /\b(stock|market|shares|trading|sensex|nifty|bank|economy|crypto|ipo|revenue|profit)\b/i.test(title + description);
-
-            let sentimentData = null;
-            if (isFinanceRelated) {
-                sentimentData = analyzeArticleSentiment(title, summary);
-            }
-
-            return {
-                id: hash(link || title),
-                title: title,
-                headline: title,
-                description: description,
-                summary: summary,
-                link: link,
-                url: link,
-                source: source,
-                publishedAt: publishedAt,
-                fetchedAt: Date.now(),
-                time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                impactScore: 0,
-                criticsView: generateCriticsOneLiner(title, summary, source),
-                sentiment: sentimentData
-            };
-        });
-
-    } catch (err) {
-        console.error(`[RSS] All Fallbacks failed for ${feedUrl}`, err);
-        throw err; // Propagate error for tracking
-    }
+    // Normalize items to internal application structure
+    // This includes scoring, sentiment analysis (if applicable), and cleaning
+    return items.map(item => normalizeItem(item, feedTitle, section));
 }
 
 function normalizeItem(item, feedSource, section = 'general') {

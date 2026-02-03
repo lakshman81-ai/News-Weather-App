@@ -4,14 +4,47 @@ import { getSettings } from '../utils/storage';
 
 const NewsContext = createContext();
 
+const PRIORITY_SECTIONS = ['world', 'india', 'chennai', 'trichy'];
+
 export function NewsProvider({ children }) {
     const [newsData, setNewsData] = useState({});
     const [breakingNews, setBreakingNews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadedSections, setLoadedSections] = useState([]);
     const [errors, setErrors] = useState({});
     const [lastFetch, setLastFetch] = useState(0);
     const [settingsHash, setSettingsHash] = useState(''); // NEW - Phase 6: Track settings changes
 
+
+    const loadSection = useCallback(async (section) => {
+        // Prevent duplicate loads if already loaded or in loadedSections
+        // Note: Ideally we should track "loadingSections" to prevent double-fetch while in flight,
+        // but for now checking loadedSections prevents re-fetch after success.
+        if (loadedSections.includes(section)) return;
+
+        console.log(`[NewsContext] Lazy loading section: ${section}`);
+
+        try {
+            const settings = getSettings();
+            // Respect settings enablement
+            if (settings.sections[section] && !settings.sections[section].enabled) {
+                console.log(`[NewsContext] Skipping lazy load for disabled section: ${section}`);
+                return;
+            }
+
+            const count = settings.sections[section]?.count || 10;
+            const articles = await fetchSectionNews(section, count + 5, settings.newsSources);
+
+            setNewsData(prev => ({ ...prev, [section]: articles || [] }));
+
+        } catch (err) {
+            console.error(`[NewsContext] Failed to load section ${section}:`, err);
+            setErrors(prev => ({ ...prev, [section]: err.message }));
+        } finally {
+            // Mark as loaded regardless of success/failure so UI can show content or error
+            setLoadedSections(prev => [...new Set([...prev, section])]);
+        }
+    }, [loadedSections]);
 
     const refreshNews = useCallback(async (specificSections = null) => {
         setLoading(true);
@@ -28,8 +61,8 @@ export function NewsProvider({ children }) {
             const sectionsToFetch = specificSections || allSections;
 
             // Prioritize Sections: Main Page (High) -> Others (Low)
-            const highPriority = sectionsToFetch.filter(s => ['world', 'india', 'chennai', 'trichy'].includes(s));
-            const lowPriority = sectionsToFetch.filter(s => !['world', 'india', 'chennai', 'trichy'].includes(s));
+            const highPriority = sectionsToFetch.filter(s => PRIORITY_SECTIONS.includes(s));
+            const lowPriority = sectionsToFetch.filter(s => !PRIORITY_SECTIONS.includes(s));
 
             const batches = [highPriority, lowPriority].filter(b => b.length > 0);
 
@@ -87,6 +120,9 @@ export function NewsProvider({ children }) {
                 setNewsData(prev => ({ ...prev, ...redistributed }));
                 setErrors(prev => ({ ...prev, ...batchErrors }));
 
+                // Update loaded sections
+                setLoadedSections(prev => [...new Set([...prev, ...Object.keys(batchResults)])]);
+
                 // Breaking News Update (Incremental)
                 const breaking = allFetched
                     .filter(item => item.isBreaking || (item.breakingScore && item.breakingScore > 1.5))
@@ -123,18 +159,22 @@ export function NewsProvider({ children }) {
         if (settingsHash && settingsHash !== newHash) {
             console.log('[NewsContext] ⚙️ Settings changed - clearing cache and refreshing');
             clearNewsCache();
+            // Full refresh on settings change to be safe
             refreshNews();
         }
         setSettingsHash(newHash);
     }, [refreshNews, settingsHash]); // Only run when hash changes
 
     useEffect(() => {
-        console.log('[NewsContext] Mounting - Initial fetch');
-        refreshNews();
+        console.log('[NewsContext] Mounting - Initial fetch (Priority Only)');
+        // Initial Fetch: Only Priority Sections
+        refreshNews(PRIORITY_SECTIONS);
 
         const interval = setInterval(() => {
             console.log('[NewsContext] Auto-refresh (5min cycle)');
-            refreshNews();
+            // Auto refresh: Update what we have loaded, or just priority?
+            // Safer to refresh priority + currently loaded
+            refreshNews(PRIORITY_SECTIONS);
         }, 5 * 60 * 1000);
 
         return () => {
@@ -150,7 +190,9 @@ export function NewsProvider({ children }) {
             errors,
             refreshNews,
             breakingNews,
-            lastFetch
+            lastFetch,
+            loadSection,
+            loadedSections
         }}>
             {children}
         </NewsContext.Provider>
