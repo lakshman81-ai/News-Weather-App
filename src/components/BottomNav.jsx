@@ -8,9 +8,10 @@ function BottomNav() {
 
     const navItems = [
         { path: '/', label: 'Main', icon: '🏠' },
+        { path: '/following', label: 'Follow', icon: '📌' },
         { path: '/newspaper', label: 'Paper', icon: '📰' },
         { path: '/markets', label: 'Market', icon: '📈' },
-        { path: '/tech-social', label: 'Buzz Hub', icon: '🎭' },
+        { path: '/tech-social', label: 'Buzz', icon: '🎭' },
         { path: '/weather', label: 'Weather', icon: '☁️' },
         { path: '/settings', label: 'Settings', icon: '⚙️' }
     ];

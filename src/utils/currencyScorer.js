@@ -13,10 +13,16 @@ export function calculateCurrencyScore(title, keywords = []) {
     const text = title.toLowerCase();
 
     // Check match
-    const hasMatch = followedTopics.some(topic =>
-        text.includes(topic.toLowerCase()) ||
-        (keywords && keywords.some(k => k.toLowerCase().includes(topic.toLowerCase())))
-    );
+    const hasMatch = followedTopics.some(topic => {
+        // Handle both string topics (legacy) and object topics (new)
+        // Prefer 'name' for matching as 'query' might contain boolean operators
+        const keyword = (typeof topic === 'string') ? topic : topic.name;
+        if (!keyword) return false;
+
+        const keywordLower = keyword.toLowerCase();
+        return text.includes(keywordLower) ||
+        (keywords && keywords.some(k => k.toLowerCase().includes(keywordLower)));
+    });
 
     return hasMatch ? 1.5 : 1.0;
 }

@@ -135,7 +135,19 @@ export const DEFAULT_SETTINGS = {
     // ========================================
     enableNewScoring: true,      // Master switch for new 9-factor scoring
     enableProximityScoring: false, // Boost local news (default OFF)
-    followedTopics: [],          // Keywords for Currency Scorer
+
+    // Topic Following (NEW)
+    // Stores objects: { id, name, query, icon, created, lastFetched, options }
+    followedTopics: [],
+
+    // Reading History for Suggestions
+    readingHistory: [], // List of { title, id, timestamp }
+
+    // Topic suggestions based on reading history
+    topicSuggestions: {
+        enabled: true,
+        basedOnReadingHistory: true
+    },
 
     // ========================================
     // ADVANCED / PERFORMANCE
@@ -368,4 +380,100 @@ function deepMerge(target, source) {
     }
 
     return result;
+}
+
+// ========================================
+// TOPIC FOLLOWING HELPERS
+// ========================================
+
+export function addFollowedTopic(topic) {
+    const settings = getSettings();
+    settings.followedTopics = settings.followedTopics || [];
+    settings.followedTopics.push({
+        ...topic,
+        id: `topic_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        created: new Date().toISOString(),
+        lastFetched: null
+    });
+    saveSettings(settings);
+}
+
+export function removeFollowedTopic(topicId) {
+    const settings = getSettings();
+    settings.followedTopics = settings.followedTopics.filter(t => t.id !== topicId);
+    saveSettings(settings);
+}
+
+export function updateTopicLastFetched(topicId) {
+    const settings = getSettings();
+    const topic = settings.followedTopics.find(t => t.id === topicId);
+    if (topic) {
+        topic.lastFetched = new Date().toISOString();
+        saveSettings(settings);
+    }
+}
+
+// ========================================
+// READING HISTORY & SUGGESTIONS
+// ========================================
+
+export function addReadArticle(article) {
+    if (!article || !article.title) return;
+
+    const settings = getSettings();
+    const history = settings.readingHistory || [];
+
+    // Avoid duplicates
+    if (history.some(h => h.id === article.id)) return;
+
+    // Add new entry
+    history.unshift({
+        id: article.id,
+        title: article.title,
+        description: article.description || '',
+        timestamp: Date.now()
+    });
+
+    // Limit history size (e.g., 50 items)
+    if (history.length > 50) {
+        history.length = 50;
+    }
+
+    settings.readingHistory = history;
+    saveSettings(settings);
+}
+
+/**
+ * Basic keyword extraction for topic suggestions
+ */
+export function getSuggestedTopics() {
+    const settings = getSettings();
+    const history = settings.readingHistory || [];
+
+    if (history.length === 0) return [];
+
+    const text = history.map(h => `${h.title} ${h.description}`).join(' ').toLowerCase();
+
+    // Simple stopwords removal
+    const stopWords = ['the', 'and', 'in', 'of', 'to', 'a', 'is', 'for', 'on', 'with', 'at', 'from', 'by', 'an', 'be', 'as', 'it', 'has', 'that', 'are', 'was', 'will', 'says', 'said', 'after', 'over', 'new', 'more', 'about', 'can', 'top', 'best', 'india', 'news', 'update', 'latest', 'today', 'live'];
+
+    const words = text.match(/\b[a-z]{4,}\b/g) || [];
+    const counts = {};
+
+    words.forEach(w => {
+        if (!stopWords.includes(w)) {
+            counts[w] = (counts[w] || 0) + 1;
+        }
+    });
+
+    // Sort by frequency
+    const sorted = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word, count]) => ({
+            word: word.charAt(0).toUpperCase() + word.slice(1),
+            count
+        }));
+
+    return sorted;
 }
