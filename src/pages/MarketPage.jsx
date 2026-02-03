@@ -33,6 +33,24 @@ function MarketPage() {
         });
     };
 
+    const isStale = (item) => {
+        if (!item || !item.timestamp) return true;
+        const now = Date.now();
+        const age = now - item.timestamp;
+
+        // Commodities: 60m (3600000ms), Others: 15m (900000ms)
+        const isCommodity = item.name && (item.name === 'Gold' || item.name === 'Silver' || item.name === 'Crude Oil');
+        const threshold = isCommodity ? 3600000 : 900000;
+
+        return age > threshold;
+    };
+
+    const getStaleStyle = (item) => ({
+        opacity: isStale(item) ? 0.6 : 1,
+        filter: isStale(item) ? 'grayscale(1)' : 'none',
+        transition: 'all 0.3s ease'
+    });
+
     // Navigation Sections
     const navSections = [
         { id: 'market-indices', icon: '📊', label: 'Indices' },
@@ -103,7 +121,11 @@ function MarketPage() {
 
                         <div className="market-indices-grid">
                             {indices?.map((index, idx) => (
-                                <div key={idx} className={`market-index market-index--${index.direction}`}>
+                                <div
+                                    key={idx}
+                                    className={`market-index market-index--${index.direction}`}
+                                    style={getStaleStyle(index)}
+                                >
                                     <div className="market-index__name">{index.name}</div>
                                     <div className="market-index__value">{index.value}</div>
                                     <div className={`market-index__change market-index__change--${index.direction}`}>
@@ -167,7 +189,11 @@ function MarketPage() {
                         </h2>
                         <div className="sectoral-grid">
                             {sectorals?.map((sector, idx) => (
-                                <div key={idx} className="sectoral-card">
+                                <div
+                                    key={idx}
+                                    className="sectoral-card"
+                                    style={getStaleStyle(sector)}
+                                >
                                     <div className="sectoral-card__name">{sector.name}</div>
                                     <div className="sectoral-card__value">{sector.value}</div>
                                     <div className={`sectoral-card__change ${sector.changePercent >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -187,9 +213,16 @@ function MarketPage() {
                         </h2>
                         <div className="commodity-grid">
                             {commodities?.map((commodity, idx) => (
-                                <div key={idx} className="commodity-card">
+                                <div
+                                    key={idx}
+                                    className="commodity-card"
+                                    style={getStaleStyle(commodity)}
+                                >
                                     <div className="commodity-card__name">{commodity.name}</div>
-                                    <div className="commodity-card__value">₹{commodity.value} <span className="commodity-card__unit">{commodity.unit}</span></div>
+                                    {/* Removed hardcoded ₹, relying on unit */}
+                                    <div className="commodity-card__value">
+                                        {commodity.value} <span className="commodity-card__unit">{commodity.unit}</span>
+                                    </div>
                                     <div className={`commodity-card__change ${commodity.changePercent >= 0 ? 'text-success' : 'text-danger'}`}>
                                         {commodity.changePercent >= 0 ? '+' : ''}{commodity.changePercent}%
                                     </div>
@@ -207,7 +240,11 @@ function MarketPage() {
                         </h2>
                         <div className="currency-grid">
                             {currencies?.map((currency, idx) => (
-                                <div key={idx} className="currency-card">
+                                <div
+                                    key={idx}
+                                    className="currency-card"
+                                    style={getStaleStyle(currency)}
+                                >
                                     <div className="currency-card__name">{currency.name}</div>
                                     <div className="currency-card__value">₹{currency.value}</div>
                                     <div className={`currency-card__change ${currency.changePercent >= 0 ? 'text-success' : 'text-danger'}`}>
