@@ -17,6 +17,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useSegment } from '../context/SegmentContext';
 import { requestNotificationPermission } from '../utils/notifications';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import LazySection from '../components/LazySection';
 
 // DEBUG LOGGING SYSTEM
 const logs = [];
@@ -55,7 +56,7 @@ const MainPage = () => {
 
     // Use Contexts
     const { weatherData, loading: weatherLoading, refreshWeather } = useWeather();
-    const { newsData, loading, errors, breakingNews, refreshNews } = useNews();
+    const { newsData, loading, errors, breakingNews, refreshNews, loadSection, loadedSections } = useNews();
 
     const { sections, uiMode = 'timeline' } = settings;
 
@@ -345,15 +346,21 @@ const MainPage = () => {
                                     )}
 
                                     {sections.local?.enabled && (
-                                        <NewsSection
+                                        <LazySection
                                             id="local-news"
-                                            title="Local — Muscat"
-                                            icon="📍"
-                                            colorClass="news-section__title--local"
-                                            news={newsData.local}
-                                            maxDisplay={sections.local.count || 5}
-                                            error={errors.local}
-                                        />
+                                            onVisible={() => loadSection('local')}
+                                            isLoaded={loadedSections.includes('local')}
+                                        >
+                                            <NewsSection
+                                                id="local-news"
+                                                title="Local — Muscat"
+                                                icon="📍"
+                                                colorClass="news-section__title--local"
+                                                news={newsData.local}
+                                                maxDisplay={sections.local.count || 5}
+                                                error={errors.local}
+                                            />
+                                        </LazySection>
                                     )}
 
                                 </>

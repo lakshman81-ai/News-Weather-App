@@ -14,9 +14,15 @@ import { useSettings } from '../context/SettingsContext';
  * - 20% Muscat/Local
  */
 function TechSocialPage() {
-    const { newsData, refreshNews, loading } = useNews();
+    const { newsData, refreshNews, loading, loadSection } = useNews();
     const { settings } = useSettings();
     const [activeEntTab, setActiveEntTab] = useState('tamil');
+
+    // Trigger lazy load for sections required by this page
+    useEffect(() => {
+        const requiredSections = ['entertainment', 'social', 'technology', 'local'];
+        requiredSections.forEach(section => loadSection(section));
+    }, [loadSection]);
 
     const filterOldNews = React.useCallback((newsArray) => {
         if (!newsArray) return [];
