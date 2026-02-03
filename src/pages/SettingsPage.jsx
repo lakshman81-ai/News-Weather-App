@@ -120,7 +120,6 @@ function SettingsPage() {
         { key: 'dtNext', label: 'DT Next' },
         { key: 'omanObserver', label: 'Oman Observer' },
         { key: 'timesOfOman', label: 'Times of Oman' },
-        { key: 'variety', label: 'Variety' },
         { key: 'hollywoodReporter', label: 'THR' },
         { key: 'bollywoodHungama', label: 'Bollywood Hungama' },
         { key: 'filmCompanion', label: 'Film Companion' }
@@ -373,8 +372,12 @@ function SettingsPage() {
                     </h2>
                     <div className="settings-card">
                         {/* Top Websites Toggle */}
-                        <div className="settings-item" style={{ borderBottom: '1px solid var(--border-default)', background: 'rgba(255, 255, 255, 0.03)' }}>
-                            <div className="settings-item__label">
+                        <div className="settings-item" style={{
+                            borderBottom: '1px solid var(--accent-danger)',
+                            background: 'rgba(220, 38, 38, 0.15)',
+                            borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0'
+                        }}>
+                            <div className="settings-item__label" style={{ color: 'var(--accent-danger)' }}>
                                 <span>🏆 Top Websites Only</span>
                                 <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
                                     BBC, Reuters, NDTV, Hindu, TOI, MoneyControl

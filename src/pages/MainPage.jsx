@@ -5,7 +5,6 @@ import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
 import SectionNavigator from '../components/SectionNavigator';
 import BreakingNews from '../components/BreakingNews';
-import MarketTicker from '../components/MarketTicker';
 import TimelineHeader from '../components/TimelineHeader';
 import QuickWeather from '../components/QuickWeather';
 import { NewspaperLayout } from '../components/NewspaperLayout';
@@ -248,9 +247,6 @@ const MainPage = () => {
                         pills={timelinePills}
                     />
                 )}
-
-                {/* Market Ticker - Visible on Desktop too */}
-                <MarketTicker />
 
                 <div className="content-wrapper">
 
