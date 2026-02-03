@@ -1,46 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { fetchIndices, fetchCommodities, fetchCurrencyRates } from '../services/indianMarketService';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { useMarket } from '../context/MarketContext';
 import './MarketTicker.css';
 
 const MarketTicker = () => {
-    const [markets, setMarkets] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { marketData, loading, lastFetch } = useMarket();
     const scrollRef = useRef(null);
     const isPaused = useRef(false);
 
-    useEffect(() => {
-        const loadMarkets = async () => {
-            try {
-                // Fetch required data
-                const [indices, commodities, currencies] = await Promise.all([
-                    fetchIndices(),
-                    fetchCommodities(),
-                    fetchCurrencyRates()
-                ]);
+    // Filter and prepare market items
+    const markets = useMemo(() => {
+        if (!marketData) return [];
 
-                // Filter and Map to specific items: NIFTY 50, SENSEX, Gold, Silver, OMR/INR
-                const allowedNames = ['NIFTY 50', 'SENSEX', 'Gold', 'Silver', 'OMR/INR'];
+        const { indices = [], commodities = [], currencies = [] } = marketData;
+        const allItems = [...indices, ...commodities, ...currencies];
 
-                const allItems = [...indices, ...commodities, ...currencies];
-                const filtered = allItems.filter(item => allowedNames.includes(item.name));
+        // Specific items to display in order
+        const allowedNames = ['NIFTY 50', 'SENSEX', 'Gold', 'Silver', 'OMR/INR'];
 
-                // Enforce specific order
-                const ordered = allowedNames.map(name => filtered.find(item => item.name === name)).filter(Boolean);
+        return allowedNames
+            .map(name => allItems.find(item => item.name === name))
+            .filter(Boolean);
+    }, [marketData]);
 
-                setMarkets(ordered);
-                setLoading(false);
-            } catch (err) {
-                console.error("Market Ticker Error:", err);
-                setLoading(false);
-            }
-        };
-
-        loadMarkets();
-        const interval = setInterval(loadMarkets, 60000); // 1 min update
-        return () => clearInterval(interval);
-    }, []);
-
-    // Auto-scroll logic with speed control
+    // Auto-scroll logic (Same as before)
     useEffect(() => {
         let animationFrameId;
         let lastTimestamp = 0;
@@ -56,7 +38,6 @@ const MarketTicker = () => {
                 const move = (speed * deltaTime) / 1000;
                 accumulator += move;
 
-                // Only write to DOM when we have at least 1 pixel to move
                 if (accumulator >= 1) {
                     const pixelsToMove = Math.floor(accumulator);
                     accumulator -= pixelsToMove;
@@ -71,7 +52,6 @@ const MarketTicker = () => {
                     }
                 }
             } else {
-                // If paused, reset timestamp to prevent jumps on resume
                 lastTimestamp = timestamp;
             }
             animationFrameId = requestAnimationFrame(scroll);
@@ -87,11 +67,29 @@ const MarketTicker = () => {
         };
     }, [markets]);
 
-    if (loading || markets.length === 0) return null;
+    const isItemStale = (item) => {
+        if (!item.timestamp) return true;
+        const now = Date.now();
+        const diff = now - item.timestamp;
+
+        // Commodities: 60 mins, Others: 15 mins
+        const isCommodity = ['Gold', 'Silver', 'Crude Oil'].includes(item.name);
+        const threshold = isCommodity ? 60 * 60 * 1000 : 15 * 60 * 1000;
+
+        return diff > threshold;
+    };
+
+    const formatTime = (ts) => {
+        if (!ts) return '';
+        return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    if ((loading && markets.length === 0) || markets.length === 0) return null;
 
     return (
         <div className="market-ticker-container">
             <div className="ticker-label">MARKETS</div>
+
             <div
                 className="ticker-track-wrapper"
                 ref={scrollRef}
@@ -102,19 +100,32 @@ const MarketTicker = () => {
             >
                 <div className="ticker-track">
                     {/* Double the list for infinite scroll effect */}
-                    {[...markets, ...markets].map((item, index) => (
-                        <div key={`${item.name}-${index}`} className="ticker-item">
-                            <span className="ticker-name">{item.name}</span>
-                            <span className="ticker-price">
-                                {typeof item.value === 'number' ? item.value.toFixed(2) : item.value}
-                            </span>
-                            <span className={`ticker-change ${parseFloat(item.change) >= 0 ? 'positive' : 'negative'}`}>
-                                {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(item.changePercent)).toFixed(2)}%
-                            </span>
-                        </div>
-                    ))}
+                    {[...markets, ...markets].map((item, index) => {
+                        const stale = isItemStale(item);
+                        return (
+                            <div key={`${item.name}-${index}`} className={`ticker-item ${stale ? 'stale-data' : ''}`}>
+                                <span className="ticker-name">{item.name}</span>
+                                <span className="ticker-price">
+                                    {/* Handle unit display for commodities */}
+                                    {item.name === 'Gold' || item.name === 'Silver' ? item.value :
+                                     (typeof item.value === 'number' ? item.value.toFixed(2) : item.value)}
+                                    {item.unit ? <span style={{fontSize: '0.7em', marginLeft: '2px'}}>{item.unit}</span> : ''}
+                                </span>
+                                <span className={`ticker-change ${parseFloat(item.change) >= 0 ? 'positive' : 'negative'}`}>
+                                    {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(item.changePercent)).toFixed(2)}%
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
+
+            {/* Static Last Updated Label */}
+            {lastFetch && (
+                <div className="ticker-updated">
+                    Updated: {formatTime(lastFetch)}
+                </div>
+            )}
         </div>
     );
 };

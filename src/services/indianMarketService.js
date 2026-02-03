@@ -27,9 +27,22 @@ const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 async function fetchYahooData(symbol) {
     const targetUrl = `${YAHOO_BASE}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 
+    const fetchWithTimeout = async (url, options = {}) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        } catch (e) {
+            clearTimeout(id);
+            throw e;
+        }
+    };
+
     // Strategy 1: Direct (works in some environments/extensions)
     try {
-        const response = await fetch(targetUrl);
+        const response = await fetchWithTimeout(targetUrl);
         if (response.ok) {
             return await response.json();
         }
@@ -40,7 +53,7 @@ async function fetchYahooData(symbol) {
     // Strategy 2: AllOrigins (CORS Proxy)
     try {
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        const response = await fetch(proxyUrl);
+        const response = await fetchWithTimeout(proxyUrl);
         if (response.ok) {
             return await response.json();
         }
@@ -60,27 +73,28 @@ function extractYahooPrice(data) {
     const prevClose = quote.chartPreviousClose || quote.previousClose;
     const change = currentPrice - prevClose;
     const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+    const timestamp = quote.regularMarketTime ? quote.regularMarketTime * 1000 : Date.now();
 
     return {
         price: currentPrice,
         change: change,
-        changePercent: changePercent.toFixed(2)
+        changePercent: changePercent.toFixed(2),
+        timestamp: timestamp
     };
 }
 
 export async function fetchIndices() {
     console.log('[MarketService] Fetching Indian indices...');
 
-    const results = [];
-
-    for (const [name, symbol] of Object.entries(INDICES)) {
+    const promises = Object.entries(INDICES).map(async ([name, symbol]) => {
         try {
             const data = await fetchYahooData(symbol);
             const priceData = extractYahooPrice(data);
 
-            if (!priceData) continue;
+            if (!priceData) return null;
 
-            results.push({
+            console.log(`[MarketService] ✅ ${name}: ${priceData.price}`);
+            return {
                 name: name === 'nifty50' ? 'NIFTY 50' :
                     name === 'sensex' ? 'SENSEX' :
                         name === 'niftyBank' ? 'BANK NIFTY' :
@@ -90,16 +104,17 @@ export async function fetchIndices() {
                 change: priceData.change.toFixed(2),
                 changePercent: priceData.changePercent,
                 direction: priceData.change >= 0 ? 'up' : 'down',
-                currency: '₹'
-            });
-
-            console.log(`[MarketService] ✅ ${name}: ${priceData.price}`);
+                currency: '₹',
+                timestamp: priceData.timestamp
+            };
         } catch (err) {
             console.warn(`[MarketService] ⚠️ Failed to fetch ${name}:`, err.message);
+            return null;
         }
-    }
+    });
 
-    return results;
+    const results = await Promise.all(promises);
+    return results.filter(item => item !== null);
 }
 
 // ============================================
@@ -223,34 +238,35 @@ const TOP_STOCKS = [
 export async function fetchTopMovers() {
     console.log('[MarketService] Fetching top movers...');
 
-    const results = [];
-
-    // Fetch top 15 stocks
-    for (const symbol of TOP_STOCKS.slice(0, 10)) {
+    const promises = TOP_STOCKS.slice(0, 10).map(async (symbol) => {
         try {
             const data = await fetchYahooData(symbol);
             const priceData = extractYahooPrice(data);
 
-            if (!priceData) continue;
+            if (!priceData) return null;
 
             const quote = data.chart?.result?.[0];
             const meta = quote.meta;
 
-            results.push({
+            return {
                 symbol: symbol.replace('.NS', ''),
                 price: priceData.price.toFixed(2),
                 change: priceData.change.toFixed(2),
                 changePercent: parseFloat(priceData.changePercent),
                 direction: priceData.change >= 0 ? 'up' : 'down',
                 volume: meta.regularMarketVolume || 0
-            });
+            };
         } catch (err) {
             console.warn(`[MarketService] ⚠️ Failed ${symbol}`);
+            return null;
         }
-    }
+    });
+
+    const results = await Promise.all(promises);
+    const validResults = results.filter(r => r !== null);
 
     // Sort to get gainers and losers
-    const sorted = results.sort((a, b) => b.changePercent - a.changePercent);
+    const sorted = validResults.sort((a, b) => b.changePercent - a.changePercent);
 
     return {
         gainers: sorted.filter(s => s.changePercent > 0).slice(0, 5),
@@ -284,7 +300,8 @@ export async function fetchSectoralIndices() {
                 name: sector.name,
                 value: priceData.price.toFixed(2),
                 change: priceData.change.toFixed(2),
-                changePercent: priceData.changePercent
+                changePercent: priceData.changePercent,
+                timestamp: priceData.timestamp
             };
         })
     );
@@ -301,32 +318,77 @@ export async function fetchSectoralIndices() {
 export async function fetchCommodities() {
     console.log('[MarketService] Fetching commodities...');
 
-    const commodities = [
-        { name: 'Gold', symbol: 'GC=F', multiplier: 83 },
-        { name: 'Silver', symbol: 'SI=F', multiplier: 83 },
-        { name: 'Crude Oil', symbol: 'CL=F', multiplier: 83 }
-    ];
+    try {
+        // 1. Fetch USD/INR Rate first (for conversion)
+        const usdInrData = await fetchYahooData('INR=X');
+        const usdPriceData = extractYahooPrice(usdInrData);
+        // Default to 84.0 if fetch fails, but it usually works
+        const usdRate = usdPriceData ? usdPriceData.price : 84.0;
+        console.log(`[MarketService] Live USD Rate: ${usdRate}`);
 
-    const results = await Promise.allSettled(
-        commodities.map(async (commodity) => {
-            const data = await fetchYahooData(commodity.symbol);
-            const priceData = extractYahooPrice(data);
+        // 2. Fetch Commodities (Gold, Silver, Crude)
+        const commoditiesList = [
+            { name: 'Gold', symbol: 'GC=F', type: 'gold' },
+            { name: 'Silver', symbol: 'SI=F', type: 'silver' },
+            { name: 'Crude Oil', symbol: 'CL=F', type: 'crude' }
+        ];
 
-            if (!priceData) throw new Error('No data');
+        const results = await Promise.allSettled(
+            commoditiesList.map(async (commodity) => {
+                try {
+                    const data = await fetchYahooData(commodity.symbol);
+                    const priceData = extractYahooPrice(data);
 
-            return {
-                name: commodity.name,
-                value: (priceData.price * commodity.multiplier).toFixed(2),
-                change: (priceData.change * commodity.multiplier).toFixed(2),
-                changePercent: priceData.changePercent,
-                unit: commodity.name === 'Crude Oil' ? '₹/barrel' : '₹/oz'
-            };
-        })
-    );
+                    if (!priceData) throw new Error('No data');
 
-    return results
-        .filter(r => r.status === 'fulfilled')
-        .map(r => r.value);
+                    console.log(`[MarketService] ${commodity.name} Raw: Price=${priceData.price}, USD=${usdRate}`);
+
+                    let value, change, unit;
+
+                    if (commodity.type === 'gold') {
+                        // Gold: Price per gram
+                        // Formula: (USD/oz * USD_INR / 31.1035)
+                        value = (priceData.price * usdRate) / 31.1035;
+                        change = (priceData.change * usdRate) / 31.1035;
+                        unit = '₹/g';
+                    } else if (commodity.type === 'silver') {
+                        // Silver: Price per kg
+                        // Formula: (USD/oz * USD_INR / 31.1035) * 1000
+                        value = ((priceData.price * usdRate) / 31.1035) * 1000;
+                        change = ((priceData.change * usdRate) / 31.1035) * 1000;
+                        unit = '₹/kg';
+                    } else {
+                        // Crude: Price per barrel
+                        // Formula: USD/bbl * USD_INR
+                        value = priceData.price * usdRate;
+                        change = priceData.change * usdRate;
+                        unit = '₹/bbl';
+                    }
+
+                    return {
+                        name: commodity.name,
+                        value: value.toFixed(2),
+                        change: change.toFixed(2),
+                        changePercent: priceData.changePercent,
+                        unit: unit,
+                        direction: change >= 0 ? 'up' : 'down',
+                        timestamp: priceData.timestamp
+                    };
+                } catch (err) {
+                    console.error(`[MarketService] Failed ${commodity.name}: ${err.message}`);
+                    throw err;
+                }
+            })
+        );
+
+        return results
+            .filter(r => r.status === 'fulfilled')
+            .map(r => r.value);
+
+    } catch (error) {
+        console.error('[MarketService] Failed to fetch commodities:', error);
+        return [];
+    }
 }
 
 // ============================================
@@ -353,7 +415,8 @@ export async function fetchCurrencyRates() {
                 name: currency.name,
                 value: priceData.price.toFixed(2),
                 change: priceData.change.toFixed(2),
-                changePercent: priceData.changePercent
+                changePercent: priceData.changePercent,
+                timestamp: priceData.timestamp
             };
         })
     );

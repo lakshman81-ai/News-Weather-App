@@ -26,6 +26,52 @@ function TechSocialPage() {
     }, [settings.freshnessLimitHours]);
 
     // ============================================
+    // ENTERTAINMENT CONTENT FILTERING
+    // ============================================
+    const processedEntertainment = useMemo(() => {
+        const raw = newsData.entertainment || [];
+
+        const KEYWORDS = {
+            tamil: [
+                'vijay', 'ajith', 'rajini', 'kamal', 'dhanush', 'suriya', 'vikram', 'simbu',
+                'siva karthikeyan', 'trisha', 'nayanthara', 'anirudh', 'ar rahman', 'kollywood',
+                'thalapathy', 'thala', 'udhayanidhi', 'vetri maaran', 'lokesh', 'nelson',
+                'jailer', 'leo', 'kanguva', 'indian 2', 'vettaiyan', 'goat', 'viduthalai',
+                'karthi', 'sethupathi', 'tamil', 'chennai'
+            ],
+            hindi: [
+                'shah rukh', 'srk', 'salman', 'aamir', 'ranbir', 'alia', 'deepika', 'ranveer',
+                'kareena', 'akshay', 'bachchan', 'bollywood', 'hrithik', 'katrina', 'vicky kaushal',
+                'karan johar', 'yrf', 'dharma', 'pathaan', 'jawan', 'tiger 3', 'animal', 'dunki',
+                'war 2', 'singham', 'hindi', 'mumbai'
+            ],
+            hollywood: [
+                'oscar', 'grammy', 'emmy', 'golden globe', 'marvel', 'dc', 'disney', 'warner bros',
+                'universal', 'tom cruise', 'dicaprio', 'nolan', 'avengers', 'spider-man', 'batman',
+                'superman', 'taylor swift', 'beyonce', 'kim kardashian', 'kanye', 'justin bieber',
+                'selena gomez', 'zendaya', 'hollywood', 'bad bunny', 'rihanna', 'drake'
+            ],
+            ott: [
+                'netflix', 'prime video', 'hotstar', 'sonyliv', 'zee5', 'aha', 'streaming',
+                'web series', 'season', 'episode', 'ott'
+            ]
+        };
+
+        return raw.map(item => {
+            const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+
+            // Content-based classification (Overrides source)
+            if (KEYWORDS.tamil.some(k => text.includes(k))) return { ...item, region: 'tamil' };
+            if (KEYWORDS.hindi.some(k => text.includes(k))) return { ...item, region: 'hindi' };
+            if (KEYWORDS.hollywood.some(k => text.includes(k))) return { ...item, region: 'hollywood' };
+            if (KEYWORDS.ott.some(k => text.includes(k))) return { ...item, region: 'ott' };
+
+            // Fallback to existing region if no specific keyword found
+            return item;
+        });
+    }, [newsData.entertainment]);
+
+    // ============================================
     // SOCIAL TRENDS DISTRIBUTION LOGIC
     // 30% World, 30% India, 20% TN, 20% Muscat
     // ============================================
@@ -209,7 +255,7 @@ function TechSocialPage() {
                             icon={activeEntTab === 'tamil' ? '🎭' :
                                 activeEntTab === 'hindi' ? '🎪' :
                                     activeEntTab === 'hollywood' ? '🎬' : '📺'}
-                            news={filterOldNews((newsData.entertainment || []).filter(item => item.region === activeEntTab))}
+                            news={filterOldNews(processedEntertainment.filter(item => item.region === activeEntTab))}
                             maxDisplay={
                                 activeEntTab === 'tamil' ? (settings.entertainment?.tamilCount ?? 5) :
                                     activeEntTab === 'hindi' ? (settings.entertainment?.hindiCount ?? 5) :
