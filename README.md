@@ -11,6 +11,40 @@ A React-based dashboard that aggregates real-time news, weather, and market upda
 *   **Deep Customization:** Settings page to toggle sources, cities, and sections.
 *   **Responsive Design:** Optimized for both desktop and mobile viewing.
 
+## Daily Brief Automation (E-Paper)
+
+The "Daily Brief" tab is powered by a Python script that runs automatically via GitHub Actions.
+
+### Features
+*   **Daily Schedule:** Runs every morning at 6:30 AM IST (01:00 UTC).
+*   **Sources:** Aggregates content from The Hindu, Indian Express, Dinamani, and Daily Thanthi.
+*   **AI Summarization:** Uses Google Gemini 1.5 Flash to generate concise summaries for each section.
+
+### Configuration
+To enable the AI summarization feature, you must add your Google Gemini API key to the GitHub repository secrets.
+
+1.  Go to your GitHub Repository -> **Settings** -> **Secrets and variables** -> **Actions**.
+2.  Click **"New repository secret"**.
+3.  **Name:** `GEMINI_API_KEY`
+4.  **Value:** Your Google Gemini API Key (get it from [Google AI Studio](https://aistudio.google.com/)).
+
+If the key is missing, the automation will still fetch news articles but will skip the summarization step.
+
+### Local Development
+To run the aggregation script locally:
+1.  Install Python dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  Set the environment variable (optional):
+    ```bash
+    export GEMINI_API_KEY="your_key_here"
+    ```
+3.  Run the script:
+    ```bash
+    python scripts/daily_brief.py
+    ```
+
 ## Setup & Usage
 
 ### Prerequisites
