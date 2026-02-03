@@ -43,6 +43,12 @@
     white-space: nowrap;
 }
 
+@media (max-width: 400px) {
+    .ticker-label, .ticker-updated {
+        padding: 0 8px; /* Save space on small screens */
+    }
+}
+
 .ticker-track-wrapper {
     flex: 1;
     overflow-x: auto; /* Allow manual scroll */

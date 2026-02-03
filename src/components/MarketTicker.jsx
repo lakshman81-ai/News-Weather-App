@@ -88,7 +88,7 @@ const MarketTicker = () => {
 
     return (
         <div className="market-ticker-container">
-            <div className="ticker-label">MARKETS</div>
+            <div className="ticker-label">📈</div>
 
             <div
                 className="ticker-track-wrapper"
@@ -123,7 +123,7 @@ const MarketTicker = () => {
             {/* Static Last Updated Label */}
             {lastFetch && (
                 <div className="ticker-updated">
-                    Updated: {formatTime(lastFetch)}
+                    🔄 {formatTime(lastFetch)}
                 </div>
             )}
         </div>

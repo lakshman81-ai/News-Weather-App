@@ -157,6 +157,18 @@ export const SOURCE_METRICS = {
         specialization: 'Indian cinema'
     },
 
+    // Aggregators
+    googlenews: {
+        name: 'Google News',
+        credibility: 1.5, // Aggregator trust
+        staffSize: 0,
+        bureaus: 0,
+        avgArticleLength: 0,
+        updateFrequency: 'continuous',
+        weight: 1.0,
+        categories: ['world', 'india', 'business', 'technology', 'entertainment', 'sports']
+    },
+
     // Default for unmapped sources
     default: {
         name: 'Default Source',
