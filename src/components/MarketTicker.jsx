@@ -11,11 +11,11 @@ const MarketTicker = () => {
     const markets = useMemo(() => {
         if (!marketData) return [];
 
-        const { indices = [], commodities = [], currencies = [] } = marketData;
-        const allItems = [...indices, ...commodities, ...currencies];
+        const { indices = [], commodities = [] } = marketData;
+        const allItems = [...indices, ...commodities];
 
-        // Specific items to display in order
-        const allowedNames = ['NIFTY 50', 'SENSEX', 'Gold', 'Silver', 'OMR/INR'];
+        // Specific items to display in order (Removed Currencies as requested)
+        const allowedNames = ['NIFTY 50', 'SENSEX', 'Gold', 'Silver'];
 
         return allowedNames
             .map(name => allItems.find(item => item.name === name))
@@ -88,7 +88,7 @@ const MarketTicker = () => {
 
     return (
         <div className="market-ticker-container">
-            <div className="ticker-label">📈</div>
+            <div className="ticker-label">MARKETS</div>
 
             <div
                 className="ticker-track-wrapper"
@@ -123,7 +123,7 @@ const MarketTicker = () => {
             {/* Static Last Updated Label */}
             {lastFetch && (
                 <div className="ticker-updated">
-                    🔄 {formatTime(lastFetch)}
+                    Updated: {formatTime(lastFetch)}
                 </div>
             )}
         </div>
