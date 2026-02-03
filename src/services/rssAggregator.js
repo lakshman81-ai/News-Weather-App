@@ -593,7 +593,8 @@ async function rankAndFilter(items, section, limit, allowedSources) {
         const now = Date.now();
 
         const settings = getSettings();
-        const limitHours = settings.freshnessLimitHours || 72;
+        // Use new setting hideOlderThanHours, fallback to legacy freshnessLimitHours
+        const limitHours = settings.hideOlderThanHours || settings.freshnessLimitHours || 60;
         const MAX_AGE_MS = limitHours * 60 * 60 * 1000;
         const bypassFreshness = settings.strictFreshness === false; // If strict is off, bypass
 
@@ -601,8 +602,18 @@ async function rankAndFilter(items, section, limit, allowedSources) {
 
         const preProcessed = items
             .filter(item => {
+                // 1. Freshness Filter (Strict)
                 if (!bypassFreshness && (now - item.publishedAt > MAX_AGE_MS)) return false;
-                if (allowedSources) return isSourceAllowed(item.source, allowedSources);
+
+                // 2. Filtering Mode (Source vs Keyword)
+                if (settings.filteringMode === 'keyword') {
+                    // Strict Keyword Mode: Must match high-impact keywords
+                    if (!checkKeywords(item.title, item.description)) return false;
+                } else {
+                    // Source Mode (Default): Check allowlist
+                    if (allowedSources && !isSourceAllowed(item.source, allowedSources)) return false;
+                }
+
                 return true;
             })
             .map(item => {
@@ -622,7 +633,14 @@ async function rankAndFilter(items, section, limit, allowedSources) {
             });
 
         const clustered = deduplicateAndCluster(preProcessed, 0.75);
-        clustered.sort((a, b) => b.impactScore - a.impactScore);
+
+        // Ranking Mode
+        if (settings.rankingMode === 'legacy') {
+            clustered.sort((a, b) => b.publishedAt - a.publishedAt);
+        } else {
+            // Default 'smart'
+            clustered.sort((a, b) => b.impactScore - a.impactScore);
+        }
 
         console.log(`[RSS] Final count for ${section}: ${clustered.length} (requested ${limit})`);
         return clustered.slice(0, limit);

@@ -45,11 +45,17 @@
 
 .ticker-track-wrapper {
     flex: 1;
-    overflow-x: hidden; /* Hide scrollbar but allow JS scrolling */
+    overflow-x: auto; /* Allow manual scroll */
     white-space: nowrap;
     position: relative;
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+    -ms-overflow-style: none;  /* IE 10+ */
+}
+
+.ticker-track-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .ticker-track {

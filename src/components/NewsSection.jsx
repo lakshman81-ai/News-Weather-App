@@ -20,7 +20,8 @@ function NewsSection({
     showExpand = true,
     error = null,
     extraContent = null,
-    onArticleClick = null
+    onArticleClick = null,
+    showCritics = true
 }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -149,7 +150,7 @@ function NewsSection({
                         )}
 
                         {/* Critics/Public View */}
-                        {item.criticsView && (
+                        {showCritics && item.criticsView && (
                             <div className="news-item__critics">
                                 <span>💬</span>
                                 <div>

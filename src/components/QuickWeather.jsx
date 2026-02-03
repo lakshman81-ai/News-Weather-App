@@ -198,25 +198,14 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 )}
 
                 {/* Rain - Conditional Display */}
-                {rainText ? (
+                {rainText && (
                     <div className="qw-detail-item">
                         <div className="qw-detail-label">Rainfall</div>
                         <div className="qw-detail-value">
-                            <span style={{fontSize:'1.2em'}}>☔</span>
+                            <span style={{fontSize:'1.2em'}}>🌧️</span>
                             {rainText}
                         </div>
                     </div>
-                ) : (
-                    // Only show Chance if Probability > 0%
-                    showRainChance ? (
-                        <div className="qw-detail-item">
-                            <div className="qw-detail-label">Chance</div>
-                            <div className="qw-detail-value">
-                                <span style={{fontSize:'1.2em'}}>🌧️</span>
-                                {displayData.rainProb.displayString}
-                            </div>
-                        </div>
-                    ) : null
                 )}
 
             </div>

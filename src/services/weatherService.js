@@ -261,6 +261,29 @@ function processMultiModelData(modelData, locationName) {
             ? Math.round(segmentCloud.reduce((a, b) => a + b, 0) / segmentCloud.length)
             : null;
 
+        // Collect hourly breakdown for this segment
+        const hourlyBreakdown = indices.map((hourIdx, i) => {
+            // Use the first successful model's data for hourly visualization to ensure consistency
+            // Default to ECMWF if available, else GFS, else ICON
+            const modelKey = modelData.ecmwf ? 'ecmwf' : (modelData.gfs ? 'gfs' : 'icon');
+            const hourly = modelData[modelKey]?.hourly;
+
+            if (!hourly) return null;
+
+            const t = hourly.temperature_2m?.[hourIdx];
+            const p = hourly.precipitation?.[hourIdx];
+            const prob = hourly.precipitation_probability?.[hourIdx];
+            const code = hourly.weather_code?.[hourIdx];
+
+            return {
+                time: `${hourIdx % 24}:00`,
+                temp: t,
+                precip: p,
+                prob: prob,
+                icon: getIcon(code)
+            };
+        }).filter(Boolean);
+
         return {
             temp: avgTemp,
             feelsLike: feelsLike,
@@ -270,7 +293,8 @@ function processMultiModelData(modelData, locationName) {
             humidity: avgHumidity,
             windSpeed: avgWindSpeed,
             uvIndex: maxUV,
-            cloudCover: avgCloud
+            cloudCover: avgCloud,
+            hourly: hourlyBreakdown
         };
     };
 
@@ -340,6 +364,13 @@ function processMultiModelData(modelData, locationName) {
 
     const successfulModels = getSuccessfulModels(modelData);
 
+    // Dynamic Summary Construction
+    let summaryText = "";
+    if (parseFloat(totalPrecip) > 0) {
+        summaryText += `Today's max rain probability: ${maxPrecipProb}%. Total precip: ${totalPrecip}mm. `;
+    }
+    summaryText += `Condition: ${getCondition(currentWeatherCode)}. UV Index: ${maxUV || 'N/A'}. Data from ${successfulModels.length} model${successfulModels.length > 1 ? 's' : ''}: ${formatModelNames(successfulModels)}.`;
+
     return {
         name: locationName.charAt(0).toUpperCase() + locationName.slice(1),
         icon: locationName === 'muscat' ? '📍' : '🏛️',
@@ -362,6 +393,6 @@ function processMultiModelData(modelData, locationName) {
         noon: today.noon,
         evening: today.evening,
         tomorrow: tomorrow,
-        summary: `Today's max rain probability: ${maxPrecipProb}%. Total precip: ${totalPrecip}mm. Condition: ${getCondition(currentWeatherCode)}. UV Index: ${maxUV || 'N/A'}. Data from ${successfulModels.length} model${successfulModels.length > 1 ? 's' : ''}: ${formatModelNames(successfulModels)}.`
+        summary: summaryText
     };
 }

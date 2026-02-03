@@ -97,7 +97,7 @@ function SettingsPage() {
 
     // Section configs
     const sectionConfig = [
-        { key: 'world', icon: '🌐', label: 'World News' },
+        { key: 'world', icon: '🌍', label: 'World News' },
         { key: 'india', icon: '🇮🇳', label: 'India News' },
         { key: 'chennai', icon: '🏛️', label: 'Chennai' },
         { key: 'trichy', icon: '🏛️', label: 'Trichy' },
@@ -197,44 +197,75 @@ function SettingsPage() {
                                 <span>Large</span>
                             </div>
                         </div>
+
+                        {/* Paper Summary Length */}
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span className="settings-item__label">Paper Summary Length</span>
+                                <span style={{ fontWeight: 'bold' }}>{settings.newspaper?.summaryLineLimit || 50} lines</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                step="5"
+                                value={settings.newspaper?.summaryLineLimit || 50}
+                                onChange={(e) => updateNested('newspaper.summaryLineLimit', parseInt(e.target.value))}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
                     </div>
                 </section>
 
                 {/* ========================================
-                    SECTION 2: DATA FRESHNESS
+                    SECTION 2: DATA FRESHNESS & LOGIC
                     ======================================== */}
                 <section className="settings-section">
                     <h2 className="settings-section__title">
-                        <span>🛡️</span> Data Freshness
+                        <span>🛡️</span> Logic & Freshness
                     </h2>
                     <div className="settings-card">
                         <div className="settings-item">
-                            <span className="settings-item__label">Strict Mode (hide stale data)</span>
+                            <span className="settings-item__label">Filtering Mode</span>
+                            <select
+                                value={settings.filteringMode || 'source'}
+                                onChange={(e) => updateSettings({ ...settings, filteringMode: e.target.value })}
+                                style={{ padding: '6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
+                            >
+                                <option value="source">Source Based (Default)</option>
+                                <option value="keyword">Keyword Based</option>
+                            </select>
+                        </div>
+
+                        <div className="settings-item">
+                            <span className="settings-item__label">Ranking Method</span>
+                            <select
+                                value={settings.rankingMode || 'smart'}
+                                onChange={(e) => updateSettings({ ...settings, rankingMode: e.target.value })}
+                                style={{ padding: '6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
+                            >
+                                <option value="smart">Smart Mix (Impact)</option>
+                                <option value="legacy">Legacy (Freshness)</option>
+                            </select>
+                        </div>
+
+                        <div className="settings-item">
+                            <span className="settings-item__label">Hide stories older than (hours)</span>
+                            <input
+                                type="number"
+                                className="settings-item__count"
+                                min={1}
+                                max={168}
+                                value={settings.hideOlderThanHours || 60}
+                                onChange={(e) => updateSettings({ ...settings, hideOlderThanHours: parseInt(e.target.value) || 60 })}
+                            />
+                        </div>
+
+                        <div className="settings-item">
+                            <span className="settings-item__label">Strict Mode (Hide Stale)</span>
                             <Toggle
                                 checked={settings.strictFreshness}
                                 onChange={(val) => updateSettings({ ...settings, strictFreshness: val })}
-                            />
-                        </div>
-                        <div className="settings-item">
-                            <span className="settings-item__label">News Max Age (hours)</span>
-                            <input
-                                type="number"
-                                className="settings-item__count"
-                                min={1}
-                                max={72}
-                                value={settings.freshnessLimitHours || 36}
-                                onChange={(e) => updateSettings({ ...settings, freshnessLimitHours: parseInt(e.target.value) || 36 })}
-                            />
-                        </div>
-                        <div className="settings-item">
-                            <span className="settings-item__label">Weather Max Age (hours)</span>
-                            <input
-                                type="number"
-                                className="settings-item__count"
-                                min={1}
-                                max={12}
-                                value={settings.weatherFreshnessLimit || 4}
-                                onChange={(e) => updateSettings({ ...settings, weatherFreshnessLimit: parseInt(e.target.value) || 4 })}
                             />
                         </div>
                     </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 
 /**
  * Header Component with optional back navigation
@@ -43,7 +44,10 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
                 </div>
             )}
 
-            {actions}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ThemeToggle />
+                {actions}
+            </div>
         </header>
     );
 }

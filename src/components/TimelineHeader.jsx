@@ -1,4 +1,5 @@
 import React from 'react';
+import ThemeToggle from './ThemeToggle';
 
 /**
  * Timeline Header
@@ -12,7 +13,10 @@ const TimelineHeader = ({ title, icon, actions }) => {
                 <span>{title}</span>
             </h1>
 
-            {actions}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ThemeToggle />
+                {actions}
+            </div>
         </header>
     );
 };

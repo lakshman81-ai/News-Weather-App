@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync } from 'react-icons/fa';
+import { useSettings } from '../context/SettingsContext';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
 
@@ -11,11 +12,14 @@ const SOURCES = {
 };
 
 const NewspaperPage = () => {
+  const { settings } = useSettings();
   const [activeSource, setActiveSource] = useState(SOURCES.THE_HINDU.id);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const summaryLineLimit = settings.newspaper?.summaryLineLimit || 50;
 
   const fetchData = async () => {
     setLoading(true);
@@ -123,7 +127,16 @@ const NewspaperPage = () => {
                                 <FaMagic />
                                 <span>AI Summary</span>
                             </div>
-                            <div style={{ whiteSpace: 'pre-line', fontSize: '0.95rem', lineHeight: '1.6', fontFamily: 'serif' }}>
+                            <div style={{
+                                whiteSpace: 'pre-line',
+                                fontSize: '0.95rem',
+                                lineHeight: '1.6',
+                                fontFamily: 'serif',
+                                display: '-webkit-box',
+                                WebkitLineClamp: summaryLineLimit,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
+                            }}>
                                 {section.summary}
                             </div>
                         </div>
