@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Header from '../components/Header';
 import NewsSection from '../components/NewsSection';
 import SectionNavigator from '../components/SectionNavigator';
@@ -204,6 +204,24 @@ function TechSocialPage() {
         { id: 'ai-innovation', icon: '🤖', label: 'AI & Innovation' }
     ];
 
+    // Back to Top Logic
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 400) {
+                setShowBackToTop(true);
+            } else {
+                setShowBackToTop(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return (
         <div className="page-container">
             <Header
@@ -354,6 +372,38 @@ function TechSocialPage() {
 
             {/* Floating Section Navigator */}
             <SectionNavigator sections={navSections} />
+
+            {/* Back to Top Button */}
+            <button
+                onClick={scrollToTop}
+                style={{
+                    position: 'fixed',
+                    bottom: '90px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: 'rgba(var(--bg-card), 0.6)',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    fontSize: '1.2rem',
+                    cursor: 'pointer',
+                    opacity: showBackToTop ? 1 : 0,
+                    pointerEvents: showBackToTop ? 'auto' : 'none',
+                    transition: 'all 0.3s ease',
+                    zIndex: 900,
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                }}
+                className="back-to-top"
+            >
+                ↑
+            </button>
         </div>
     );
 }

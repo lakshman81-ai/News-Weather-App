@@ -214,13 +214,6 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
             <div className="qw-summary-text">
                 {summaryPrefix} {displayData.temp}°C. {data.summary}
             </div>
-
-            {/* Attribution */}
-            {data.models?.names && (
-                <div className="qw-model-badge">
-                    Data source: {data.models.names}
-                </div>
-            )}
         </section>
     );
 };

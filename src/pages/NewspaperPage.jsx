@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync } from 'react-icons/fa';
+import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaClipboardList } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
+import { useNews } from '../context/NewsContext';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
 
 const SOURCES = {
+  BRIEFS: { id: 'BRIEFS', label: 'News Briefs' },
   THE_HINDU: { id: 'THE_HINDU', label: 'The Hindu' },
   INDIAN_EXPRESS: { id: 'INDIAN_EXPRESS', label: 'Indian Express' },
   DINAMANI: { id: 'DINAMANI', label: 'Dinamani' },
@@ -13,7 +15,8 @@ const SOURCES = {
 
 const NewspaperPage = () => {
   const { settings } = useSettings();
-  const [activeSource, setActiveSource] = useState(SOURCES.THE_HINDU.id);
+  const { newsData } = useNews();
+  const [activeSource, setActiveSource] = useState(SOURCES.BRIEFS.id);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +25,10 @@ const NewspaperPage = () => {
   const summaryLineLimit = settings.newspaper?.summaryLineLimit || 50;
 
   const fetchData = async () => {
+    if (activeSource === 'BRIEFS') {
+        setLoading(false);
+        return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -41,7 +48,7 @@ const NewspaperPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeSource]);
 
   const currentSections = data ? data[activeSource] : [];
 
@@ -53,13 +60,30 @@ const NewspaperPage = () => {
     });
   };
 
+  const getRankedBriefs = () => {
+      if (!newsData) return [];
+      const allArticles = [];
+      const sections = ['india', 'world', 'business', 'technology', 'chennai'];
+      sections.forEach(sec => {
+          if (newsData[sec]) {
+              allArticles.push(...newsData[sec]);
+          }
+      });
+      // Sort by impact score
+      return allArticles
+          .sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0))
+          .slice(0, 30); // Top 30
+  };
+
+  const briefs = activeSource === 'BRIEFS' ? getRankedBriefs() : [];
+
   return (
     <div className="page-container mode-newspaper">
       {/* Header */}
       <div className="header">
         <div className="header__title">
-          <FaNewspaper className="header__title-icon" />
-          <span>Daily Brief</span>
+          {activeSource === 'BRIEFS' ? <FaClipboardList className="header__title-icon" /> : <FaNewspaper className="header__title-icon" />}
+          <span>{activeSource === 'BRIEFS' ? 'News Briefs' : 'Daily Brief'}</span>
         </div>
         <div className="header__actions">
            <button onClick={fetchData} className="btn-icon" aria-label="Refresh">
@@ -90,7 +114,50 @@ const NewspaperPage = () => {
       </div>
 
       <div className="main-content">
-        {loading && !data ? (
+        {activeSource === 'BRIEFS' ? (
+             <div className="news-list">
+                 {briefs.length === 0 ? (
+                     <div className="loading">
+                        <div className="loading__spinner"></div>
+                        <p>Aggregating Top Briefs...</p>
+                     </div>
+                 ) : (
+                     <div className="news-section">
+                         <div style={{ borderBottom: '2px solid var(--accent-primary)', marginBottom: '16px' }}></div>
+                         {briefs.map((article, idx) => (
+                             <div key={idx} style={{
+                                 background: 'var(--bg-secondary)',
+                                 borderRadius: '8px',
+                                 padding: '12px 16px',
+                                 marginBottom: '12px',
+                                 borderLeft: '4px solid var(--accent-primary)',
+                                 boxShadow: 'var(--shadow-sm)'
+                             }}>
+                                 <h3 style={{
+                                     fontSize: '1rem',
+                                     fontWeight: 600,
+                                     marginBottom: '8px',
+                                     lineHeight: '1.4',
+                                     fontFamily: 'Inter, sans-serif' // Explicitly sans-serif for briefs
+                                 }}>
+                                    <a href={article.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)' }}>
+                                        {article.title}
+                                    </a>
+                                 </h3>
+                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                                     <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
+                                         {article.source}
+                                     </span>
+                                     <span style={{ color: 'var(--text-muted)' }}>
+                                         {article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                                     </span>
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
+                 )}
+             </div>
+        ) : loading && !data ? (
           <div className="loading">
             <div className="loading__spinner"></div>
             <p>Fetching Today's Brief...</p>

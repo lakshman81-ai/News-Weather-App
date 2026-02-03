@@ -222,29 +222,6 @@ function WeatherCard({ weatherData }) {
                         </div>
                     ))}
 
-                    {/* Multi-Model Attribution Footer */}
-                    <div style={{
-                        fontSize: '0.7rem',
-                        color: 'var(--text-muted)',
-                        textAlign: 'right',
-                        marginTop: '12px',
-                        padding: '8px',
-                        background: 'var(--bg-secondary)',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                    }}>
-                        <div>
-                            <strong>Multi-Model Forecast:</strong> Averaged from{' '}
-                            {weatherData.chennai?.models?.count || 3} weather model
-                            {(weatherData.chennai?.models?.count || 3) > 1 ? 's' : ''}
-                        </div>
-                        <div className="weather-model-badge">
-                            {weatherData.chennai?.models?.names || 'ECMWF, GFS, ICON'}
-                        </div>
-                    </div>
-
                     {/* Rainfall Consensus Legend */}
                     <div style={{
                         fontSize: '0.65rem',
