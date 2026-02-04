@@ -2528,7 +2528,17 @@ html {
     border-radius: 20px;
     overflow-x: auto;
     white-space: nowrap;
+    flex-wrap: nowrap;
     scrollbar-width: none;
+}
+
+/* Allow wrapping on desktop if space allows, or show scrollbar */
+@media (min-width: 1024px) {
+    .qw-pills-row {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        justify-content: center;
+    }
 }
 
 .qw-pills-row::-webkit-scrollbar {
@@ -2544,6 +2554,7 @@ html {
     font-size: 1.1rem;
     transition: background 0.2s;
     line-height: 1;
+    flex: 0 0 auto;
 }
 
 .qw-pill-btn:hover {

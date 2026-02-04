@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaLanguage } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { useNews } from '../context/NewsContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import '../components/NewspaperLayout.css';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
@@ -34,7 +35,7 @@ const NewspaperSection = ({ section, summaryLineLimit, isTamilSource }) => {
             {!isCollapsed && (
                 <>
                     {/* AI Summary Box */}
-                    {section.summary && (
+                    {(section.summary || section.summary_ta) && (
                         <div style={{
                             background: 'var(--bg-secondary)',
                             padding: '16px',
@@ -68,8 +69,22 @@ const NewspaperSection = ({ section, summaryLineLimit, isTamilSource }) => {
                                 WebkitBoxOrient: 'vertical',
                                 overflow: 'hidden'
                             }}>
-                                {showOriginal && section.summary_ta ? section.summary_ta : section.summary}
+                                {showOriginal && section.summary_ta ? section.summary_ta : (section.summary || section.summary_ta)}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Fallback for Missing Summary */}
+                    {(!section.summary && !section.summary_ta) && (
+                        <div style={{
+                            padding: '12px',
+                            marginBottom: '16px',
+                            background: 'rgba(255, 0, 0, 0.05)',
+                            borderLeft: '4px solid var(--accent-danger)',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-secondary)'
+                        }}>
+                             <em>AI Summary unavailable for this section. Please refer to the headlines below.</em>
                         </div>
                     )}
 
@@ -107,6 +122,7 @@ const NewspaperSection = ({ section, summaryLineLimit, isTamilSource }) => {
 
 const NewspaperPage = () => {
   const { settings } = useSettings();
+  const { isWebView } = useMediaQuery();
   const [activeSource, setActiveSource] = useState(SOURCES.THE_HINDU.id);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -149,7 +165,7 @@ const NewspaperPage = () => {
   };
 
   return (
-    <div className="page-container mode-newspaper">
+    <div className={`page-container mode-newspaper ${isWebView ? 'page-container--desktop' : ''}`}>
       {/* Header */}
       <div className="header">
         <div className="header__title">
