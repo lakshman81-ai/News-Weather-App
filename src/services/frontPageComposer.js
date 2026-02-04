@@ -2,7 +2,7 @@
  * Composes a balanced front page with diversity constraints
  */
 
-export function composeBalancedFeed(articles, limit = 20) {
+export function composeBalancedFeed(articles, limit = 20, maxTopicPercent = 40, maxGeoPercent = 30) {
     const selected = [];
     const topicCounts = new Map();
     const geoCounts = new Map();
@@ -23,8 +23,8 @@ export function composeBalancedFeed(articles, limit = 20) {
         const geoCount = geoCounts.get(geo) || 0;
 
         // Diversity constraints
-        const maxPerTopic = Math.floor(limit * 0.4); // 40% rule
-        const maxPerGeo = Math.floor(limit * 0.3);   // 30% same region
+        const maxPerTopic = Math.floor(limit * (maxTopicPercent / 100));
+        const maxPerGeo = Math.floor(limit * (maxGeoPercent / 100));
 
         // Skip if exceeds constraints
         // Note: We check strictly '>=', so if max is 8, and we have 8, we skip the 9th.

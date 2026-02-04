@@ -87,6 +87,22 @@ function runTests() {
     assert(sortedFeed[1].title === 'Mid Score', 'Sorting: Middle score second');
     assert(sortedFeed[2].title === 'Low Score', 'Sorting: Lowest score last');
 
+    // TEST 5: Custom Configuration
+    // Set 20% max topic (4 articles) and 50% max geo (10 articles)
+    const customArticles = Array.from({ length: 20 }, (_, i) => ({
+        title: `Article ${i}`,
+        section: i < 10 ? 'politics' : 'sports',
+        impactScore: 100 - i,
+        description: 'Global news'
+    }));
+
+    // custom config: max topic 20% (4 items), max geo 50% (10 items)
+    const customFeed = composeBalancedFeed(customArticles, 20, 20, 50);
+    const customPolitics = customFeed.filter(a => a.section === 'politics').length;
+
+    // Max 20% of 20 = 4
+    assert(customPolitics === 4, `Custom Topic Limit: Got ${customPolitics}, Expected 4`);
+
 
     console.log(`\nTests Completed: ${passed} Passed, ${failed} Failed`);
     if (failed > 0) process.exit(1);

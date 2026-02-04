@@ -129,7 +129,12 @@ export function NewsProvider({ children }) {
                 // For the first batch (high priority), we generate a front page from that.
                 // For the second batch (low priority), we generate from high+low.
 
-                const frontPage = composeBalancedFeed(allCurrentArticles, 20);
+                const frontPage = composeBalancedFeed(
+                    allCurrentArticles,
+                    20,
+                    settings.maxTopicPercent || 40,
+                    settings.maxGeoPercent || 30
+                );
 
                 setNewsData(prev => ({
                     ...prev,

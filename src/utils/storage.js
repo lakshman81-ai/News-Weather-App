@@ -140,6 +140,10 @@ export const DEFAULT_SETTINGS = {
     enableNewScoring: true,      // Master switch for new 9-factor scoring
     enableProximityScoring: false, // Boost local news (default OFF)
 
+    // Diversity Settings (Phase 6)
+    maxTopicPercent: 40,         // Max % of front page for one topic
+    maxGeoPercent: 30,           // Max % of front page for one geography
+
     // Topic Following (NEW)
     // Stores objects: { id, name, query, icon, created, lastFetched, options }
     followedTopics: [],
