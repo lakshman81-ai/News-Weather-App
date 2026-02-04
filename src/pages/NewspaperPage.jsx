@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaClipboardList } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { useNews } from '../context/NewsContext';
+import { ImageCard } from '../components/ImageCard';
 import '../components/NewspaperLayout.css';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
@@ -126,21 +127,16 @@ const NewspaperPage = () => {
                      <div className="news-section briefs-list">
                          <div style={{ borderBottom: '2px solid var(--accent-primary)', marginBottom: '16px', width: '100%' }}></div>
                          {briefs.map((article, idx) => (
-                             <a
+                             <ImageCard
                                  key={idx}
-                                 className="brief-item"
+                                 article={{
+                                     ...article,
+                                     imageUrl: article.imageUrl || article.urlToImage,
+                                     time: article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
+                                 }}
+                                 size="medium"
                                  href={article.link}
-                                 target="_blank"
-                                 rel="noopener noreferrer"
-                             >
-                                 <h4 className="brief-title">{article.title}</h4>
-                                 <div className="brief-meta">
-                                     <span className="brief-source">{article.source}</span>
-                                     <span className="brief-time">
-                                         {article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
-                                     </span>
-                                 </div>
-                             </a>
+                             />
                          ))}
                      </div>
                  )}

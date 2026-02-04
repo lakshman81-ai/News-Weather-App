@@ -1,6 +1,9 @@
 /* Image Card Component - Phase 7 Newspaper Mode */
 
 .image-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     overflow: hidden;

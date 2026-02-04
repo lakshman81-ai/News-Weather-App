@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './ImageCard.css';
 
-export function ImageCard({ article, size = 'medium', onClick }) {
+export function ImageCard({ article, size = 'medium', onClick, href }) {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -9,10 +9,18 @@ export function ImageCard({ article, size = 'medium', onClick }) {
 
     const showImage = article.imageUrl && !imageError;
 
+    const Tag = href ? 'a' : 'article';
+    const props = href ? {
+        href,
+        target: '_blank',
+        rel: 'noopener noreferrer'
+    } : {};
+
     return (
-        <article
+        <Tag
             className={`image-card image-card--${size}`}
             onClick={onClick}
+            {...props}
         >
             {showImage && (
                 <div className="image-card__media">
@@ -50,6 +58,6 @@ export function ImageCard({ article, size = 'medium', onClick }) {
                     )}
                 </div>
             </div>
-        </article>
+        </Tag>
     );
 }
