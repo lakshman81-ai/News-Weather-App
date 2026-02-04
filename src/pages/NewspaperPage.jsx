@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaClipboardList } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { useNews } from '../context/NewsContext';
+import '../components/NewspaperLayout.css';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
 
@@ -122,37 +123,24 @@ const NewspaperPage = () => {
                         <p>Aggregating Top Briefs...</p>
                      </div>
                  ) : (
-                     <div className="news-section">
-                         <div style={{ borderBottom: '2px solid var(--accent-primary)', marginBottom: '16px' }}></div>
+                     <div className="news-section briefs-list">
+                         <div style={{ borderBottom: '2px solid var(--accent-primary)', marginBottom: '16px', width: '100%' }}></div>
                          {briefs.map((article, idx) => (
-                             <div key={idx} style={{
-                                 background: 'var(--bg-secondary)',
-                                 borderRadius: '8px',
-                                 padding: '12px 16px',
-                                 marginBottom: '12px',
-                                 borderLeft: '4px solid var(--accent-primary)',
-                                 boxShadow: 'var(--shadow-sm)'
-                             }}>
-                                 <h3 style={{
-                                     fontSize: '1rem',
-                                     fontWeight: 600,
-                                     marginBottom: '8px',
-                                     lineHeight: '1.4',
-                                     fontFamily: 'Inter, sans-serif' // Explicitly sans-serif for briefs
-                                 }}>
-                                    <a href={article.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)' }}>
-                                        {article.title}
-                                    </a>
-                                 </h3>
-                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-                                     <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
-                                         {article.source}
-                                     </span>
-                                     <span style={{ color: 'var(--text-muted)' }}>
+                             <a
+                                 key={idx}
+                                 className="brief-item"
+                                 href={article.link}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                             >
+                                 <h4 className="brief-title">{article.title}</h4>
+                                 <div className="brief-meta">
+                                     <span className="brief-source">{article.source}</span>
+                                     <span className="brief-time">
                                          {article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
                                      </span>
                                  </div>
-                             </div>
+                             </a>
                          ))}
                      </div>
                  )}
