@@ -170,6 +170,43 @@ function SettingsPage() {
                 </section>
 
                 {/* ========================================
+                    SECTION: AI CONFIGURATION
+                    ======================================== */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🤖</span> AI Configuration
+                    </h2>
+                    <div className="settings-card">
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="settings-item__label">
+                                <span>Gemini API Key</span>
+                                <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                    Required for client-side fallback if backend limits are hit.
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)', marginLeft: '4px' }}>
+                                        Get Key
+                                    </a>
+                                </small>
+                            </div>
+                            <input
+                                type="password"
+                                value={settings.geminiKey || ''}
+                                onChange={(e) => updateSettings({ ...settings, geminiKey: e.target.value })}
+                                placeholder="Enter your Gemini API Key"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    marginTop: '8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid var(--border-default)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-primary)'
+                                }}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* ========================================
                     SECTION: APPEARANCE
                     ======================================== */}
                 <section className="settings-section">
