@@ -105,7 +105,7 @@ function runTests() {
 
 
     console.log(`\nTests Completed: ${passed} Passed, ${failed} Failed`);
-    if (failed > 0) process.exit(1);
+    if (failed > 0) throw new Error(`${failed} tests failed`);
 }
 
 runTests();
