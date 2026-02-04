@@ -93,21 +93,39 @@
 .brief-item {
     padding: var(--spacing-md);
     background: var(--bg-card);
-    border-radius: var(--radius-md);
-    border-left: 3px solid var(--accent-secondary);
+    border-radius: 2px;
+    border: 1px solid var(--border-default);
     cursor: pointer;
     transition: all var(--transition-base);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     height: 100%;
+    box-shadow: 2px 3px 5px rgba(0,0,0,0.15);
+    transform: rotate(-1deg);
+    transform-origin: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+.brief-item:nth-child(even) {
+    transform: rotate(1.5deg);
+}
+
+.brief-item:nth-child(3n) {
+    transform: rotate(-2deg);
+}
+
+.brief-item:nth-child(5n) {
+    transform: rotate(0.5deg);
 }
 
 .brief-item:hover {
-    transform: translateY(-4px);
-    border-left-color: var(--accent-primary);
+    transform: rotate(0deg) scale(1.02) !important;
     background: var(--bg-card-hover);
     box-shadow: var(--shadow-card);
+    z-index: 2;
+    border-color: var(--accent-primary);
 }
 
 .brief-title {

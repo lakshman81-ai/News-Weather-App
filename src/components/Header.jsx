@@ -1,8 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
 import MarketTicker from './MarketTicker';
-import appIcon from '../assets/app-icon.png';
 
 /**
  * Header Component with optional back navigation
@@ -25,7 +23,7 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
                 </Link>
             ) : (
                 <h1 className="header__title">
-                    <img src={appIcon} alt="App Icon" style={{ width: '24px', height: '24px' }} />
+                    {/* Icon removed as requested */}
                 </h1>
             )}
 
@@ -49,7 +47,6 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ThemeToggle />
                 {actions}
             </div>
         </header>
