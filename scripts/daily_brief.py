@@ -6,18 +6,22 @@ import feedparser
 import google.generativeai as genai
 from bs4 import BeautifulSoup
 from datetime import datetime
+import traceback
 
 # Configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OUTPUT_FILE = "public/data/epaper_data.json"
 
 # Configure Gemini
+model = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    except Exception as e:
+        print(f"Error configuring Gemini: {e}")
 else:
     print("WARNING: GEMINI_API_KEY not found. Summarization will be skipped.")
-    model = None
 
 def clean_text(text):
     if not text:
@@ -27,10 +31,13 @@ def clean_text(text):
 def summarize_section(source_name, section_name, articles):
     """
     Summarizes a list of articles using Gemini.
-    Returns a dictionary with 'summary' (English) and optionally 'summary_ta' (Tamil).
+    Returns a dictionary with 'summary' (English) and optionally 'summary_ta' (Tamil),
+    or 'error' if something goes wrong.
     """
-    if not model or not articles:
-        return None
+    if not model:
+        return {"error": "API Key Missing"}
+    if not articles:
+        return {"error": "No articles to summarize"}
 
     # Prepare the prompt
     article_list = "\n".join([f"- {a['title']}" for a in articles[:15]])
@@ -82,7 +89,53 @@ def summarize_section(source_name, section_name, articles):
 
     except Exception as e:
         print(f"Error summarizing {source_name} - {section_name}: {e}")
-        return None
+        error_msg = str(e)
+        if "429" in error_msg:
+            return {"error": "Quota Exceeded"}
+        elif "403" in error_msg:
+            return {"error": "Invalid API Key"}
+        else:
+            return {"error": "Generation Failed"}
+
+def translate_titles_batch(articles):
+    """
+    Translates a list of article titles from Tamil to English in one batch.
+    Updates the articles list in-place with 'title_en'.
+    """
+    if not model or not articles:
+        return
+
+    titles = [a['title'] for a in articles]
+    titles_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(titles)])
+
+    prompt = f"""
+    Translate the following Tamil news headlines to English.
+    Maintain the original meaning and journalistic style.
+    Return ONLY the translated titles, one per line, numbered exactly as input.
+
+    Headlines:
+    {titles_text}
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        translated_lines = response.text.strip().split('\n')
+
+        # Parse and assign
+        t_map = {}
+        for line in translated_lines:
+            parts = line.split('.', 1)
+            if len(parts) == 2:
+                try:
+                    idx = int(parts[0].strip()) - 1
+                    text = parts[1].strip()
+                    if 0 <= idx < len(articles):
+                        articles[idx]['title_en'] = text
+                except ValueError:
+                    continue
+
+    except Exception as e:
+        print(f"Error translating titles: {e}")
 
 # ---------------------------------------------------------------------------
 # Scrapers
@@ -215,21 +268,35 @@ def main():
             if not sections:
                 print(f"Warning: No sections found for {key}")
 
-            print(f"Summarizing {key}...")
+            print(f"Processing {key}...")
+            is_tamil_source = key in ["DINAMANI", "DAILY_THANTHI"]
+
             for section in sections:
-                # Add delay to respect rate limits if any
-                time.sleep(1)
+                # 1. Summarize
+                time.sleep(1) # Rate limit protection
                 result = summarize_section(key, section['page'], section['articles'])
 
                 if result:
-                    section['summary'] = result.get('summary')
-                    if 'summary_ta' in result:
-                        section['summary_ta'] = result.get('summary_ta')
+                    if 'error' in result:
+                        section['error'] = result['error']
+                    else:
+                        section['summary'] = result.get('summary')
+                        if 'summary_ta' in result:
+                            section['summary_ta'] = result.get('summary_ta')
+
+                # 2. Translate Titles (if Tamil)
+                if is_tamil_source and model:
+                    try:
+                        time.sleep(1)
+                        translate_titles_batch(section['articles'])
+                    except Exception as e:
+                        print(f"Translation failed for {key}: {e}")
 
             data["sources"][key] = sections
 
         except Exception as e:
             print(f"Critical error processing {key}: {e}")
+            traceback.print_exc()
             data["sources"][key] = []
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
