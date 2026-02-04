@@ -8,6 +8,7 @@ function BottomNav() {
 
     const navItems = [
         { path: '/', label: 'Main', icon: '🏠' },
+        { path: '/up-ahead', label: 'Up Ahead', icon: '🗓️' },
         { path: '/following', label: 'Follow', icon: '📌' },
         { path: '/newspaper', label: 'Paper', icon: '📰' },
         { path: '/markets', label: 'Market', icon: '📈' },
@@ -23,9 +24,10 @@ function BottomNav() {
                     key={item.path}
                     to={item.path}
                     className={`bottom-nav__item ${location.pathname === item.path ? 'active' : ''}`}
+                    title={item.label} // Accessibility/Tooltip
                 >
                     <span className="bottom-nav__icon">{item.icon}</span>
-                    <span className="bottom-nav__label">{item.label}</span>
+                    {/* Labels removed for cleaner look & space */}
                 </NavLink>
             ))}
         </nav>

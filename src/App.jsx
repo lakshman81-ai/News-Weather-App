@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import MainPage from './pages/MainPage';
+import UpAheadPage from './pages/UpAheadPage';
 import WeatherPage from './pages/WeatherPage';
 import MarketPage from './pages/MarketPage';
 import TechSocialPage from './pages/TechSocialPage';
@@ -30,6 +31,7 @@ function App() {
                 <div className="app">
                   <Routes>
                     <Route path="/" element={<MainPage />} />
+                    <Route path="/up-ahead" element={<UpAheadPage />} />
                     <Route path="/weather" element={<WeatherPage />} />
                     <Route path="/markets" element={<MarketPage />} />
                     <Route path="/tech-social" element={<TechSocialPage />} />
