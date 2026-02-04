@@ -1571,13 +1571,15 @@ body {
 }
 
 .bottom-nav__icon {
-  font-size: 1.5rem;
-  margin-bottom: 4px;
+  font-size: 1.8rem;
+  margin-bottom: 0;
   transition: transform var(--transition-base);
 }
 
 .bottom-nav__item.active .bottom-nav__icon {
-  transform: translateY(-2px);
+  transform: scale(1.1);
+  color: var(--accent-primary);
+  text-shadow: 0 0 10px rgba(0, 212, 170, 0.4);
 }
 
 .bottom-nav__label {

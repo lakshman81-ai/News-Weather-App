@@ -29,13 +29,15 @@ jobs:
       - name: Run Aggregation Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python scripts/daily_brief.py
+        run: |
+          python scripts/daily_brief.py
+          python scripts/up_ahead.py
 
       - name: Commit and Push changes
         run: |
           git config --global user.name 'Daily Brief Bot'
           git config --global user.email 'bot@noreply.github.com'
-          git add public/data/epaper_data.json
+          git add public/data/epaper_data.json public/data/up_ahead.json
           # Check if there are changes to commit
           if git diff --staged --quiet; then
             echo "No changes to commit"
