@@ -300,6 +300,17 @@ const MainPage = () => {
                             {/* Urgent Mode: Only show Breaking/World/India */}
                             {(!isUrgentMode || breakingNews.length === 0) && (
                                 <>
+                                    {newsData.frontPage && newsData.frontPage.length > 0 && (
+                                        <NewsSection
+                                            id="top-stories"
+                                            title="Top Stories"
+                                            icon="⭐"
+                                            colorClass="news-section__title--world"
+                                            news={newsData.frontPage}
+                                            maxDisplay={10}
+                                        />
+                                    )}
+
                                     <NewsSection
                                         id="world-news"
                                         title="Global Updates"
