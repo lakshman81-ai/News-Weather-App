@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2023-10-10T06:30:00.000Z",
+  "lastUpdated": "2023-01-01T00:00:00.000Z",
   "timeline": [
     {
       "date": "2023-10-10",
@@ -11,7 +11,10 @@
           "title": "Heavy Rain Alert",
           "subtitle": "Chennai & Coastal TN",
           "description": "IMD predicts heavy rainfall this evening. Avoid travel if possible.",
-          "tags": ["Weather", "Alert"],
+          "tags": [
+            "Weather",
+            "Alert"
+          ],
           "severity": "high"
         },
         {
@@ -20,7 +23,10 @@
           "title": "Leo Trailer Release",
           "subtitle": "YouTube - 6 PM",
           "description": "The highly anticipated trailer for Thalapathy Vijay's Leo drops today.",
-          "tags": ["Cinema", "Viral"]
+          "tags": [
+            "Cinema",
+            "Viral"
+          ]
         }
       ]
     },
@@ -34,7 +40,10 @@
           "title": "India vs Afghanistan",
           "subtitle": "ICC World Cup - 2:00 PM",
           "description": "India takes on Afghanistan in Delhi. Gill likely to miss out.",
-          "tags": ["Cricket", "World Cup"]
+          "tags": [
+            "Cricket",
+            "World Cup"
+          ]
         }
       ]
     },
@@ -48,7 +57,9 @@
           "title": "Pradosham",
           "subtitle": "Religious",
           "description": "Auspicious day for Lord Shiva worship.",
-          "tags": ["Devotional"]
+          "tags": [
+            "Devotional"
+          ]
         }
       ]
     },
@@ -62,7 +73,10 @@
           "title": "Mission Impossible: DR Part 1",
           "subtitle": "OTT Release (Prime)",
           "description": "Tom Cruise's latest action blockbuster hits streaming.",
-          "tags": ["OTT", "Hollywood"]
+          "tags": [
+            "OTT",
+            "Hollywood"
+          ]
         },
         {
           "id": "m3",
@@ -70,7 +84,10 @@
           "title": "Kill",
           "subtitle": "Theaters",
           "description": "Action thriller releasing in theaters nationwide.",
-          "tags": ["Bollywood", "New Release"]
+          "tags": [
+            "Bollywood",
+            "New Release"
+          ]
         }
       ]
     },
@@ -84,7 +101,10 @@
           "title": "AR Rahman Concert",
           "subtitle": "Chennai - Nehru Stadium",
           "description": "Marakkuma Nenjam encore concert.",
-          "tags": ["Music", "Live"]
+          "tags": [
+            "Music",
+            "Live"
+          ]
         }
       ]
     },
@@ -98,22 +118,41 @@
           "title": "Sunday Market",
           "subtitle": "Besant Nagar",
           "description": "Weekly organic farmers market open from 6 AM to 11 AM.",
-          "tags": ["Lifestyle"]
+          "tags": [
+            "Lifestyle"
+          ]
         }
       ]
     }
   ],
   "sections": {
     "movies": [
-      { "title": "Leo", "releaseDate": "Oct 19", "language": "Tamil" },
-      { "title": "Tiger 3", "releaseDate": "Nov 12", "language": "Hindi" }
+      {
+        "title": "Leo",
+        "releaseDate": "Oct 19",
+        "language": "Tamil"
+      },
+      {
+        "title": "Tiger 3",
+        "releaseDate": "Nov 12",
+        "language": "Hindi"
+      }
     ],
     "festivals": [
-      { "title": "Navaratri Starts", "date": "Oct 15" },
-      { "title": "Saraswathi Puja", "date": "Oct 23" }
+      {
+        "title": "Navaratri Starts",
+        "date": "Oct 15"
+      },
+      {
+        "title": "Saraswathi Puja",
+        "date": "Oct 23"
+      }
     ],
     "alerts": [
-      { "text": "Metro Rail disruption on Green Line (Oct 14)", "severity": "medium" }
+      {
+        "text": "Metro Rail disruption on Green Line (Oct 14)",
+        "severity": "medium"
+      }
     ]
   },
   "weekly_plan": {
