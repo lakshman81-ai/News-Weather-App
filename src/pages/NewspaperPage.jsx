@@ -1,24 +1,113 @@
 import React, { useState, useEffect } from 'react';
-import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaClipboardList } from 'react-icons/fa';
+import { FaNewspaper, FaExternalLinkAlt, FaMagic, FaSync, FaLanguage } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { useNews } from '../context/NewsContext';
-import { ImageCard } from '../components/ImageCard';
 import '../components/NewspaperLayout.css';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
 
 const SOURCES = {
-  BRIEFS: { id: 'BRIEFS', label: 'News Briefs' },
   THE_HINDU: { id: 'THE_HINDU', label: 'The Hindu' },
   INDIAN_EXPRESS: { id: 'INDIAN_EXPRESS', label: 'Indian Express' },
   DINAMANI: { id: 'DINAMANI', label: 'Dinamani' },
   DAILY_THANTHI: { id: 'DAILY_THANTHI', label: 'Daily Thanthi' }
 };
 
+const NewspaperSection = ({ section, summaryLineLimit, isTamilSource }) => {
+    const [showOriginal, setShowOriginal] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    return (
+        <div className="news-section">
+            <h2
+                className="news-section__title"
+                style={{ fontFamily: 'Playfair Display, serif', borderBottom: '2px solid var(--text-primary)', paddingBottom: '4px', marginBottom: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                title="Tap to fold/unfold"
+            >
+                <span>{section.page}</span>
+                <span style={{ fontSize: '0.8em', opacity: 0.5 }}>
+                    {isCollapsed ? '▼' : '▲'}
+                </span>
+            </h2>
+
+            {!isCollapsed && (
+                <>
+                    {/* AI Summary Box */}
+                    {section.summary && (
+                        <div style={{
+                            background: 'var(--bg-secondary)',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            marginBottom: '16px',
+                            borderLeft: '4px solid var(--accent-primary)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                                    <FaMagic />
+                                    <span>AI Summary</span>
+                                </div>
+                                {isTamilSource && (
+                                    <button
+                                        onClick={() => setShowOriginal(!showOriginal)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+                                        title={showOriginal ? "Switch to English" : "Read in Tamil"}
+                                        aria-label="Toggle Language"
+                                    >
+                                        <FaLanguage size={22} />
+                                    </button>
+                                )}
+                            </div>
+                            <div style={{
+                                whiteSpace: 'pre-line',
+                                fontSize: '0.95rem',
+                                lineHeight: '1.6',
+                                fontFamily: 'serif',
+                                display: '-webkit-box',
+                                WebkitLineClamp: summaryLineLimit,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
+                            }}>
+                                {showOriginal && section.summary_ta ? section.summary_ta : section.summary}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="news-list">
+                        {section.articles?.map((article, aIdx) => (
+                            <div key={aIdx} className="news-item" style={{ background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-default)', borderRadius: 0, padding: '12px 0' }}>
+                                <h3 className="news-item__headline" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', margin: '0 0 8px 0' }}>
+                                    <a
+                                        href={article.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ textDecoration: 'none', color: 'inherit' }}
+                                    >
+                                        {article.title}
+                                    </a>
+                                </h3>
+                                <div className="news-item__meta">
+                                    <a
+                                        href={article.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}
+                                    >
+                                        Read Full Story <FaExternalLinkAlt style={{ fontSize: '0.7em' }} />
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
 const NewspaperPage = () => {
   const { settings } = useSettings();
-  const { newsData } = useNews();
-  const [activeSource, setActiveSource] = useState(SOURCES.BRIEFS.id);
+  const [activeSource, setActiveSource] = useState(SOURCES.THE_HINDU.id);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,10 +116,6 @@ const NewspaperPage = () => {
   const summaryLineLimit = settings.newspaper?.summaryLineLimit || 50;
 
   const fetchData = async () => {
-    if (activeSource === 'BRIEFS') {
-        setLoading(false);
-        return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -53,6 +138,7 @@ const NewspaperPage = () => {
   }, [activeSource]);
 
   const currentSections = data ? data[activeSource] : [];
+  const isTamilSource = ['DINAMANI', 'DAILY_THANTHI'].includes(activeSource);
 
   const formatTime = (isoString) => {
     if (!isoString) return '';
@@ -62,30 +148,13 @@ const NewspaperPage = () => {
     });
   };
 
-  const getRankedBriefs = () => {
-      if (!newsData) return [];
-      const allArticles = [];
-      const sections = ['india', 'world', 'business', 'technology', 'chennai'];
-      sections.forEach(sec => {
-          if (newsData[sec]) {
-              allArticles.push(...newsData[sec]);
-          }
-      });
-      // Sort by impact score
-      return allArticles
-          .sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0))
-          .slice(0, 30); // Top 30
-  };
-
-  const briefs = activeSource === 'BRIEFS' ? getRankedBriefs() : [];
-
   return (
     <div className="page-container mode-newspaper">
       {/* Header */}
       <div className="header">
         <div className="header__title">
-          {activeSource === 'BRIEFS' ? <FaClipboardList className="header__title-icon" /> : <FaNewspaper className="header__title-icon" />}
-          <span>{activeSource === 'BRIEFS' ? 'News Briefs' : 'Daily Brief'}</span>
+          <FaNewspaper className="header__title-icon" />
+          <span>Daily Brief</span>
         </div>
         <div className="header__actions">
            <button onClick={fetchData} className="btn-icon" aria-label="Refresh">
@@ -116,32 +185,7 @@ const NewspaperPage = () => {
       </div>
 
       <div className="main-content">
-        {activeSource === 'BRIEFS' ? (
-             <div className="news-list">
-                 {briefs.length === 0 ? (
-                     <div className="loading">
-                        <div className="loading__spinner"></div>
-                        <p>Aggregating Top Briefs...</p>
-                     </div>
-                 ) : (
-                     <div className="news-section briefs-list">
-                         <div style={{ borderBottom: '2px solid var(--accent-primary)', marginBottom: '16px', width: '100%' }}></div>
-                         {briefs.map((article, idx) => (
-                             <ImageCard
-                                 key={idx}
-                                 article={{
-                                     ...article,
-                                     imageUrl: article.imageUrl || article.urlToImage,
-                                     time: article.publishedAt ? new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
-                                 }}
-                                 size="medium"
-                                 href={article.link}
-                             />
-                         ))}
-                     </div>
-                 )}
-             </div>
-        ) : loading && !data ? (
+        {loading && !data ? (
           <div className="loading">
             <div className="loading__spinner"></div>
             <p>Fetching Today's Brief...</p>
@@ -160,66 +204,12 @@ const NewspaperPage = () => {
                 </div>
             ) : (
                 currentSections.map((section, idx) => (
-                  <div key={idx} className="news-section">
-                    <h2 className="news-section__title" style={{ fontFamily: 'Playfair Display, serif', borderBottom: '2px solid var(--text-primary)', paddingBottom: '4px', marginBottom: '12px' }}>
-                      {section.page}
-                    </h2>
-
-                    {/* AI Summary Box */}
-                    {section.summary && (
-                        <div style={{
-                            background: 'var(--bg-secondary)',
-                            padding: '16px',
-                            borderRadius: '8px',
-                            marginBottom: '16px',
-                            borderLeft: '4px solid var(--accent-primary)'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
-                                <FaMagic />
-                                <span>AI Summary</span>
-                            </div>
-                            <div style={{
-                                whiteSpace: 'pre-line',
-                                fontSize: '0.95rem',
-                                lineHeight: '1.6',
-                                fontFamily: 'serif',
-                                display: '-webkit-box',
-                                WebkitLineClamp: summaryLineLimit,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                            }}>
-                                {section.summary}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="news-list">
-                      {section.articles?.map((article, aIdx) => (
-                        <div key={aIdx} className="news-item" style={{ background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-default)', borderRadius: 0, padding: '12px 0' }}>
-                          <h3 className="news-item__headline" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', margin: '0 0 8px 0' }}>
-                            <a
-                                href={article.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ textDecoration: 'none', color: 'inherit' }}
-                            >
-                               {article.title}
-                            </a>
-                          </h3>
-                          <div className="news-item__meta">
-                             <a
-                                href={article.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}
-                             >
-                                Read Full Story <FaExternalLinkAlt style={{ fontSize: '0.7em' }}/>
-                             </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <NewspaperSection
+                    key={idx}
+                    section={section}
+                    summaryLineLimit={summaryLineLimit}
+                    isTamilSource={isTamilSource}
+                  />
                 ))
             )}
 

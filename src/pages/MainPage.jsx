@@ -226,7 +226,7 @@ const MainPage = () => {
             {/* Header: Displays Current Segment Label */}
             {isTimelineMode ? (
                 <TimelineHeader
-                    title={currentSegment.label}
+                    title={currentSegment.id === 'market_brief' ? '' : currentSegment.label}
                     icon={currentSegment.icon}
                     actions={headerActions}
                 />
