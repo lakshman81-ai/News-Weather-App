@@ -27,29 +27,59 @@ def clean_text(text):
 def summarize_section(source_name, section_name, articles):
     """
     Summarizes a list of articles using Gemini.
+    Returns a dictionary with 'summary' (English) and optionally 'summary_ta' (Tamil).
     """
     if not model or not articles:
         return None
 
     # Prepare the prompt
     article_list = "\n".join([f"- {a['title']}" for a in articles[:15]])
+    is_tamil_source = source_name in ["DINAMANI", "DAILY_THANTHI"]
 
-    prompt = f"""
+    base_prompt = f"""
     You are a professional news editor. Summarize the following news headlines from {source_name} - {section_name} into a concise, insightful daily briefing.
-
-    Requirements:
-    - Language: English (Crucial: Translate non-English content to English).
-    - Format: 3-4 bullet points highlighting the most important stories.
-    - Style: Professional, objective, and journalistic.
-    - No introductory text.
 
     Headlines:
     {article_list}
     """
 
+    if is_tamil_source:
+        prompt = base_prompt + """
+
+        REQUIREMENTS:
+        1. Provide the summary in TWO languages: English and Tamil.
+        2. Format: 3-4 bullet points highlighting the most important stories.
+        3. Style: Professional, objective, and journalistic.
+        4. SEPARATE the English summary and Tamil summary with the exact delimiter "|||".
+
+        OUTPUT FORMAT:
+        <English Summary>
+        |||
+        <Tamil Summary>
+        """
+    else:
+        prompt = base_prompt + """
+
+        REQUIREMENTS:
+        1. Language: English ONLY. (Translate if source is not English).
+        2. Format: 3-4 bullet points highlighting the most important stories.
+        3. Style: Professional, objective, and journalistic.
+        4. No introductory text.
+        """
+
     try:
         response = model.generate_content(prompt)
-        return response.text.strip()
+        text = response.text.strip()
+
+        if is_tamil_source and "|||" in text:
+            parts = text.split("|||")
+            return {
+                "summary": parts[0].strip(),
+                "summary_ta": parts[1].strip()
+            }
+
+        return {"summary": text}
+
     except Exception as e:
         print(f"Error summarizing {source_name} - {section_name}: {e}")
         return None
@@ -189,8 +219,12 @@ def main():
             for section in sections:
                 # Add delay to respect rate limits if any
                 time.sleep(1)
-                summary = summarize_section(key, section['page'], section['articles'])
-                section['summary'] = summary
+                result = summarize_section(key, section['page'], section['articles'])
+
+                if result:
+                    section['summary'] = result.get('summary')
+                    if 'summary_ta' in result:
+                        section['summary_ta'] = result.get('summary_ta')
 
             data["sources"][key] = sections
 

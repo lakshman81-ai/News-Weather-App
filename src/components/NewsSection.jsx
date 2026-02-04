@@ -9,6 +9,7 @@ import { addReadArticle } from '../utils/storage';
  * - Clickable headlines open story URL
  * - Critics/public view shown where applicable
  * - Source count displayed
+ * - Collapsible header
  */
 function NewsSection({
     id,
@@ -24,6 +25,7 @@ function NewsSection({
     showCritics = true
 }) {
     const [expanded, setExpanded] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const displayCount = expanded ? news.length : Math.min(maxDisplay, news.length);
     const displayNews = news.slice(0, displayCount);
@@ -68,42 +70,133 @@ function NewsSection({
         }
     };
 
-    if (error) {
-        return (
-            <section className="news-section" id={id}>
-                <h2 className={`news-section__title ${colorClass}`}>
-                    <span>{icon}</span>
-                    {title}
-                </h2>
+    const renderContent = () => {
+        if (error) {
+            return (
                 <div className="empty-state" style={{ borderColor: 'rgba(255, 87, 87, 0.3)' }}>
                     <div className="empty-state__icon">❌</div>
                     <p style={{ color: '#ff5757' }}>{error}</p>
                 </div>
-            </section>
-        );
-    }
+            );
+        }
 
-    if (news.length === 0) {
-        return (
-            <section className="news-section" id={id}>
-                <h2 className={`news-section__title ${colorClass}`}>
-                    <span>{icon}</span>
-                    {title}
-                </h2>
+        if (news.length === 0) {
+            return (
                 <div className="empty-state">
                     <div className="empty-state__icon">📭</div>
                     <p>No news available for this section</p>
                 </div>
-            </section>
+            );
+        }
+
+        return (
+            <>
+                {extraContent}
+                <div className="news-list">
+                    {displayNews.map((item, idx) => (
+                        <article
+                            key={item.id || idx}
+                            className="news-item"
+                            onClick={() => handleStoryClick(item)}
+                            style={{ cursor: item.url ? 'pointer' : 'default' }}
+                        >
+                            <h3 className="news-item__headline">
+                                • {item.headline}
+                                {item.url && (
+                                    <span style={{
+                                        fontSize: '0.7rem',
+                                        marginLeft: '8px',
+                                        color: 'var(--accent-secondary)'
+                                    }}>↗</span>
+                                )}
+                            </h3>
+                            {item.summary && (
+                                <p className="news-item__summary">
+                                    {item.summary}
+                                </p>
+                            )}
+                            {showCritics && item.criticsView && (
+                                <div className="news-item__critics">
+                                    <span>💬</span>
+                                    <div>
+                                        <strong style={{ color: 'var(--accent-secondary)', display: 'block', marginBottom: '2px' }}>Critics Take:</strong>
+                                        {item.criticsView}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="news-item__meta">
+                                {item.sentiment && (
+                                    <span
+                                        className={`sentiment-badge sentiment--${item.sentiment.label}`}
+                                        title={`Sentiment: ${item.sentiment.label}`}
+                                    >
+                                        {item.sentiment.label === 'positive' ? '🟢' :
+                                            item.sentiment.label === 'negative' ? '🔴' : '⚪'}
+                                    </span>
+                                )}
+                                <span className="news-item__source">{item.source}</span>
+                                <span
+                                    className="news-item__credibility"
+                                    title={`Source credibility: ${getCredibilityStars(item.source)}/5`}
+                                >
+                                    {'⭐'.repeat(getCredibilityStars(item.source))}
+                                </span>
+                                {item.sourceCount > 1 && (
+                                    <span
+                                        className="news-item__consensus"
+                                        title={`Reported by ${item.sourceCount} sources`}
+                                    >
+                                        🔔 {item.sourceCount} sources
+                                    </span>
+                                )}
+                                <span>|</span>
+                                <span>{getTimeAgo(item.publishedAt) || item.time}</span>
+                                {item.sourceCount && (
+                                    <>
+                                        <span>|</span>
+                                        <span>#{item.sourceCount} Sources</span>
+                                    </>
+                                )}
+                                <span>|</span>
+                                <span className={`news-item__confidence ${getConfidenceClass(item.confidence)}`}>
+                                    {item.confidence}
+                                </span>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+
+                {showExpand && hasMore && (
+                    <div
+                        className="news-more"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        <span style={{ fontSize: '1.2rem' }}>{expanded ? '▲' : '▼'}</span>
+                        <span>{expanded ? 'Collapse' : `See ${news.length - maxDisplay} more stories`}</span>
+                    </div>
+                )}
+            </>
         );
-    }
+    };
 
     return (
         <section className="news-section" id={id}>
-            <h2 className={`news-section__title ${colorClass}`}>
+            <h2
+                className={`news-section__title ${colorClass}`}
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                style={{ cursor: 'pointer' }}
+                title="Tap to fold/unfold"
+            >
                 <span>{icon}</span>
                 {title}
-                <span style={{ opacity: 0.6, fontSize: '0.9em', marginLeft: '6px' }}>({news.length})</span>
+                {news.length > 0 && (
+                    <span style={{ opacity: 0.6, fontSize: '0.9em', marginLeft: '6px' }}>({news.length})</span>
+                )}
+
+                {/* Collapse Indicator */}
+                <span style={{ marginLeft: '8px', fontSize: '0.8em', opacity: 0.5 }}>
+                    {isCollapsed ? '▼' : '▲'}
+                </span>
 
                 {/* Data Age Badge */}
                 {news.length > 0 && news[0].fetchedAt && (
@@ -122,95 +215,7 @@ function NewsSection({
                 )}
             </h2>
 
-            {extraContent}
-
-            <div className="news-list">
-                {displayNews.map((item, idx) => (
-                    <article
-                        key={item.id || idx}
-                        className="news-item"
-                        onClick={() => handleStoryClick(item)}
-                        style={{ cursor: item.url ? 'pointer' : 'default' }}
-                    >
-                        <h3 className="news-item__headline">
-                            • {item.headline}
-                            {item.url && (
-                                <span style={{
-                                    fontSize: '0.7rem',
-                                    marginLeft: '8px',
-                                    color: 'var(--accent-secondary)'
-                                }}>↗</span>
-                            )}
-                        </h3>
-                        {/* Summary: Always show if available (3-4 lines clamped via CSS) */}
-                        {item.summary && (
-                            <p className="news-item__summary">
-                                {item.summary}
-                            </p>
-                        )}
-
-                        {/* Critics/Public View */}
-                        {showCritics && item.criticsView && (
-                            <div className="news-item__critics">
-                                <span>💬</span>
-                                <div>
-                                    <strong style={{ color: 'var(--accent-secondary)', display: 'block', marginBottom: '2px' }}>Critics Take:</strong>
-                                    {item.criticsView}
-                                </div>
-                            </div>
-                        )}
-                        <div className="news-item__meta">
-                            {item.sentiment && (
-                                <span
-                                    className={`sentiment-badge sentiment--${item.sentiment.label}`}
-                                    title={`Sentiment: ${item.sentiment.label}`}
-                                >
-                                    {item.sentiment.label === 'positive' ? '🟢' :
-                                        item.sentiment.label === 'negative' ? '🔴' : '⚪'}
-                                </span>
-                            )}
-                            <span className="news-item__source">{item.source}</span>
-                            {/* Credibility Stars */}
-                            <span
-                                className="news-item__credibility"
-                                title={`Source credibility: ${getCredibilityStars(item.source)}/5`}
-                            >
-                                {'⭐'.repeat(getCredibilityStars(item.source))}
-                            </span>
-                            {item.sourceCount > 1 && (
-                                <span
-                                    className="news-item__consensus"
-                                    title={`Reported by ${item.sourceCount} sources`}
-                                >
-                                    🔔 {item.sourceCount} sources
-                                </span>
-                            )}
-                            <span>|</span>
-                            <span>{getTimeAgo(item.publishedAt) || item.time}</span>
-                            {item.sourceCount && (
-                                <>
-                                    <span>|</span>
-                                    <span>#{item.sourceCount} Sources</span>
-                                </>
-                            )}
-                            <span>|</span>
-                            <span className={`news-item__confidence ${getConfidenceClass(item.confidence)}`}>
-                                {item.confidence}
-                            </span>
-                        </div>
-                    </article>
-                ))}
-            </div>
-
-            {showExpand && hasMore && (
-                <div
-                    className="news-more"
-                    onClick={() => setExpanded(!expanded)}
-                >
-                    <span style={{ fontSize: '1.2rem' }}>{expanded ? '▲' : '▼'}</span>
-                    <span>{expanded ? 'Collapse' : `See ${news.length - maxDisplay} more stories`}</span>
-                </div>
-            )}
+            {!isCollapsed && renderContent()}
         </section>
     );
 }

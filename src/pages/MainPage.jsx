@@ -18,6 +18,7 @@ import { useSegment } from '../context/SegmentContext';
 import { requestNotificationPermission } from '../utils/notifications';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import LazySection from '../components/LazySection';
+import SidebarNews from '../components/SidebarNews';
 
 // DEBUG LOGGING SYSTEM
 const logs = [];
@@ -226,7 +227,7 @@ const MainPage = () => {
             {/* Header: Displays Current Segment Label */}
             {isTimelineMode ? (
                 <TimelineHeader
-                    title={currentSegment.label}
+                    title={currentSegment.id === 'market_brief' ? '' : currentSegment.label}
                     icon={currentSegment.icon}
                     actions={headerActions}
                 />
@@ -242,11 +243,17 @@ const MainPage = () => {
 
                 {/* Desktop Sidebar */}
                 {isWebView && (
-                    <QuickWeather
-                        activePill={activePill}
-                        onPillChange={setActivePill}
-                        pills={timelinePills}
-                    />
+                    <div className="desktop-sidebar">
+                        <QuickWeather
+                            activePill={activePill}
+                            onPillChange={setActivePill}
+                            pills={timelinePills}
+                        />
+                        <SidebarNews
+                            news={newsData.world && newsData.world.length > 0 ? newsData.world : (newsData.india && newsData.india.length > 0 ? newsData.india : newsData.frontPage)}
+                            title={newsData.world && newsData.world.length > 0 ? "Global Headlines" : "Top Stories"}
+                        />
+                    </div>
                 )}
 
                 <div className="content-wrapper">
