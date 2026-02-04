@@ -12,11 +12,12 @@ def run():
             page.goto("http://localhost:5173/#/newspaper")
 
             # Wait for content to load
-            print("Waiting for briefs...")
+            print("Waiting for briefs (ImageCards)...")
             try:
-                # Wait up to 30 seconds for the brief items to appear
-                page.wait_for_selector(".brief-item", state="visible", timeout=30000)
-                print("Briefs found!")
+                # Wait up to 30 seconds for the image cards to appear
+                # We look for .image-card inside .briefs-list specifically to be sure
+                page.wait_for_selector(".briefs-list .image-card", state="visible", timeout=30000)
+                print("ImageCards found in Briefs list!")
                 # Wait a bit for animations/transforms to settle
                 time.sleep(2)
             except Exception as e:
