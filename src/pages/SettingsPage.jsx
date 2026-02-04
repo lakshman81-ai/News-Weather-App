@@ -267,6 +267,49 @@ function SettingsPage() {
                                 onChange={(val) => updateSettings({ ...settings, strictFreshness: val })}
                             />
                         </div>
+
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', borderTop: '1px solid var(--border-default)', paddingTop: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div className="settings-item__label">
+                                    <span>Diversity: Max Topic %</span>
+                                    <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                        Max % of front page for one topic (Default: 40%)
+                                    </small>
+                                </div>
+                                <span style={{ fontWeight: 'bold' }}>{settings.maxTopicPercent || 40}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                step="5"
+                                value={settings.maxTopicPercent || 40}
+                                onChange={(e) => updateSettings({ ...settings, maxTopicPercent: parseInt(e.target.value) })}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div className="settings-item__label">
+                                    <span>Diversity: Max Geo %</span>
+                                    <small style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                        Max % of front page for one location (Default: 30%)
+                                    </small>
+                                </div>
+                                <span style={{ fontWeight: 'bold' }}>{settings.maxGeoPercent || 30}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                step="5"
+                                value={settings.maxGeoPercent || 30}
+                                onChange={(e) => updateSettings({ ...settings, maxGeoPercent: parseInt(e.target.value) })}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
                     </div>
                 </section>
 
