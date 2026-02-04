@@ -82,7 +82,8 @@ function SettingsPage() {
             } else {
                 setDiscoveryError('No feeds found. Check the URL or try a direct RSS link.');
             }
-        } catch (err) {
+        } catch (error) {
+            void error;
             setDiscoveryError('Error discovering feeds.');
         } finally {
             setIsDiscovering(false);
