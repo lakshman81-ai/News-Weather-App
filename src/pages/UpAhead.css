@@ -186,19 +186,6 @@
   margin-bottom: 12px;
 }
 
-/* Added Styling for Read More Link */
-.ua-read-more {
-  display: inline-block;
-  margin-bottom: 12px;
-  font-size: 0.85rem;
-  color: var(--accent-primary);
-  text-decoration: none;
-  font-weight: 600;
-}
-.ua-read-more:hover {
-  text-decoration: underline;
-}
-
 .ua-card-footer {
   display: flex;
   justify-content: space-between;
