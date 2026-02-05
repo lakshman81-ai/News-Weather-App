@@ -39,12 +39,11 @@ export function getRainStatus(prob, mmStr) {
         icon = '🌧️';
     } else {
         // Light rain
-        intensity = 'light';
-        // If prob is low (<30%) AND mm is low (<1), use sun-rain
-        // Otherwise use cloud-rain
         if (p < 30 && mm < 1) {
+             intensity = 'trace';
              icon = '🌦️';
         } else {
+             intensity = 'light';
              icon = '🌧️';
         }
     }
@@ -74,7 +73,7 @@ export function getRainStatus(prob, mmStr) {
 
 /**
  * Get CSS color style for rain intensity
- * @param {string} intensity - 'light', 'moderate', 'heavy'
+ * @param {string} intensity - 'light', 'moderate', 'heavy', 'trace'
  * @returns {Object} Style object
  */
 export function getRainStyle(intensity) {
@@ -83,6 +82,8 @@ export function getRainStyle(intensity) {
             return { color: '#ef4444', fontWeight: 'bold' }; // Red/Danger
         case 'moderate':
             return { color: '#60a5fa', fontWeight: '600' }; // Blue (lighter than before for contrast)
+        case 'trace':
+             return { color: '#94a3b8', fontStyle: 'italic', fontSize: '0.9em' }; // Grey/Italic for trace
         case 'light':
         default:
             // Improved visibility for light rain

@@ -6,13 +6,16 @@ const CATEGORY_QUERIES = {
         'movie tickets booking',
         'showtimes near me',
         'movie releases this friday',
-        'cinema listings'
+        'cinema listings',
+        'upcoming movies'
     ],
     events: [
         'live concert tickets',
         'standup comedy show',
         'music festival line up',
-        'upcoming workshops'
+        'upcoming workshops',
+        'events happening this weekend',
+        'things to do'
     ],
     festivals: [
         'upcoming festivals india',
@@ -24,7 +27,8 @@ const CATEGORY_QUERIES = {
         'traffic advisory',
         'heavy rain alert',
         'power shutdown scheduled',
-        'metro rail maintenance'
+        'metro rail maintenance',
+        'road closure update'
     ],
     sports: [
         'cricket match schedule upcoming',
@@ -136,12 +140,28 @@ export async function fetchUpAheadData(settings) {
  */
 function stripHtml(html) {
     if (!html) return "";
-    return html.replace(/<[^>]*>?/gm, "")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .trim();
+    let text = html.toString();
+
+    // Decode common entities first
+    const entities = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&lt;': '<',
+        '&gt;': '>'
+    };
+
+    text = text.replace(/&[a-z0-9#]+;/gi, (match) => entities[match] || match);
+
+    // Remove scripts and styles
+    text = text.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, "");
+    text = text.replace(/<style[^>]*>([\S\s]*?)<\/style>/gmi, "");
+
+    // Remove all HTML tags
+    text = text.replace(/<\/?[^>]+(>|$)/g, "");
+
+    return text.trim();
 }
 
 export function normalizeUpAheadItem(item, config) {
@@ -465,7 +485,15 @@ function generateWeeklyPlan(timeline) {
             // Just use title directly
             plan[dayName] = timelineDay.items[0].title;
         } else {
-            plan[dayName] = "Relax and recharge.";
+            // Rotating placeholder text for variety
+            const placeholders = [
+                "Relax and recharge.",
+                "Nothing scheduled yet.",
+                "Free day.",
+                "Good time for a hobby.",
+                "Catch up on reading."
+            ];
+            plan[dayName] = placeholders[dateObj.getDay() % placeholders.length];
         }
     });
 
