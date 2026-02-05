@@ -21,12 +21,10 @@ const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
 // Proxy Rotation Strategy
 const PROXIES = [
-    // Strategy 1: AllOrigins (Generally reliable, JSON wrap)
+    // Strategy 1: AllOrigins (Verified working for Yahoo)
     (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    // Strategy 2: CodeTabs (Good fallback)
-    (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    // Strategy 3: CORSProxy.io (Direct, sometimes limited)
-    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+    // Strategy 2: CodeTabs (Verified working general proxy)
+    (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
 ];
 
 // Helper to fetch with CORS proxy rotation
@@ -35,7 +33,7 @@ async function fetchYahooData(symbol) {
 
     const fetchWithTimeout = async (url, options = {}) => {
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        const id = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         try {
             const response = await fetch(url, { ...options, signal: controller.signal });
             clearTimeout(id);
@@ -45,16 +43,6 @@ async function fetchYahooData(symbol) {
             throw e;
         }
     };
-
-    // Try Direct First (Works in some environments/extensions)
-    try {
-        const response = await fetchWithTimeout(targetUrl);
-        if (response.ok) {
-            return await response.json();
-        }
-    } catch (e) {
-        // Ignore and try proxies
-    }
 
     // Try Proxies sequentially
     for (const proxyGen of PROXIES) {

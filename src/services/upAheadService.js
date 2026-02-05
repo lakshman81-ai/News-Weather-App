@@ -87,12 +87,13 @@ export async function fetchUpAheadData(settings) {
         // B. Add Search Queries (combined with locations for relevance)
         const queries = CATEGORY_QUERIES[cat] || [];
         queries.forEach(baseQuery => {
-            // Add a general query (e.g., "upcoming festivals india")
-            // addSearchUrl(baseQuery);
-
             // Add location-specific queries (e.g., "events happening this week Chennai")
             if (cat === 'events' || cat === 'alerts' || cat === 'movies') {
                 locations.forEach(loc => {
+                    // Skip "India" for hyper-local categories to avoid noise (e.g. "Traffic Advisory India" -> fetches Thane/Mumbai news)
+                    if (loc.toLowerCase() === 'india' && (cat === 'alerts' || cat === 'events')) {
+                        return;
+                    }
                     addSearchUrl(`${baseQuery} ${loc}`);
                 });
             } else {
