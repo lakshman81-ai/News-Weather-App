@@ -48,7 +48,7 @@ const STATIC_FEEDS = {
 
 /**
  * Main function to fetch Up Ahead data based on user settings
- * @param {Object} settings - { categories: { movies: true... }, locations: ['Chennai', 'Muscat'] }
+ * @param {Object} settings - { categories: { movies: true... }, locations: ['Chennai', 'Muscat'], hideOlderThanHours: 60 }
  */
 export async function fetchUpAheadData(settings) {
     console.log('[UpAheadService] Fetching data with settings:', settings);
@@ -86,12 +86,13 @@ export async function fetchUpAheadData(settings) {
         // B. Add Search Queries (combined with locations for relevance)
         const queries = CATEGORY_QUERIES[cat] || [];
         queries.forEach(baseQuery => {
-            // Add a general query (e.g., "upcoming festivals india")
-            // addSearchUrl(baseQuery);
-
             // Add location-specific queries (e.g., "events happening this week Chennai")
             if (cat === 'events' || cat === 'alerts' || cat === 'movies') {
                 locations.forEach(loc => {
+                    // Skip "India" for hyper-local categories to avoid noise (e.g. "Traffic Advisory India" -> fetches Thane/Mumbai news)
+                    if (loc.toLowerCase() === 'india' && (cat === 'alerts' || cat === 'events')) {
+                        return;
+                    }
                     addSearchUrl(`${baseQuery} ${loc}`);
                 });
             } else {
@@ -107,9 +108,6 @@ export async function fetchUpAheadData(settings) {
     console.log(`[UpAheadService] Prepared ${uniqueUrls.length} feeds to fetch.`);
 
     // 2. Fetch All Feeds in Parallel
-    // We use a simplified version of what's in rssAggregator, or reuse it directly.
-    // To allow better tagging, we'll fetch individually here but reuse the proxy logic.
-
     const fetchPromises = uniqueUrls.map(async (feedConfig) => {
         try {
             // Using proxyManager directly to get raw items, then processing
@@ -139,9 +137,10 @@ function normalizeUpAheadItem(item, config) {
     const title = stripHtml(item.title || '');
     const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
+    const pubDate = item.pubDate ? new Date(item.pubDate) : null;
 
-    // Attempt to extract a date
-    const extractedDate = extractFutureDate(fullText);
+    // Attempt to extract a date, using pubDate as context
+    const extractedDate = extractFutureDate(fullText, pubDate);
 
     // Determine Category (if not already known from config)
     let category = config.category;
@@ -154,7 +153,7 @@ function normalizeUpAheadItem(item, config) {
         title: title,
         link: item.link,
         description: description,
-        pubDate: item.pubDate,
+        pubDate: pubDate, // Store as Date object or null
         extractedDate: extractedDate, // This is the crucial "Event Date"
         category: category,
         rawSource: config.originalQuery || 'feed'
@@ -164,7 +163,7 @@ function normalizeUpAheadItem(item, config) {
 /**
  * Regex-based Category Detection
  */
-function detectCategory(text) {
+export function detectCategory(text) {
     const t = text.toLowerCase();
     if (t.includes('movie') || t.includes('release') || t.includes('trailer') || t.includes('film') || t.includes('cinema') || t.includes('ott')) return 'movies';
     if (t.includes('cricket') || t.includes('match') || t.includes('football') || t.includes('tournament') || t.includes('vs')) return 'sports';
@@ -177,8 +176,10 @@ function detectCategory(text) {
 /**
  * Intelligent Date Extraction
  * Looks for patterns like "Oct 20", "Next Friday", "Tomorrow", etc.
+ * @param {string} text - The text to search for dates
+ * @param {Date|null} pubDate - The publication date of the article (for year context)
  */
-function extractFutureDate(text) {
+export function extractFutureDate(text, pubDate) {
     // 1. Check for explicit dates e.g., "October 25", "25th Oct"
     // Simple regex for Month Day pairs
     const months = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december';
@@ -200,41 +201,50 @@ function extractFutureDate(text) {
     }
 
     if (day && monthStr) {
-        // Construct a date object for the current/next year
+        // Contextualize the year
         const now = new Date();
         const monthIndex = new Date(`${monthStr} 1, 2000`).getMonth();
+
         let year = now.getFullYear();
 
-        // If the extracted month is earlier than this month, assume next year (unless it's very close)
-        // Simple logic: just use current year first.
-        let potentialDate = new Date(year, monthIndex, day);
+        // If pubDate is available, use its year as the primary anchor
+        if (pubDate && !isNaN(pubDate.getTime())) {
+            year = pubDate.getFullYear();
 
-        // If date is in the past (more than a few days), maybe it's next year?
-        // For "Up Ahead", we mostly care about future.
-        if (potentialDate < new Date(now.getTime() - 86400000 * 2)) {
-             // It was in the past. But wait, maybe the news is *about* a past event?
-             // Or maybe it's next year. Let's assume current year for simplicity unless explicitly 202X.
+            // Handle edge case: Article in Dec talking about Jan (Next Year)
+            // But if Article is Oct 2025, and text says Oct 22, it is Oct 22, 2025.
+            // If Article is Dec 2025, and text says Jan 5, it is Jan 5, 2026.
+
+            const eventMonthIsEarlier = monthIndex < pubDate.getMonth();
+            if (eventMonthIsEarlier && (pubDate.getMonth() - monthIndex) > 6) {
+                // e.g., Pub: Dec (11), Event: Jan (0). Diff is large? No, wait.
+                // If event is Jan and pub is Dec, it's next year.
+                year = year + 1;
+            }
+        } else {
+             // Fallback to current logic: if extracted date is "far past" relative to now, assume next year.
+             // But for Up Ahead, we strictly prefer future dates.
+             const currentMonth = now.getMonth();
+             if (monthIndex < currentMonth && (currentMonth - monthIndex) > 3) {
+                 // e.g. Now is May, Event is Jan. Probably next Jan?
+                 year = year + 1;
+             }
         }
 
-        return potentialDate;
+        return new Date(year, monthIndex, day);
     }
 
     // 2. Relative Dates: "Tomorrow", "This Friday"
     const lower = text.toLowerCase();
-    const today = new Date();
+
+    // Use pubDate as "today" reference if available, otherwise real Today
+    const refDate = (pubDate && !isNaN(pubDate.getTime())) ? pubDate : new Date();
 
     if (lower.includes('tomorrow')) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + 1);
+        const d = new Date(refDate);
+        d.setDate(refDate.getDate() + 1);
         return d;
     }
-
-    // "This Friday", "Next Monday" etc. - Simplified for now.
-    // Parsing this robustly requires a heavier library, keeping it light.
-
-    // Fallback: If no event date found, use the publication date if it's very recent?
-    // No, for "Up Ahead" we specifically want future events.
-    // If we can't find a future date, it might not belong in the timeline but in "Worth Knowing".
 
     return null;
 }
@@ -262,13 +272,31 @@ function processUpAheadData(rawItems, settings) {
 
     const seenIds = new Set();
 
+    // Default max age: 60 hours (2.5 days)
+    const maxAgeHours = settings?.hideOlderThanHours || 60;
+    const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
     rawItems.forEach(item => {
         if (seenIds.has(item.id)) return;
         seenIds.add(item.id);
 
-        // Filter out very old items (older than 3 days) if no future date extracted
-        const pubAge = (Date.now() - new Date(item.pubDate).getTime()) / (1000 * 60 * 60 * 24);
-        if (!item.extractedDate && pubAge > 3) return;
+        // Strict Freshness Check
+        // If pubDate exists and is older than limit, DISCARD IT.
+        if (item.pubDate) {
+            const ageMs = Date.now() - item.pubDate.getTime();
+            if (ageMs > maxAgeMs) {
+                // Old news. But check if it has a FUTURE extracted date?
+                // Logic: If the news is old (e.g. 1 week ago) but talks about an event next month, should we keep it?
+                // The user says "Old stories... from Oct 22". That story was published Oct 22.
+                // That is ANCIENT (months ago). We definitely want to kill that.
+                // However, legitimate "Up Ahead" might be announced weeks in advance.
+                // BUT, we are fetching from Google News "when:7d". So we shouldn't GET old stuff unless
+                // Google News is serving old stuff (which happens).
+                // If Google News serves a 3-month-old article, it's probably spam or irrelevant now.
+                // Let's enforce strict freshness on the *Source Article*.
+                return;
+            }
+        }
 
         // Geo-Filtering: Check if item mentions a blocked location
         const textToCheck = (item.title + ' ' + item.description).toLowerCase();
@@ -296,16 +324,17 @@ function processUpAheadData(rawItems, settings) {
         }
 
         // Populate Timeline
-        // Logic: If we have an extracted date, put it there.
-        // If not, but it's "Breaking" or "Alert", maybe put it in Today/Tomorrow?
-
         let targetDate = item.extractedDate;
 
         // If no date, but it's an alert or very recent news, put in Today
-        if (!targetDate && item.category === 'alerts' && pubAge < 1) {
-            targetDate = today;
+        if (!targetDate && item.category === 'alerts') {
+             // Only if very fresh (< 24h)
+             if (item.pubDate && (Date.now() - item.pubDate.getTime() < 24 * 60 * 60 * 1000)) {
+                 targetDate = today;
+             }
         }
 
+        // Only add to timeline if targetDate is >= Today
         if (targetDate && targetDate >= today) {
             const dateKey = targetDate.toISOString().split('T')[0];
 

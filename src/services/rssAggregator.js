@@ -19,13 +19,6 @@ import { calculateVisualScore } from '../utils/visualScorer.js';
 import { classifySection } from '../utils/sectionClassifier.js';
 import { proxyManager } from './proxyManager.js';
 
-// Phase 2-4: Ranking Modules
-import { calculateTemporalWeight } from './ranking/temporalScorer.js';
-import { calculateGeoRelevance } from './ranking/geoScorer.js';
-import { analyzeNoise } from './ranking/noiseFilter.js';
-import { evaluateWithAI } from './ranking/aiEvaluator.js';
-import { getActiveGeoProfile } from './ranking/geoProfiles.js';
-
 /**
  * @typedef {Object} NewsItem
  * @property {string} id
@@ -571,85 +564,13 @@ async function rankAndFilter(items, section, limit, allowedSources) {
         // Ranking Mode
         if (settings.rankingMode === 'legacy') {
             clustered.sort((a, b) => b.publishedAt - a.publishedAt);
-            return clustered.slice(0, limit);
-        }
-        else if (settings.rankingMode === 'context-aware') {
-            // --- NEW: Context Aware Ranking (Two-Pass) ---
-            console.log(`[RSS] Running Context-Aware Ranking for ${section}`);
-
-            const geoProfile = getActiveGeoProfile(settings);
-
-            // Pass 1: Rule-Based Scoring & Filtering
-            let candidates = clustered.map(item => {
-                const temporal = calculateTemporalWeight(item);
-                const geo = calculateGeoRelevance(item, geoProfile);
-                const noise = analyzeNoise(item);
-
-                // Base impact is freshness + source quality (calculated in computeImpactScore)
-                // We use it as a baseline signal
-                const baseSignal = item.impactScore || 1.0;
-
-                // Combined Score
-                const contextScore = baseSignal * temporal * geo * noise.score;
-
-                // Collect Reasons
-                const reasons = [];
-                if (temporal > 1.1) reasons.push('Time Boost');
-                if (geo > 1.1) reasons.push('Location Boost');
-                if (noise.isNoise) reasons.push(noise.reason);
-
-                return {
-                    ...item,
-                    contextScore,
-                    rankingReason: reasons.join(' • ') || null,
-                    _debug: { temporal, geo, noise: noise.score, base: baseSignal }
-                };
-            }).filter(item => {
-                // Hard Filter for Noise
-                const noise = analyzeNoise(item);
-                if (noise.isNoise && noise.score < 0.6) return false;
-                return true;
-            });
-
-            // Sort by Context Score (Descending)
-            candidates.sort((a, b) => b.contextScore - a.contextScore);
-
-            // Pass 2: AI Evaluation on Top Candidates (Top 10)
-            // Only if we have an API key and it's worth it
-            if (settings.geminiKey && candidates.length > 0) {
-                const topCandidates = candidates.slice(0, 10);
-                const rest = candidates.slice(10);
-
-                // Async AI Call
-                const evaluated = await evaluateWithAI(topCandidates);
-
-                // Merge back
-                candidates = [...evaluated, ...rest].map(item => {
-                    if (item.aiScore) {
-                        // Apply AI multiplier
-                        item.contextScore *= item.aiScore;
-                        if (item.aiReason) item.rankingReason = `AI: ${item.aiReason}`;
-                    }
-                    return item;
-                });
-
-                // Final Sort
-                candidates.sort((a, b) => b.contextScore - a.contextScore);
-            }
-
-            // Map contextScore back to impactScore for UI compatibility
-            const finalResult = candidates.map(item => ({
-                ...item,
-                impactScore: item.contextScore
-            }));
-
-            return finalResult.slice(0, limit);
-        }
-        else {
-            // Default 'smart' (Original Impact Score)
+        } else {
+            // Default 'smart'
             clustered.sort((a, b) => b.impactScore - a.impactScore);
-            return clustered.slice(0, limit);
         }
+
+        console.log(`[RSS] Final count for ${section}: ${clustered.length} (requested ${limit})`);
+        return clustered.slice(0, limit);
 
     } catch (error) {
         console.error(`[RSS] Ranking error for ${section}:`, error);
