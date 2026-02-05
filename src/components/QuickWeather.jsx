@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
+import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 
 /**
  * Quick Weather Widget (Redesigned)
@@ -80,31 +81,13 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     if (!displayData) return null;
 
     // --- LOGIC: Rain Display ---
-    let rainText = null;
-    let isRaining = false;
-
-    // Check Rain MM
-    if (displayData.rainMm) {
-        const mm = parseFloat(displayData.rainMm);
-        if (mm > 0) {
-            isRaining = true;
-            if (mm < 1) {
-                rainText = "Traces";
-            } else {
-                rainText = displayData.rainMm;
-            }
-        }
-    }
-
-    // Check Rain Probability (Pop)
-    const popVal = displayData.rainProb?.value || 0;
-    const showRainChance = popVal > 0;
+    const rainStatus = getRainStatus(displayData.rainProb?.value, displayData.rainMm);
+    const isRaining = rainStatus && (rainStatus.intensity === 'moderate' || rainStatus.intensity === 'heavy');
 
     // --- LOGIC: Background Gradient ---
     const getBgClass = (pill, raining) => {
-        // If actively raining (significantly), maybe use rain bg?
-        // Or just stick to time logic for consistency unless storming.
-        if (raining && parseFloat(displayData.rainMm) > 5) return 'qw-bg-rain';
+        // If actively raining (significantly), use rain bg
+        if (raining) return 'qw-bg-rain';
 
         if (pill.includes('Morning')) return 'qw-bg-morning';
         if (pill.includes('Midday')) return 'qw-bg-day';
@@ -198,12 +181,12 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 )}
 
                 {/* Rain - Conditional Display */}
-                {rainText && (
+                {rainStatus && (
                     <div className="qw-detail-item">
                         <div className="qw-detail-label">Rainfall</div>
-                        <div className="qw-detail-value">
-                            <span style={{fontSize:'1.2em'}}>🌧️</span>
-                            {rainText}
+                        <div className="qw-detail-value" style={getRainStyle(rainStatus.intensity)}>
+                            <span style={{fontSize:'1.2em'}}>{rainStatus.icon}</span>
+                            {rainStatus.label}
                         </div>
                     </div>
                 )}

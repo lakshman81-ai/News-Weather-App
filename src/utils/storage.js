@@ -26,6 +26,20 @@ export const DEFAULT_SETTINGS = {
     rankingMode: 'smart',    // 'smart' | 'legacy' | 'context-aware'
 
     // ========================================
+    // RANKING WEIGHTS (NEW)
+    // ========================================
+    rankingWeights: {
+        temporal: {
+            weekendBoost: 2.0,
+            entertainmentBoost: 2.5
+        },
+        geo: {
+            cityMatch: 1.5,
+            maxScore: 5.0
+        }
+    },
+
+    // ========================================
     // WEATHER CONFIGURATION
     // ========================================
     weather: {
@@ -128,7 +142,12 @@ export const DEFAULT_SETTINGS = {
             sports: true
         },
         locations: ["Chennai", "Muscat"],
-        customLocation: ""
+        customLocation: "",
+        keywords: {
+            movies: ["tickets", "showtimes", "releases", "trailer", "review"],
+            events: ["concert", "standup", "live", "workshop", "exhibition"],
+            negative: ["review", "interview", "shares", "gossip", "opinion", "reaction"]
+        }
     },
 
     // ========================================

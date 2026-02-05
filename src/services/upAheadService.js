@@ -3,16 +3,19 @@ import { proxyManager } from './proxyManager.js';
 // Configuration for search queries based on categories
 const CATEGORY_QUERIES = {
     movies: [
-        'new movie releases this week',
-        'upcoming ott releases india',
-        'movie theater releases',
-        'audio launch event'
+        'movie tickets booking',
+        'showtimes near me',
+        'movie releases this friday',
+        'cinema listings',
+        'upcoming movies'
     ],
     events: [
-        'events happening this week',
-        'music concerts upcoming',
-        'art exhibitions',
-        'standup comedy shows'
+        'live concert tickets',
+        'standup comedy show',
+        'music festival line up',
+        'upcoming workshops',
+        'events happening this weekend',
+        'things to do'
     ],
     festivals: [
         'upcoming festivals india',
@@ -24,7 +27,8 @@ const CATEGORY_QUERIES = {
         'traffic advisory',
         'heavy rain alert',
         'power shutdown scheduled',
-        'metro rail maintenance'
+        'metro rail maintenance',
+        'road closure update'
     ],
     sports: [
         'cricket match schedule upcoming',
@@ -134,9 +138,35 @@ export async function fetchUpAheadData(settings) {
 /**
  * Normalizes an RSS item into an Up Ahead item
  */
+function stripHtml(html) {
+    if (!html) return "";
+    let text = html.toString();
+
+    // Decode common entities first
+    const entities = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&lt;': '<',
+        '&gt;': '>'
+    };
+
+    text = text.replace(/&[a-z0-9#]+;/gi, (match) => entities[match] || match);
+
+    // Remove scripts and styles
+    text = text.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, "");
+    text = text.replace(/<style[^>]*>([\S\s]*?)<\/style>/gmi, "");
+
+    // Remove all HTML tags
+    text = text.replace(/<\/?[^>]+(>|$)/g, "");
+
+    return text.trim();
+}
+
 export function normalizeUpAheadItem(item, config) {
-    const title = item.title || '';
-    const description = item.description || '';
+    const title = stripHtml(item.title || '');
+    const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
     const pubDate = item.pubDate ? new Date(item.pubDate) : null;
 
@@ -283,20 +313,42 @@ export function processUpAheadData(rawItems, settings) {
         seenIds.add(item.id);
 
         // Strict Freshness Check
-        // If pubDate exists and is older than limit, DISCARD IT.
         if (item.pubDate) {
             const ageMs = Date.now() - item.pubDate.getTime();
             if (ageMs > maxAgeMs) {
-                // Old news. But check if it has a FUTURE extracted date?
-                // Logic: If the news is old (e.g. 1 week ago) but talks about an event next month, should we keep it?
-                // The user says "Old stories... from Oct 22". That story was published Oct 22.
-                // That is ANCIENT (months ago). We definitely want to kill that.
-                // However, legitimate "Up Ahead" might be announced weeks in advance.
-                // BUT, we are fetching from Google News "when:7d". So we shouldn't GET old stuff unless
-                // Google News is serving old stuff (which happens).
-                // If Google News serves a 3-month-old article, it's probably spam or irrelevant now.
-                // Let's enforce strict freshness on the *Source Article*.
                 return;
+            }
+        }
+
+        const fullText = (item.title + " " + item.description).toLowerCase();
+
+        // --- KEYWORD FILTERING (Phase 9) ---
+        const keywords = settings?.upAhead?.keywords || {};
+
+        // 1. Negative Filtering (Global)
+        const negativeWords = keywords.negative || ["review", "interview", "shares", "gossip", "opinion", "reaction"];
+        if (negativeWords.some(w => fullText.includes(w.toLowerCase()))) {
+            return; // Drop item
+        }
+
+        // 2. Positive Filtering (Category Specific)
+        if (['movies', 'events'].includes(item.category)) {
+            const positiveWords = keywords[item.category]; // e.g. ["tickets", "showtimes"]
+            if (positiveWords && positiveWords.length > 0) {
+                // If user defined positive keywords, require at least one match?
+                // Or just boost? The user said "Focus on...", which implies strictness or strong ranking.
+                // Let's implement strictness for now as requested to "remove generic news".
+                const hasMatch = positiveWords.some(w => fullText.includes(w.toLowerCase()));
+                if (!hasMatch) return; // Drop if it doesn't match focus keywords
+            }
+        }
+
+        // 3. Strict Location for Alerts
+        if (item.category === 'alerts') {
+            const userLocations = settings?.upAhead?.locations || ['Chennai', 'Muscat', 'Trichy'];
+            const hasLocation = userLocations.some(loc => fullText.includes(loc.toLowerCase()));
+            if (!hasLocation) {
+                return; // Drop alerts not mentioning user's specific locations
             }
         }
 
@@ -409,24 +461,40 @@ function getItemType(category) {
 }
 
 function generateWeeklyPlan(timeline) {
-    // Simple heuristic: Take the first event of each day for the plan
+    // Generate plan for the next 7 days from today
     const plan = {};
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const today = new Date();
 
-    // This is a naive mapping. A better one would map actual dates to weekdays.
+    // Create list of next 7 days
+    const next7Days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        next7Days.push(d);
+    }
 
-    timeline.forEach(day => {
-        const dateObj = new Date(day.date);
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    next7Days.forEach(dateObj => {
+        const dateStr = dateObj.toISOString().split('T')[0];
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-        if (day.items.length > 0) {
-            plan[dayName] = `Attend ${day.items[0].title}`;
+        // Find events for this date
+        const timelineDay = timeline.find(t => t.date === dateStr);
+
+        if (timelineDay && timelineDay.items.length > 0) {
+            // Use the first event title, strip "Attend " if present (though we removed it)
+            // Just use title directly
+            plan[dayName] = timelineDay.items[0].title;
+        } else {
+            // Rotating placeholder text for variety
+            const placeholders = [
+                "Relax and recharge.",
+                "Nothing scheduled yet.",
+                "Free day.",
+                "Good time for a hobby.",
+                "Catch up on reading."
+            ];
+            plan[dayName] = placeholders[dateObj.getDay() % placeholders.length];
         }
-    });
-
-    // Fill gaps
-    days.forEach(d => {
-        if (!plan[d]) plan[d] = "Relax and recharge.";
     });
 
     return plan;
