@@ -36,7 +36,8 @@ const CATEGORY_QUERIES = {
 // Standard RSS feeds to supplement search queries
 const STATIC_FEEDS = {
     movies: [
-        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml"
+        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml",
+        "https://www.hindustantimes.com/feeds/rss/entertainment/bollywood/rssfeed.xml"
     ],
     sports: [
         "https://www.espn.com/espn/rss/news"
@@ -133,9 +134,9 @@ export async function fetchUpAheadData(settings) {
 /**
  * Normalizes an RSS item into an Up Ahead item
  */
-function normalizeUpAheadItem(item, config) {
-    const title = stripHtml(item.title || '');
-    const description = stripHtml(item.description || '');
+export function normalizeUpAheadItem(item, config) {
+    const title = item.title || '';
+    const description = item.description || '';
     const fullText = `${title} ${description}`;
     const pubDate = item.pubDate ? new Date(item.pubDate) : null;
 
@@ -180,23 +181,29 @@ export function detectCategory(text) {
  * @param {Date|null} pubDate - The publication date of the article (for year context)
  */
 export function extractFutureDate(text, pubDate) {
-    // 1. Check for explicit dates e.g., "October 25", "25th Oct"
-    // Simple regex for Month Day pairs
+    // 1. Check for explicit dates e.g., "October 25", "25th Oct", "Oct 25, 2024"
+    // Regex for Month Day pairs, optionally with Year
     const months = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december';
-    const dateRegex = new RegExp(`\\b(${months})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i');
-    const reverseDateRegex = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${months})\\b`, 'i');
+
+    // Pattern: "October 25" or "October 25, 2025"
+    const dateRegex = new RegExp(`\\b(${months})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`, 'i');
+
+    // Pattern: "25th October" or "25 October 2025"
+    const reverseDateRegex = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${months})(?:,?\\s+(\\d{4}))?\\b`, 'i');
 
     let match = text.match(dateRegex);
-    let day, monthStr;
+    let day, monthStr, explicitYear;
 
     if (match) {
         monthStr = match[1];
         day = parseInt(match[2]);
+        if (match[3]) explicitYear = parseInt(match[3]);
     } else {
         match = text.match(reverseDateRegex);
         if (match) {
             day = parseInt(match[1]);
             monthStr = match[2];
+            if (match[3]) explicitYear = parseInt(match[3]);
         }
     }
 
@@ -204,31 +211,30 @@ export function extractFutureDate(text, pubDate) {
         // Contextualize the year
         const now = new Date();
         const monthIndex = new Date(`${monthStr} 1, 2000`).getMonth();
+        let year;
 
-        let year = now.getFullYear();
-
-        // If pubDate is available, use its year as the primary anchor
-        if (pubDate && !isNaN(pubDate.getTime())) {
-            year = pubDate.getFullYear();
-
-            // Handle edge case: Article in Dec talking about Jan (Next Year)
-            // But if Article is Oct 2025, and text says Oct 22, it is Oct 22, 2025.
-            // If Article is Dec 2025, and text says Jan 5, it is Jan 5, 2026.
-
-            const eventMonthIsEarlier = monthIndex < pubDate.getMonth();
-            if (eventMonthIsEarlier && (pubDate.getMonth() - monthIndex) > 6) {
-                // e.g., Pub: Dec (11), Event: Jan (0). Diff is large? No, wait.
-                // If event is Jan and pub is Dec, it's next year.
-                year = year + 1;
-            }
+        if (explicitYear) {
+            // Use the explicit year found in the text
+            year = explicitYear;
         } else {
-             // Fallback to current logic: if extracted date is "far past" relative to now, assume next year.
-             // But for Up Ahead, we strictly prefer future dates.
-             const currentMonth = now.getMonth();
-             if (monthIndex < currentMonth && (currentMonth - monthIndex) > 3) {
-                 // e.g. Now is May, Event is Jan. Probably next Jan?
-                 year = year + 1;
-             }
+            year = now.getFullYear();
+
+            // If pubDate is available, use its year as the primary anchor
+            if (pubDate && !isNaN(pubDate.getTime())) {
+                year = pubDate.getFullYear();
+
+                // Handle edge case: Article in Dec talking about Jan (Next Year)
+                const eventMonthIsEarlier = monthIndex < pubDate.getMonth();
+                if (eventMonthIsEarlier && (pubDate.getMonth() - monthIndex) > 6) {
+                    year = year + 1;
+                }
+            } else {
+                 // Fallback: if extracted date is "far past" relative to now, assume next year.
+                 const currentMonth = now.getMonth();
+                 if (monthIndex < currentMonth && (currentMonth - monthIndex) > 3) {
+                     year = year + 1;
+                 }
+            }
         }
 
         return new Date(year, monthIndex, day);
@@ -253,13 +259,9 @@ export function extractFutureDate(text, pubDate) {
 /**
  * Processing Logic to create the final JSON structure
  */
-function processUpAheadData(rawItems, settings) {
+export function processUpAheadData(rawItems, settings) {
     const today = new Date();
     today.setHours(0,0,0,0);
-
-    const userLocations = (settings?.locations || []).map(l => l.toLowerCase());
-    // List of major cities to filter out if not explicitly followed
-    const EXCLUDED_LOCATIONS = ['delhi', 'mumbai', 'bangalore', 'bengaluru', 'hyderabad', 'telangana', 'pune', 'kolkata', 'ahmedabad', 'noida', 'gurgaon'];
 
     const timelineMap = new Map(); // Key: "YYYY-MM-DD", Value: { dateObj, items: [] }
     const sections = {
@@ -298,18 +300,18 @@ function processUpAheadData(rawItems, settings) {
             }
         }
 
-        // Geo-Filtering: Check if item mentions a blocked location
-        const textToCheck = (item.title + ' ' + item.description).toLowerCase();
-        const foundExcluded = EXCLUDED_LOCATIONS.find(loc => textToCheck.includes(loc));
-
-        if (foundExcluded) {
-            // Only allow if the user explicitly tracks this location
-            const isExplicitlyAllowed = userLocations.some(ul => ul.includes(foundExcluded) || foundExcluded.includes(ul));
-            if (!isExplicitlyAllowed) return;
-        }
-
         // Populate Sections
         if (item.category && sections[item.category]) {
+            // STRICT FILTER: For planner sections (Movies, Festivals, Events, Sports),
+            // we REQUIRE a valid extracted date.
+            // Alerts are exempt as they often imply "Immediate/Now" without explicit dates.
+            const isPlannerCategory = ['movies', 'festivals', 'events', 'sports'].includes(item.category);
+
+            if (isPlannerCategory && !item.extractedDate) {
+                // Skip generic news items that don't have a specific date (e.g. opinion pieces, rumors)
+                return;
+            }
+
             // Simplify item for display
             const displayItem = {
                 title: item.title,
@@ -418,7 +420,7 @@ function generateWeeklyPlan(timeline) {
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
         if (day.items.length > 0) {
-            plan[dayName] = day.items[0].title;
+            plan[dayName] = `Attend ${day.items[0].title}`;
         }
     });
 
@@ -428,10 +430,4 @@ function generateWeeklyPlan(timeline) {
     });
 
     return plan;
-}
-
-function stripHtml(html) {
-    if (!html) return '';
-    // Basic regex strip to remove HTML tags
-    return html.replace(/<[^>]*>?/gm, '');
 }
