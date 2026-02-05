@@ -52,6 +52,37 @@ function SettingsPage() {
         }
     };
 
+    const handleAddFeed = async () => {
+        if (!newFeedUrl) return;
+        setIsDiscovering(true);
+        setDiscoveryError(null);
+
+        try {
+            const feeds = await discoverFeeds(newFeedUrl);
+            if (feeds.length > 0) {
+                const bestFeed = feeds[0];
+                updateSettings({
+                    ...settings,
+                    customFeeds: [...(settings.customFeeds || []), { title: bestFeed.title, url: bestFeed.url }]
+                });
+                setNewFeedUrl('');
+            } else {
+                setDiscoveryError('No feeds found. Check the URL or try a direct RSS link.');
+            }
+        } catch (error) {
+            void error;
+            setDiscoveryError('Error discovering feeds.');
+        } finally {
+            setIsDiscovering(false);
+        }
+    };
+
+    const removeCustomFeed = (index) => {
+        const newFeeds = [...(settings.customFeeds || [])];
+        newFeeds.splice(index, 1);
+        updateSettings({ ...settings, customFeeds: newFeeds });
+    };
+
     // --- KEYWORD MANAGEMENT ---
     const addKeyword = (category, word) => {
         if (!word || !word.trim()) return;
