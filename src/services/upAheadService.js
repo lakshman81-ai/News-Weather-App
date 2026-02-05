@@ -36,8 +36,7 @@ const CATEGORY_QUERIES = {
 // Standard RSS feeds to supplement search queries
 const STATIC_FEEDS = {
     movies: [
-        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml",
-        "https://www.hindustantimes.com/feeds/rss/entertainment/bollywood/rssfeed.xml"
+        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml"
     ],
     sports: [
         "https://www.espn.com/espn/rss/news"
@@ -134,9 +133,9 @@ export async function fetchUpAheadData(settings) {
 /**
  * Normalizes an RSS item into an Up Ahead item
  */
-export function normalizeUpAheadItem(item, config) {
-    const title = item.title || '';
-    const description = item.description || '';
+function normalizeUpAheadItem(item, config) {
+    const title = stripHtml(item.title || '');
+    const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
     const pubDate = item.pubDate ? new Date(item.pubDate) : null;
 
@@ -254,9 +253,13 @@ export function extractFutureDate(text, pubDate) {
 /**
  * Processing Logic to create the final JSON structure
  */
-export function processUpAheadData(rawItems, settings) {
+function processUpAheadData(rawItems, settings) {
     const today = new Date();
     today.setHours(0,0,0,0);
+
+    const userLocations = (settings?.locations || []).map(l => l.toLowerCase());
+    // List of major cities to filter out if not explicitly followed
+    const EXCLUDED_LOCATIONS = ['delhi', 'mumbai', 'bangalore', 'bengaluru', 'hyderabad', 'telangana', 'pune', 'kolkata', 'ahmedabad', 'noida', 'gurgaon'];
 
     const timelineMap = new Map(); // Key: "YYYY-MM-DD", Value: { dateObj, items: [] }
     const sections = {
@@ -293,6 +296,16 @@ export function processUpAheadData(rawItems, settings) {
                 // Let's enforce strict freshness on the *Source Article*.
                 return;
             }
+        }
+
+        // Geo-Filtering: Check if item mentions a blocked location
+        const textToCheck = (item.title + ' ' + item.description).toLowerCase();
+        const foundExcluded = EXCLUDED_LOCATIONS.find(loc => textToCheck.includes(loc));
+
+        if (foundExcluded) {
+            // Only allow if the user explicitly tracks this location
+            const isExplicitlyAllowed = userLocations.some(ul => ul.includes(foundExcluded) || foundExcluded.includes(ul));
+            if (!isExplicitlyAllowed) return;
         }
 
         // Populate Sections
@@ -405,7 +418,7 @@ function generateWeeklyPlan(timeline) {
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
         if (day.items.length > 0) {
-            plan[dayName] = `Attend ${day.items[0].title}`;
+            plan[dayName] = day.items[0].title;
         }
     });
 
@@ -415,4 +428,10 @@ function generateWeeklyPlan(timeline) {
     });
 
     return plan;
+}
+
+function stripHtml(html) {
+    if (!html) return '';
+    // Basic regex strip to remove HTML tags
+    return html.replace(/<[^>]*>?/gm, '');
 }
