@@ -36,8 +36,7 @@ const CATEGORY_QUERIES = {
 // Standard RSS feeds to supplement search queries
 const STATIC_FEEDS = {
     movies: [
-        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml",
-        "https://www.hindustantimes.com/feeds/rss/entertainment/bollywood/rssfeed.xml"
+        "https://www.hindustantimes.com/feeds/rss/entertainment/tamil-cinema/rssfeed.xml"
     ],
     sports: [
         "https://www.espn.com/espn/rss/news"
@@ -128,7 +127,7 @@ export async function fetchUpAheadData(settings) {
     allItems = results.flat();
 
     // 3. Process, Deduplicate, and Organize
-    const organizedData = processUpAheadData(allItems);
+    const organizedData = processUpAheadData(allItems, settings);
 
     return organizedData;
 }
@@ -137,8 +136,8 @@ export async function fetchUpAheadData(settings) {
  * Normalizes an RSS item into an Up Ahead item
  */
 function normalizeUpAheadItem(item, config) {
-    const title = item.title || '';
-    const description = item.description || '';
+    const title = stripHtml(item.title || '');
+    const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
 
     // Attempt to extract a date
@@ -244,9 +243,13 @@ function extractFutureDate(text) {
 /**
  * Processing Logic to create the final JSON structure
  */
-function processUpAheadData(rawItems) {
+function processUpAheadData(rawItems, settings) {
     const today = new Date();
     today.setHours(0,0,0,0);
+
+    const userLocations = (settings?.locations || []).map(l => l.toLowerCase());
+    // List of major cities to filter out if not explicitly followed
+    const EXCLUDED_LOCATIONS = ['delhi', 'mumbai', 'bangalore', 'bengaluru', 'hyderabad', 'telangana', 'pune', 'kolkata', 'ahmedabad', 'noida', 'gurgaon'];
 
     const timelineMap = new Map(); // Key: "YYYY-MM-DD", Value: { dateObj, items: [] }
     const sections = {
@@ -266,6 +269,16 @@ function processUpAheadData(rawItems) {
         // Filter out very old items (older than 3 days) if no future date extracted
         const pubAge = (Date.now() - new Date(item.pubDate).getTime()) / (1000 * 60 * 60 * 24);
         if (!item.extractedDate && pubAge > 3) return;
+
+        // Geo-Filtering: Check if item mentions a blocked location
+        const textToCheck = (item.title + ' ' + item.description).toLowerCase();
+        const foundExcluded = EXCLUDED_LOCATIONS.find(loc => textToCheck.includes(loc));
+
+        if (foundExcluded) {
+            // Only allow if the user explicitly tracks this location
+            const isExplicitlyAllowed = userLocations.some(ul => ul.includes(foundExcluded) || foundExcluded.includes(ul));
+            if (!isExplicitlyAllowed) return;
+        }
 
         // Populate Sections
         if (item.category && sections[item.category]) {
@@ -376,7 +389,7 @@ function generateWeeklyPlan(timeline) {
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
         if (day.items.length > 0) {
-            plan[dayName] = `Attend ${day.items[0].title}`;
+            plan[dayName] = day.items[0].title;
         }
     });
 
@@ -386,4 +399,10 @@ function generateWeeklyPlan(timeline) {
     });
 
     return plan;
+}
+
+function stripHtml(html) {
+    if (!html) return '';
+    // Basic regex strip to remove HTML tags
+    return html.replace(/<[^>]*>?/gm, '');
 }
