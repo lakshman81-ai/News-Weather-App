@@ -95,5 +95,51 @@ export const geminiService = {
             console.error("Translation failed:", error);
             throw error;
         }
+    },
+
+    /**
+     * Evaluates a batch of articles for importance/relevance.
+     * @param {Array} articles - List of articles {id, title, description, source}.
+     * @param {string} apiKey - User's API Key.
+     * @returns {Promise<Object>} - Map of articleId -> { score: 0-100, reason: string }
+     */
+    evaluateImportance: async (articles, apiKey) => {
+        if (!initializeAI(apiKey)) {
+            // Return empty if no AI
+            return {};
+        }
+
+        // Limit batch size to 10 to avoid token limits
+        const batch = articles.slice(0, 10);
+
+        const input = batch.map((a, i) =>
+            `ID: ${a.id}\nTitle: ${a.title}\nSource: ${a.source}\nDesc: ${a.description?.substring(0, 100)}`
+        ).join("\n---\n");
+
+        const prompt = `
+        Evaluate these news articles for "Impact" and "General Interest" (0-100).
+        High impact = Breaking news, Major policy, Disaster, Innovation.
+        Low impact = Clickbait, Gossip, Minor update.
+
+        Return valid JSON ONLY mapping ID to {score, reason}.
+        Example: { "id1": { "score": 85, "reason": "Major election result" } }
+
+        Articles:
+        ${input}
+        `;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text();
+
+            // Clean markdown json blocks if present
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            return JSON.parse(text);
+        } catch (error) {
+            console.error("AI Evaluation failed:", error);
+            return {};
+        }
     }
 };
