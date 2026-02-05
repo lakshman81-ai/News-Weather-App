@@ -280,8 +280,29 @@ export function computeImpactScore(item, section) {
     const multipliers = impactMultiplier * proximityMultiplier * noveltyMultiplier *
         currencyMultiplier * humanInterestMultiplier * visualMultiplier;
 
+    // --- TEMPORAL BOOSTS (Phase 9) ---
+    // Apply configured boosts for Weekend and Entertainment
+    let temporalMultiplier = 1.0;
+    const now = new Date();
+    const day = now.getDay();
+    const isWeekend = (day === 0 || day === 6 || day === 5); // Fri, Sat, Sun
+
+    // 1. Entertainment Boost (Always active for target sections)
+    if (['entertainment', 'social', 'movies'].includes(section) || item.section === 'entertainment') {
+        const entBoost = settings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
+        temporalMultiplier *= entBoost;
+    }
+
+    // 2. Weekend Boost (Active on Fri-Sun for leisure/local content)
+    if (isWeekend) {
+        if (['entertainment', 'social', 'local', 'chennai', 'trichy', 'events'].includes(section)) {
+            const wkndBoost = settings.rankingWeights?.temporal?.weekendBoost || 2.0;
+            temporalMultiplier *= wkndBoost;
+        }
+    }
+
     // Final Calculation with multipliers
-    const total = baseScore * multipliers * sectionPriority * breakingBoost;
+    const total = baseScore * multipliers * temporalMultiplier * sectionPriority * breakingBoost;
 
     return total;
 }

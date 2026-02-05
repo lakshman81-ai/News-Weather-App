@@ -16,7 +16,11 @@ export function calculateProximityScore(title, description) {
     const text = `${title} ${description}`.toLowerCase();
     let maxBoost = 1.0;
 
-    // 2. Check against LOCATIONS list
+    // Get weights from settings or defaults
+    const cityMatchBoost = settings.rankingWeights?.geo?.cityMatch || 1.5;
+    const maxScore = settings.rankingWeights?.geo?.maxScore || 5.0;
+
+    // 2. Check against LOCATIONS list (Hardcoded priorities)
     for (const [locationName, data] of Object.entries(LOCATIONS)) {
         // Simple text matching
         if (text.includes(locationName.toLowerCase())) {
@@ -26,8 +30,20 @@ export function calculateProximityScore(title, description) {
         }
     }
 
-    // AI NOTE: Future enhancement - check user's specifically configured city
-    // if (settings.weather?.cities?.some(city => text.includes(city))) ...
+    // 3. Check against User Configured Cities (Settings)
+    if (settings.weather?.cities) {
+        for (const city of settings.weather.cities) {
+            if (text.includes(city.toLowerCase())) {
+                // Apply the configured city match boost
+                // If this is higher than what we found in LOCATIONS, use it.
+                // Or maybe we should multiply? For now, taking the max seems safer to avoid explosion.
+                if (cityMatchBoost > maxBoost) {
+                    maxBoost = cityMatchBoost;
+                }
+            }
+        }
+    }
 
-    return maxBoost;
+    // Cap at maxScore
+    return Math.min(maxBoost, maxScore);
 }

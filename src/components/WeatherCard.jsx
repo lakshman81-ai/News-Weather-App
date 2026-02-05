@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getWeatherTimeBlocks } from '../utils/timeSegment';
+import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 
 /**
  * Weather Card Component
@@ -108,16 +109,22 @@ function WeatherCard({ weatherData }) {
                                         <div className="weather-temp">{data.temp}°C</div>
                                         <div className="weather-feels">Feels {data.feelsLike}°</div>
 
-                                        {/* Enhanced Rainfall Display - Strict Conditional */}
-                                        {data.rainMm && data.rainMm !== '0.0mm' && data.rainMm !== '-' && (
-                                            <div className="weather-rain">
-                                                <span className={`weather-rain-prob ${data.rainProb?.isWideRange ? 'rain-uncertain' : 'rain-confident'}`}>
-                                                    {data.rainProb?.isWideRange && <span className="rain-warning-icon">⚠️ </span>}
-                                                    🌧️ {data.rainProb?.displayString || '~0%'}
-                                                </span>
-                                                <span className="weather-rain-mm">{data.rainMm}</span>
-                                            </div>
-                                        )}
+                                        {/* Enhanced Rainfall Display - Dynamic Palette */}
+                                        {(() => {
+                                            const status = getRainStatus(data.rainProb?.value, data.rainMm);
+                                            if (!status) return null;
+                                            const style = getRainStyle(status.intensity);
+                                            return (
+                                                <div className="weather-rain" style={{ marginTop: '4px' }}>
+                                                    <span className="weather-rain-prob" style={style}>
+                                                        {status.icon} {status.label}
+                                                    </span>
+                                                    {data.rainProb?.isWideRange && (
+                                                        <span title="Models disagree" style={{ fontSize: '0.7rem', marginLeft: '4px', cursor: 'help' }}>⚠️</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
 
                                         {/* Hourly Forecast Expansion if Precip > 5mm */}
                                         {data.rainMm && parseFloat(data.rainMm) > 5 && (

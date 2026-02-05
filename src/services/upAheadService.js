@@ -3,16 +3,16 @@ import { proxyManager } from './proxyManager.js';
 // Configuration for search queries based on categories
 const CATEGORY_QUERIES = {
     movies: [
-        'new movie releases this week',
-        'upcoming ott releases india',
-        'movie theater releases',
-        'audio launch event'
+        'movie tickets booking',
+        'showtimes near me',
+        'movie releases this friday',
+        'cinema listings'
     ],
     events: [
-        'events happening this week',
-        'music concerts upcoming',
-        'art exhibitions',
-        'standup comedy shows'
+        'live concert tickets',
+        'standup comedy show',
+        'music festival line up',
+        'upcoming workshops'
     ],
     festivals: [
         'upcoming festivals india',
@@ -134,9 +134,19 @@ export async function fetchUpAheadData(settings) {
 /**
  * Normalizes an RSS item into an Up Ahead item
  */
+function stripHtml(html) {
+    if (!html) return "";
+    return html.replace(/<[^>]*>?/gm, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+}
+
 export function normalizeUpAheadItem(item, config) {
-    const title = item.title || '';
-    const description = item.description || '';
+    const title = stripHtml(item.title || '');
+    const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
     const pubDate = item.pubDate ? new Date(item.pubDate) : null;
 
@@ -283,20 +293,42 @@ export function processUpAheadData(rawItems, settings) {
         seenIds.add(item.id);
 
         // Strict Freshness Check
-        // If pubDate exists and is older than limit, DISCARD IT.
         if (item.pubDate) {
             const ageMs = Date.now() - item.pubDate.getTime();
             if (ageMs > maxAgeMs) {
-                // Old news. But check if it has a FUTURE extracted date?
-                // Logic: If the news is old (e.g. 1 week ago) but talks about an event next month, should we keep it?
-                // The user says "Old stories... from Oct 22". That story was published Oct 22.
-                // That is ANCIENT (months ago). We definitely want to kill that.
-                // However, legitimate "Up Ahead" might be announced weeks in advance.
-                // BUT, we are fetching from Google News "when:7d". So we shouldn't GET old stuff unless
-                // Google News is serving old stuff (which happens).
-                // If Google News serves a 3-month-old article, it's probably spam or irrelevant now.
-                // Let's enforce strict freshness on the *Source Article*.
                 return;
+            }
+        }
+
+        const fullText = (item.title + " " + item.description).toLowerCase();
+
+        // --- KEYWORD FILTERING (Phase 9) ---
+        const keywords = settings?.upAhead?.keywords || {};
+
+        // 1. Negative Filtering (Global)
+        const negativeWords = keywords.negative || ["review", "interview", "shares", "gossip", "opinion", "reaction"];
+        if (negativeWords.some(w => fullText.includes(w.toLowerCase()))) {
+            return; // Drop item
+        }
+
+        // 2. Positive Filtering (Category Specific)
+        if (['movies', 'events'].includes(item.category)) {
+            const positiveWords = keywords[item.category]; // e.g. ["tickets", "showtimes"]
+            if (positiveWords && positiveWords.length > 0) {
+                // If user defined positive keywords, require at least one match?
+                // Or just boost? The user said "Focus on...", which implies strictness or strong ranking.
+                // Let's implement strictness for now as requested to "remove generic news".
+                const hasMatch = positiveWords.some(w => fullText.includes(w.toLowerCase()));
+                if (!hasMatch) return; // Drop if it doesn't match focus keywords
+            }
+        }
+
+        // 3. Strict Location for Alerts
+        if (item.category === 'alerts') {
+            const userLocations = settings?.upAhead?.locations || ['Chennai', 'Muscat', 'Trichy'];
+            const hasLocation = userLocations.some(loc => fullText.includes(loc.toLowerCase()));
+            if (!hasLocation) {
+                return; // Drop alerts not mentioning user's specific locations
             }
         }
 
