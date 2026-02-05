@@ -282,6 +282,7 @@ function SettingsPage() {
                                 style={{ padding: '6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                             >
                                 <option value="smart">Smart Mix (Impact)</option>
+                                <option value="context-aware">Location/Time Aware (Beta)</option>
                                 <option value="legacy">Legacy (Freshness)</option>
                             </select>
                         </div>
