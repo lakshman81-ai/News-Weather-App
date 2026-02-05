@@ -689,6 +689,104 @@ function SettingsPage() {
                     </div>
                 </section>
 
+                {/* ========================================
+                    SECTION 8: UP AHEAD CONFIGURATION
+                    ======================================== */}
+                <section className="settings-section">
+                    <h2 className="settings-section__title">
+                        <span>🗓️</span> Up Ahead Filters
+                    </h2>
+                    <div className="settings-card">
+                        <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-default)' }}>
+                            <div className="settings-item__label" style={{ marginBottom: '8px' }}>Active Categories</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                {['movies', 'events', 'festivals', 'alerts', 'sports'].map(cat => (
+                                    <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={settings.upAhead?.categories?.[cat] !== false}
+                                            onChange={(e) => updateNested(`upAhead.categories.${cat}`, e.target.checked)}
+                                        />
+                                        {cat}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div className="settings-item__label">Locations</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                                {/* Default Locations */}
+                                {['Chennai', 'Muscat', 'Trichy'].map(loc => (
+                                    <label key={loc} className={`chip-checkbox ${settings.upAhead?.locations?.includes(loc) ? 'active' : ''}`} style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 12px',
+                                        borderRadius: '16px',
+                                        border: '1px solid var(--border-default)',
+                                        background: settings.upAhead?.locations?.includes(loc) ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                                        color: settings.upAhead?.locations?.includes(loc) ? '#fff' : 'var(--text-primary)',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer'
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            style={{ display: 'none' }}
+                                            checked={settings.upAhead?.locations?.includes(loc) || false}
+                                            onChange={(e) => {
+                                                const current = settings.upAhead?.locations || [];
+                                                let next;
+                                                if (e.target.checked) {
+                                                    next = [...current, loc];
+                                                } else {
+                                                    next = current.filter(l => l !== loc);
+                                                }
+                                                updateNested('upAhead.locations', next);
+                                            }}
+                                        />
+                                        {loc}
+                                    </label>
+                                ))}
+                            </div>
+
+                             {/* Custom Location Input */}
+                             <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Add City..."
+                                    value={settings.upAhead?.customLocation || ''}
+                                    onChange={(e) => updateNested('upAhead.customLocation', e.target.value)}
+                                    style={{
+                                        flex: 1,
+                                        padding: '6px 10px',
+                                        borderRadius: '4px',
+                                        border: '1px solid var(--border-default)',
+                                        background: 'var(--bg-secondary)',
+                                        color: 'var(--text-primary)'
+                                    }}
+                                />
+                                <button
+                                    className="btn btn--secondary"
+                                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                                    onClick={() => {
+                                        const city = settings.upAhead?.customLocation?.trim();
+                                        if (city) {
+                                            const current = settings.upAhead?.locations || [];
+                                            if (!current.includes(city)) {
+                                                updateNested('upAhead.locations', [...current, city]);
+                                            }
+                                            updateNested('upAhead.customLocation', '');
+                                        }
+                                    }}
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
 
                 {/* ========================================
                     SECTION 9: ADVANCED (Collapsible)
