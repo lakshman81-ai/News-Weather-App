@@ -18,10 +18,7 @@ export function getRainStatus(prob, mmStr) {
 
     const p = prob || 0;
 
-    // Default state - lowered thresholds slightly to ensure "Traces" are visible
-    // if requested. The user said "Rainfall icon not appearing".
-    // If there is ANY indication of rain, we should probably show it, especially
-    // if the model provided a non-zero probability.
+    // Strict check: if no probability and no mm, return null
     if (p <= 0 && mm <= 0) {
         return null;
     }
@@ -29,25 +26,27 @@ export function getRainStatus(prob, mmStr) {
     // Intensity calculation
     let intensity = 'light';
     let icon = '🌧️';
-    let className = 'rain-light';
 
-    if (mm >= 10 || (p > 80 && mm > 5)) {
+    // Logic Refinement:
+    // User complaint: "Rainfall icon not appearing" for "50% prob, 0.4mm".
+    // 50% prob is significant. 0.4mm is light.
+
+    if (mm >= 10 || (p >= 80 && mm >= 5)) {
         intensity = 'heavy';
         icon = '⛈️';
-        className = 'rain-heavy';
-    } else if (mm >= 2 || p > 60) {
+    } else if (mm >= 2 || p >= 60) {
         intensity = 'moderate';
         icon = '🌧️';
-        className = 'rain-moderate';
     } else {
-        // Light rain / Drizzle / Low Probability
-        // If probability is very low but non-zero, use cloud with rain
+        // Light rain
+        intensity = 'light';
+        // If prob is low (<30%) AND mm is low (<1), use sun-rain
+        // Otherwise use cloud-rain
         if (p < 30 && mm < 1) {
-             icon = '🌦️'; // Sun behind rain cloud implies intermittent/light
+             icon = '🌦️';
         } else {
              icon = '🌧️';
         }
-        className = 'rain-light';
     }
 
     // Label formatting
@@ -56,20 +55,21 @@ export function getRainStatus(prob, mmStr) {
     // Always show probability if > 0
     if (p > 0) label += `${p}%`;
 
-    // Show MM if significant or if it's the only metric
+    // Show MM logic
     if (mm > 0) {
         if (label) label += ' • ';
-        // If < 0.1 but > 0, show "Trace"
+        // Explicitly handle small amounts
         if (mm < 0.1) {
             label += 'Trace';
         } else {
             label += `${mm.toFixed(1)}mm`;
         }
     } else if (p > 0) {
-        label += ' chance';
+        // If only probability (no mm forecast yet), just show chance
+        // label += ' chance'; // "50% chance" takes too much space, "50%" is enough
     }
 
-    return { icon, label, className, intensity, mm, prob: p };
+    return { icon, label, intensity, mm, prob: p };
 }
 
 /**
@@ -82,12 +82,10 @@ export function getRainStyle(intensity) {
         case 'heavy':
             return { color: '#ef4444', fontWeight: 'bold' }; // Red/Danger
         case 'moderate':
-            return { color: '#3b82f6', fontWeight: '600' }; // Blue
+            return { color: '#60a5fa', fontWeight: '600' }; // Blue (lighter than before for contrast)
         case 'light':
         default:
-            // Ensure visible contrast against dark backgrounds
-            // #94a3b8 is slate-400, decent. Let's try slate-300 for better visibility?
-            // actually stick to standard text-muted-ish but slightly brighter for importance
-            return { color: '#cbd5e1' }; // Slate-300
+            // Improved visibility for light rain
+            return { color: '#e2e8f0', opacity: 0.9 }; // Slate-200
     }
 }

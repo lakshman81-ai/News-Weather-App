@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MarketTicker from './MarketTicker';
+import ThemeToggle from './ThemeToggle';
 
 /**
  * Header Component with optional back navigation
  */
 function Header({ title, icon, showBack = false, backTo = '/', actions, pills, activePill, onPillChange }) {
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+    useEffect(() => {
+        const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Icon Mapping helper
     const getPillIcon = (pillName) => {
         if (pillName.includes('Morning')) return '🌅';
@@ -16,21 +25,24 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
 
     return (
         <header className="header">
+            {/* Left Side: Back or Theme Toggle (PC Only) */}
             {showBack ? (
                 <Link to={backTo} className="header__back">
                     <span>←</span>
                     <span>{title}</span>
                 </Link>
             ) : (
-                <h1 className="header__title">
-                    {/* Icon removed as requested */}
-                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isDesktop && <ThemeToggle />}
+                    <h1 className="header__title">
+                        {/* Icon removed as requested */}
+                    </h1>
+                </div>
             )}
 
             {!showBack && <MarketTicker />}
 
-            {/* Contextual Pills (Classic Mode) - REMOVED or Deprecated if pills move to weather */}
-            {/* Keeping logic for now but MainPage will stop passing pills if we want to remove them here */}
+            {/* Contextual Pills (Classic Mode) */}
             {pills && (
                 <div className="header__pills">
                     {pills.map((pill) => (
