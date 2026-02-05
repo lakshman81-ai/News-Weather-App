@@ -441,24 +441,32 @@ function getItemType(category) {
 }
 
 function generateWeeklyPlan(timeline) {
-    // Simple heuristic: Take the first event of each day for the plan
+    // Generate plan for the next 7 days from today
     const plan = {};
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const today = new Date();
 
-    // This is a naive mapping. A better one would map actual dates to weekdays.
+    // Create list of next 7 days
+    const next7Days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        next7Days.push(d);
+    }
 
-    timeline.forEach(day => {
-        const dateObj = new Date(day.date);
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    next7Days.forEach(dateObj => {
+        const dateStr = dateObj.toISOString().split('T')[0];
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-        if (day.items.length > 0) {
-            plan[dayName] = `Attend ${day.items[0].title}`;
+        // Find events for this date
+        const timelineDay = timeline.find(t => t.date === dateStr);
+
+        if (timelineDay && timelineDay.items.length > 0) {
+            // Use the first event title, strip "Attend " if present (though we removed it)
+            // Just use title directly
+            plan[dayName] = timelineDay.items[0].title;
+        } else {
+            plan[dayName] = "Relax and recharge.";
         }
-    });
-
-    // Fill gaps
-    days.forEach(d => {
-        if (!plan[d]) plan[d] = "Relax and recharge.";
     });
 
     return plan;

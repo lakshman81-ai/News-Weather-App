@@ -109,6 +109,20 @@ function NewsSection({
                                         color: 'var(--accent-secondary)'
                                     }}>↗</span>
                                 )}
+                                {/* Context Badge (Phase 9) */}
+                                {item.impactScore > 10 && (
+                                    <span style={{
+                                        fontSize: '0.6rem',
+                                        marginLeft: '8px',
+                                        padding: '2px 4px',
+                                        borderRadius: '4px',
+                                        background: 'var(--accent-primary)',
+                                        color: '#fff',
+                                        verticalAlign: 'middle'
+                                    }}>
+                                        {item.isBreaking ? '⚡ Breaking' : '🔥 Trending'}
+                                    </span>
+                                )}
                             </h3>
                             {item.summary && (
                                 <p className="news-item__summary">

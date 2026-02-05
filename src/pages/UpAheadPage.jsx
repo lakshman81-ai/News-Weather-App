@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { downloadCalendarEvent } from '../utils/calendar';
@@ -6,29 +6,53 @@ import { fetchUpAheadData } from '../services/upAheadService';
 import { useSettings } from '../context/SettingsContext';
 import './UpAhead.css';
 
+// Simple in-memory cache to prevent re-fetching on every tab switch
+// Stores: { [settingsHash]: { data, timestamp } }
+const dataCache = {};
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 function UpAheadPage() {
     const { settings } = useSettings();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('feed'); // 'feed' | 'plan'
     const { toggleWatchlist, isWatched } = useWatchlist();
+    const hasFetched = useRef(false);
 
     useEffect(() => {
         let isMounted = true;
 
         const loadData = async () => {
-            if (isMounted) setLoading(true);
-
             const upAheadSettings = settings.upAhead || {
                 categories: { movies: true, events: true, festivals: true, alerts: true, sports: true },
                 locations: ['Chennai']
             };
+
+            // Generate a simple hash of settings to invalidate cache if settings change
+            const settingsHash = JSON.stringify(upAheadSettings);
+
+            // Check Cache
+            const cached = dataCache[settingsHash];
+            if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+                console.log('[UpAhead] Using cached data');
+                setData(cached.data);
+                setLoading(false);
+                return;
+            }
+
+            // Only show loading if we don't have cached data or it expired
+            if (isMounted) setLoading(true);
 
             try {
                 const fetchedData = await fetchUpAheadData(upAheadSettings);
                 if (isMounted) {
                     setData(fetchedData);
                     setLoading(false);
+                    // Update Cache
+                    dataCache[settingsHash] = {
+                        data: fetchedData,
+                        timestamp: Date.now()
+                    };
                 }
             } catch (err) {
                 if (isMounted) {
@@ -38,6 +62,9 @@ function UpAheadPage() {
             }
         };
 
+        // If we already have data in state (e.g. from HMR or re-render), don't reload unless settings changed
+        // But here we rely on the effect dependency [settings.upAhead] which handles changes.
+        // We use the cache to avoid the API call.
         loadData();
 
         return () => {
