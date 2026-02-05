@@ -287,6 +287,57 @@ function SettingsPage() {
                             </select>
                         </div>
 
+                        {/* Ranking Weights - Visible only for Context-Aware */}
+                        {settings.rankingMode === 'context-aware' && (
+                            <div style={{
+                                margin: '8px 0 16px',
+                                padding: '12px',
+                                background: 'rgba(var(--accent-primary-rgb), 0.05)',
+                                borderRadius: '8px',
+                                border: '1px dashed var(--accent-primary)'
+                            }}>
+                                <div className="settings-item__label" style={{ marginBottom: '12px', color: 'var(--accent-primary)' }}>
+                                    ⚡ Ranking Weights
+                                </div>
+
+                                <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', border: 'none', padding: 0, marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <div className="settings-item__label">
+                                            <span>🕒 Time Sensitivity</span>
+                                        </div>
+                                        <span style={{ fontWeight: 'bold' }}>{settings.rankingWeights?.temporalStrength || 1.5}x</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="3.0"
+                                        step="0.1"
+                                        value={settings.rankingWeights?.temporalStrength || 1.5}
+                                        onChange={(e) => updateNested('rankingWeights.temporalStrength', parseFloat(e.target.value))}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+
+                                <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', border: 'none', padding: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <div className="settings-item__label">
+                                            <span>📍 Location Focus</span>
+                                        </div>
+                                        <span style={{ fontWeight: 'bold' }}>{settings.rankingWeights?.geoStrength || 1.5}x</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="3.0"
+                                        step="0.1"
+                                        value={settings.rankingWeights?.geoStrength || 1.5}
+                                        onChange={(e) => updateNested('rankingWeights.geoStrength', parseFloat(e.target.value))}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="settings-item">
                             <span className="settings-item__label">Hide stories older than (hours)</span>
                             <input

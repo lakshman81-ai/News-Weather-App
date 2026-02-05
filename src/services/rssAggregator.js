@@ -580,9 +580,21 @@ async function rankAndFilter(items, section, limit, allowedSources) {
             const geoProfile = getActiveGeoProfile(settings);
 
             // Pass 1: Rule-Based Scoring & Filtering
+            // Get user-defined weights
+            const tStrength = settings.rankingWeights?.temporalStrength || 1.5;
+            const gStrength = settings.rankingWeights?.geoStrength || 1.5;
+
             let candidates = clustered.map(item => {
-                const temporal = calculateTemporalWeight(item);
-                const geo = calculateGeoRelevance(item, geoProfile);
+                const baseTemporal = calculateTemporalWeight(item);
+                const baseGeo = calculateGeoRelevance(item, geoProfile);
+
+                // Apply User Strength: Final = 1 + (Base - 1) * Strength
+                // If Base=1 (Neutral), result is 1 regardless of strength.
+                // If Base=2 (Boost), Strength=2, result is 3.
+                // If Base=0.5 (Penalty), Strength=2, result is 0.
+                const temporal = Math.max(0.1, 1 + (baseTemporal - 1) * tStrength);
+                const geo = Math.max(0.1, 1 + (baseGeo - 1) * gStrength);
+
                 const noise = analyzeNoise(item);
 
                 // Base impact is freshness + source quality (calculated in computeImpactScore)

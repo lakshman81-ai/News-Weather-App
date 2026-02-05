@@ -45,7 +45,7 @@ export function calculateGeoRelevance(item, geoProfile) {
         'i'
     );
     if (travelAwayPattern.test(item.title)) {
-        score -= 0.8; // Stronger penalty to offset the keyword match
+        score -= 2.0; // Stronger penalty to offset the keyword match (was 0.8)
     }
 
     // Clamp score

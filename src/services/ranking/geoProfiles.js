@@ -67,5 +67,7 @@ export function getActiveGeoProfile(settings) {
         if (settings.weather.cities.includes('chennai')) return KNOWN_LOCATIONS.chennai;
     }
 
-    return KNOWN_LOCATIONS.chennai;
+    // Default to null (neutral scoring) if no known location is matched
+    // This prevents arbitrarily boosting Chennai/India news for global users
+    return null;
 }

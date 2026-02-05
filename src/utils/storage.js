@@ -159,6 +159,12 @@ export const DEFAULT_SETTINGS = {
     maxTopicPercent: 40,         // Max % of front page for one topic
     maxGeoPercent: 30,           // Max % of front page for one geography
 
+    // Context-Aware Ranking Weights (NEW)
+    rankingWeights: {
+        temporalStrength: 1.5, // 1.0 (Low) to 3.0 (High)
+        geoStrength: 1.5,      // 1.0 (Low) to 3.0 (High)
+    },
+
     // Topic Following (NEW)
     // Stores objects: { id, name, query, icon, created, lastFetched, options }
     followedTopics: [],

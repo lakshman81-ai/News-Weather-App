@@ -58,6 +58,10 @@ function runTests() {
     const g2 = calculateGeoRelevance(travelItem, chennaiProfile);
     assert(g2 < 1.0, `Travel Away penalized (${g2.toFixed(2)})`);
 
+    // Test 5: Null Profile (Neutral)
+    const g3 = calculateGeoRelevance(chennaiItem, null);
+    assert(g3 === 1.0, `Null profile returns neutral score (${g3.toFixed(2)})`);
+
     // --- NOISE FILTER ---
     console.log('\n[Noise Filter]');
 
