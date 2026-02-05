@@ -115,6 +115,24 @@ function NewsSection({
                                     {item.summary}
                                 </p>
                             )}
+                            {item.rankingReason && (
+                                <div className="news-item__ranking-reason" style={{
+                                    fontSize: '0.75rem',
+                                    color: 'var(--accent-primary)',
+                                    marginTop: '4px',
+                                    marginBottom: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 8px',
+                                    background: 'rgba(var(--accent-primary-rgb), 0.1)',
+                                    borderRadius: '4px',
+                                    width: 'fit-content'
+                                }}>
+                                    <span>⚡</span>
+                                    <span>{item.rankingReason}</span>
+                                </div>
+                            )}
                             {showCritics && item.criticsView && (
                                 <div className="news-item__critics">
                                     <span>💬</span>
