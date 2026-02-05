@@ -117,6 +117,21 @@ export const DEFAULT_SETTINGS = {
     customFeeds: [],
 
     // ========================================
+    // UP AHEAD SETTINGS (NEW)
+    // ========================================
+    upAhead: {
+        categories: {
+            movies: true,
+            events: true,
+            festivals: true,
+            alerts: true,
+            sports: true
+        },
+        locations: ["Chennai", "Muscat"],
+        customLocation: ""
+    },
+
+    // ========================================
     // MANUAL OVERRIDES (Phase 2 & 8)
     // ========================================
     sectionOverrides: {
