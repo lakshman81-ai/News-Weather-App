@@ -14,36 +14,35 @@ function UpAheadPage() {
     const { toggleWatchlist, isWatched } = useWatchlist();
 
     useEffect(() => {
-        // Pass settings to the service so it knows what to fetch
-        const upAheadSettings = settings.upAhead || {
-            categories: { movies: true, events: true, festivals: true, alerts: true, sports: true },
-            locations: ['Chennai']
-        };
-
         let isMounted = true;
 
-        // Show loading spinner when settings change
-        setLoading(true);
+        const loadData = async () => {
+            if (isMounted) setLoading(true);
 
-        fetchUpAheadData(upAheadSettings)
-            .then(fetchedData => {
+            const upAheadSettings = settings.upAhead || {
+                categories: { movies: true, events: true, festivals: true, alerts: true, sports: true },
+                locations: ['Chennai']
+            };
+
+            try {
+                const fetchedData = await fetchUpAheadData(upAheadSettings);
                 if (isMounted) {
                     setData(fetchedData);
                     setLoading(false);
                 }
-            })
-            .catch(err => {
+            } catch (err) {
                 if (isMounted) {
                     console.error("Failed to load Up Ahead data", err);
                     setLoading(false);
                 }
-            });
+            }
+        };
+
+        loadData();
 
         return () => {
             isMounted = false;
         };
-        // We depend on settings.upAhead to refetch when config changes.
-        // The linter might warn about `setLoading` causing updates, but it's intentional here.
     }, [settings.upAhead]);
 
     if (loading) {
