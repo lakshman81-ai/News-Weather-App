@@ -20,16 +20,6 @@ const PROXIES = [
         }
     },
     {
-        name: 'codetabs',
-        url: 'https://api.codetabs.com/v1/proxy',
-        format: (feedUrl) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feedUrl)}`,
-        parse: async (response) => {
-            const text = await response.text();
-            if (!text) throw new Error('Empty response from codetabs');
-            return parseXML(text);
-        }
-    },
-    {
         name: 'allorigins',
         url: 'https://api.allorigins.win/get',
         format: (feedUrl) => `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`,
@@ -37,6 +27,16 @@ const PROXIES = [
             const data = await response.json();
             if (!data.contents) throw new Error('No content from allorigins');
             return parseXML(data.contents);
+        }
+    },
+    {
+        name: 'corsproxy',
+        url: 'https://corsproxy.io/',
+        format: (feedUrl) => `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
+        parse: async (response) => {
+            const text = await response.text();
+            if (!text) throw new Error('Empty response from corsproxy');
+            return parseXML(text);
         }
     }
 ];
@@ -124,7 +124,7 @@ class ProxyManager {
 
                 const proxyUrl = proxy.format(feedUrl);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // Increased timeout to 8s
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
 
                 let response;
                 try {

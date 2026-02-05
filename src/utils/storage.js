@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS = {
     weatherFreshnessLimit: 4,
     strictFreshness: true,
     filteringMode: 'source', // 'source' | 'keyword'
-    rankingMode: 'smart',    // 'smart' | 'legacy'
+    rankingMode: 'smart',    // 'smart' | 'legacy' | 'context-aware'
 
     // ========================================
     // WEATHER CONFIGURATION
