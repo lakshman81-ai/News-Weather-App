@@ -162,7 +162,7 @@ function WeatherCard({ weatherData }) {
                                         <div className="weather-extra-metrics">
                                             {data.humidity != null && (
                                                 <div className="weather-metric">
-                                                    💧 {data.humidity}%
+                                                    💦 {data.humidity}%
                                                 </div>
                                             )}
                                             {data.windSpeed != null && (
@@ -217,7 +217,7 @@ function WeatherCard({ weatherData }) {
                                             color: 'var(--text-muted)',
                                             fontWeight: 400
                                         }}>
-                                            💧 {weatherData[city].current.humidity}% •
+                                            💦 {weatherData[city].current.humidity}% •
                                             🌬️ {weatherData[city].current.windSpeed || 0} km/h {getWindDirection(weatherData[city].current.windDirection)}
                                         </span>
                                     )}
