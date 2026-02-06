@@ -1,5 +1,204 @@
 import { proxyManager } from './proxyManager.js';
 
+// ============================================================
+// SMART KEYWORD FILTERS FOR PLANNING
+// The "Up Ahead" planner needs FORWARD-LOOKING, ACTIONABLE items.
+// We filter in two layers:
+//   1. Global negative: Drop backward-looking noise (reviews, opinions, crime)
+//   2. Forward-looking signals: Boost/require temporal action words
+//   3. Category-specific positive: Fine-grained relevance per section
+// ============================================================
+
+// --- LAYER 1: Global Negative Keywords ---
+// These words almost NEVER appear in actionable, plannable content.
+// Grouped by noise type for maintainability.
+const NEGATIVE_KEYWORDS = {
+    // Backward-looking commentary — articles ABOUT things, not things TO DO
+    commentary: [
+        "review", "reviewed", "reviews",
+        "opinion", "editorial", "column", "op-ed",
+        "analysis", "deep dive", "explainer", "explained",
+        "interview", "memoir", "podcast", "recap",
+        "retrospective", "lookback", "throwback"
+    ],
+    // Celebrity/gossip noise — never plannable
+    gossip: [
+        "gossip", "rumour", "rumor", "spotted", "dating",
+        "divorce", "controversy", "trolled", "slammed",
+        "reacts", "reaction", "claps back", "feud",
+        "leaked", "wardrobe malfunction", "breakup"
+    ],
+    // Crime & tragedy — not events you plan for
+    crime: [
+        "arrested", "murder", "stabbed", "robbery",
+        "scam", "fraud", "accused", "chargesheet",
+        "sentenced", "bail", "fir filed", "kidnap",
+        "suicide", "death toll", "fatal"
+    ],
+    // Finance noise that bleeds in via "shares" / "market" queries
+    finance_noise: [
+        "quarterly results", "earnings call", "dividend",
+        "stock split", "ipo allotment", "listing gains",
+        "shareholding pattern", "promoter stake",
+        "mutual fund nav", "portfolio rebalancing"
+    ],
+    // Political noise (not civic alerts — those are kept)
+    political_noise: [
+        "alleges", "slams", "hits out", "war of words",
+        "defamation", "no confidence", "horse trading",
+        "exit poll", "poll prediction", "meme"
+    ],
+    // Past-tense signals — the event already happened
+    past_tense: [
+        "was held", "concluded", "wrapped up",
+        "came to an end", "successfully completed",
+        "inaugurated by", "flagged off",
+        "took place", "was celebrated"
+    ]
+};
+
+// Flatten for fast lookup
+const ALL_NEGATIVE_KEYWORDS = Object.values(NEGATIVE_KEYWORDS).flat();
+
+// --- LAYER 2: Forward-Looking Signal Words ---
+// If an article contains these, it's MORE likely to be plannable.
+// Used as a soft boost (not strict requirement) — items with these
+// get priority even if they lack an extracted date.
+const FORWARD_LOOKING_SIGNALS = [
+    // Temporal signals — something is COMING
+    "upcoming", "scheduled", "starting", "launches", "opens",
+    "begins", "commences", "from today", "this weekend",
+    "next week", "releasing", "premieres", "debuts",
+    "kicks off", "set to", "slated for", "expected on",
+    "effective from", "valid till", "last date", "deadline",
+    "registrations open", "bookings open", "doors open",
+
+    // Action signals — you can DO something
+    "book now", "tickets available", "grab your", "register",
+    "rsvp", "sign up", "enroll", "apply before",
+    "limited seats", "early bird", "pre-order",
+    "advance booking", "buy tickets", "entry free",
+
+    // Venue/location signals — implies a physical event
+    "venue", "stadium", "auditorium", "convention centre",
+    "exhibition hall", "multiplex", "arena", "grounds",
+
+    // Schedule signals — structured timing
+    "schedule", "timetable", "lineup", "itinerary",
+    "match day", "race day", "show timings", "showtimes",
+    "time slot", "batch"
+];
+
+// --- LAYER 3: Category-Specific Positive Keywords ---
+// These define what COUNTS as relevant within each category.
+// An item must match at least one positive keyword for its category
+// to pass the relevance filter.
+const CATEGORY_POSITIVE_KEYWORDS = {
+    movies: [
+        // Release signals
+        "release date", "releasing", "in theatres", "in theaters",
+        "box office", "first day", "advance booking", "fdfs",
+        "premiere", "sneak peek", "special screening",
+        // OTT signals
+        "ott release", "streaming from", "now streaming",
+        "available on", "direct to ott", "digital premiere",
+        // Booking signals
+        "tickets", "showtimes", "book now", "bookmyshow",
+        "ticketnew", "paytm movies",
+        // Trailer as a plannable event
+        "trailer launch", "teaser release", "motion poster"
+    ],
+    events: [
+        // Performance types
+        "concert", "live music", "standup", "comedy show",
+        "theatre", "theater", "drama", "play",
+        "dance recital", "sabha", "kutcheri", "kutchery",
+        // Exhibitions & fairs
+        "exhibition", "expo", "fair", "flea market",
+        "art gallery", "book fair", "trade show",
+        // Workshops & learning
+        "workshop", "masterclass", "bootcamp", "seminar",
+        "webinar", "hackathon", "meetup",
+        // Food & lifestyle
+        "food festival", "pop-up", "tasting", "brunch",
+        "food walk", "heritage walk", "night market",
+        // Ticketed experiences
+        "entry fee", "passes available", "gate open",
+        "limited slots", "registration"
+    ],
+    sports: [
+        // Match signals
+        "vs", "match", "fixture", "squad announced",
+        "playing xi", "toss", "innings",
+        // Tournament signals
+        "schedule", "points table", "qualifier",
+        "semi final", "final", "playoffs",
+        // Venue/broadcast
+        "stadium", "live on", "broadcast", "streaming",
+        "start time", "kick off", "first ball"
+    ],
+    festivals: [
+        // Calendar markers
+        "holiday", "bank holiday", "gazetted",
+        "declared holiday", "government holiday",
+        // Festival names act as positive signals
+        "pongal", "diwali", "deepavali", "navratri",
+        "dussehra", "eid", "ramadan", "christmas",
+        "onam", "vishu", "ugadi", "holi", "ganesh",
+        "jayanti", "puja", "pooja", "thai pusam",
+        // Observance signals
+        "observed on", "falls on", "celebrated on",
+        "auspicious", "muhurtham", "tithi"
+    ],
+    shopping: [
+        // Sale signals
+        "sale", "mega sale", "flash sale", "clearance",
+        "end of season", "flat discount", "upto off",
+        "cashback", "coupon", "promo code",
+        // Event-based shopping
+        "shopping festival", "exhibition sale",
+        "trade fair", "grand opening",
+        // Time-bound urgency
+        "limited period", "ends today", "last day",
+        "offer valid", "while stocks last", "hurry"
+    ],
+    alerts: [
+        // Infrastructure disruptions
+        "power cut", "power shutdown", "load shedding",
+        "tangedco", "tneb", "scheduled maintenance",
+        "water cut", "water supply", "disruption",
+        // Traffic & transport
+        "traffic advisory", "road closure", "diversion",
+        "metro shutdown", "bus route change",
+        "train cancelled", "flight delayed",
+        // Civic notices
+        "boil water advisory", "mosquito fogging",
+        "tree trimming", "construction zone"
+    ],
+    weather_alerts: [
+        // Severity signals
+        "warning", "alert", "advisory", "watch",
+        "red alert", "orange alert", "yellow alert",
+        // Weather phenomena
+        "heavy rain", "very heavy rain", "cyclone",
+        "thunderstorm", "heat wave", "cold wave",
+        "fog", "flooding", "high tide", "storm surge",
+        // Official sources
+        "imd", "met department", "weather bulletin"
+    ],
+    civic: [
+        // VIP disruptions (plan around them)
+        "vip movement", "vip visit", "road block",
+        "security arrangement", "route change",
+        // Protests & closures
+        "bandh", "hartal", "strike", "protest march",
+        "rasta roko", "rail roko",
+        // Government actions
+        "corporation notice", "tender", "public hearing",
+        "ward meeting", "grievance day"
+    ]
+};
+
 // Configuration for search queries based on categories
 const CATEGORY_QUERIES = {
     movies: [
@@ -371,29 +570,41 @@ export function processUpAheadData(rawItems, settings) {
 
         const fullText = (item.title + " " + item.description).toLowerCase();
 
-        // --- KEYWORD FILTERING (Phase 9) ---
-        const keywords = settings?.upAhead?.keywords || {};
+        // --- SMART KEYWORD FILTERING ---
+        const userKeywords = settings?.upAhead?.keywords || {};
 
-        // 1. Negative Filtering (Global)
-        const negativeWords = keywords.negative || ["review", "interview", "shares", "gossip", "opinion", "reaction"];
-        if (negativeWords.some(w => fullText.includes(w.toLowerCase()))) {
-            return; // Drop item
+        // LAYER 1: Global Negative Filter
+        // Merge built-in negatives with any user-defined negatives
+        const userNegatives = userKeywords.negative || [];
+        const allNegatives = [...ALL_NEGATIVE_KEYWORDS, ...userNegatives];
+        if (allNegatives.some(w => fullText.includes(w.toLowerCase()))) {
+            return; // Drop backward-looking noise
         }
 
-        // 2. Positive Filtering (Category Specific)
-        if (['movies', 'events'].includes(item.category)) {
-            const positiveWords = keywords[item.category]; // e.g. ["tickets", "showtimes"]
-            if (positiveWords && positiveWords.length > 0) {
-                // If user defined positive keywords, require at least one match?
-                // Or just boost? The user said "Focus on...", which implies strictness or strong ranking.
-                // Let's implement strictness for now as requested to "remove generic news".
-                const hasMatch = positiveWords.some(w => fullText.includes(w.toLowerCase()));
-                if (!hasMatch) return; // Drop if it doesn't match focus keywords
+        // LAYER 2: Forward-Looking Signal Score
+        // Count how many forward-looking signals this item has
+        const forwardScore = FORWARD_LOOKING_SIGNALS.reduce((score, signal) => {
+            return fullText.includes(signal) ? score + 1 : score;
+        }, 0);
+        item._forwardScore = forwardScore;
+
+        // LAYER 3: Category-Specific Positive Filter
+        // Built-in positives + user overrides. Require at least one match.
+        const builtInPositive = CATEGORY_POSITIVE_KEYWORDS[item.category] || [];
+        const userPositive = userKeywords[item.category] || [];
+        const allPositive = [...builtInPositive, ...userPositive];
+
+        if (allPositive.length > 0) {
+            const hasPositiveMatch = allPositive.some(w => fullText.includes(w.toLowerCase()));
+            // For planner categories, require a positive match OR strong forward-looking signal
+            const isPlannerCategory = ['movies', 'events', 'sports', 'shopping'].includes(item.category);
+            if (isPlannerCategory && !hasPositiveMatch && forwardScore === 0) {
+                return; // Not relevant enough for planning
             }
         }
 
-        // 3. Strict Location for Alerts
-        if (item.category === 'alerts') {
+        // LAYER 4: Strict Location for Alerts
+        if (item.category === 'alerts' || item.category === 'civic') {
             const userLocations = settings?.upAhead?.locations || ['Chennai', 'Muscat', 'Trichy'];
             const hasLocation = userLocations.some(loc => fullText.includes(loc.toLowerCase()));
             if (!hasLocation) {
@@ -454,15 +665,19 @@ export function processUpAheadData(rawItems, settings) {
                 subtitle: item.category.toUpperCase(),
                 description: item.description,
                 tags: [item.category],
-                link: item.link
+                link: item.link,
+                _forwardScore: item._forwardScore || 0
             };
 
             timelineMap.get(dateKey).items.push(timelineItem);
         }
     });
 
-    // Sort Timeline by Date
+    // Sort Timeline by Date, and within each day sort by forward-looking score (most actionable first)
     const sortedTimeline = Array.from(timelineMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    sortedTimeline.forEach(day => {
+        day.items.sort((a, b) => (b._forwardScore || 0) - (a._forwardScore || 0));
+    });
 
     // Limit sections length
     Object.keys(sections).forEach(k => {
