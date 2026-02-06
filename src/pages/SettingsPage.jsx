@@ -4,6 +4,7 @@ import Toggle from '../components/Toggle';
 import { DEFAULT_SETTINGS } from '../utils/storage';
 import { useSettings } from '../context/SettingsContext';
 import { discoverFeeds } from '../utils/feedDiscovery';
+import { APP_VERSION } from '../utils/version';
 
 /**
  * Settings Page Component - Vertical Tabs Layout
@@ -472,23 +473,28 @@ function SettingsPage() {
                             <span className="tab-label">{tab.label}</span>
                         </button>
                     ))}
-
-                    <div style={{marginTop:'auto', paddingTop:'20px'}}>
-                        <button className="btn btn--primary btn--full" onClick={handleSave} style={{marginBottom:'10px', fontSize:'0.85rem'}}>
-                            {saved ? '✓ Saved' : 'Save'}
-                        </button>
-                        <button className="btn btn--danger btn--full" onClick={handleReset} style={{fontSize:'0.85rem'}}>
-                            Reset
-                        </button>
-                        <div style={{textAlign:'center', fontSize:'0.6rem', color:'var(--text-muted)', marginTop:'10px'}}>
-                            v1.1 (Sidebar Fix)
-                        </div>
-                    </div>
+                    {/* Buttons removed from sidebar */}
                 </div>
 
                 {/* CONTENT AREA */}
                 <div className="settings-content">
-                    {renderContent()}
+                    <div className="settings-scroll-area">
+                        {renderContent()}
+                    </div>
+
+                    <div className="settings-footer">
+                        <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                            <button className="btn btn--danger" onClick={handleReset} style={{flex:1}}>
+                                Reset
+                            </button>
+                            <button className="btn btn--primary" onClick={handleSave} style={{flex:1}}>
+                                {saved ? '✓ Saved' : 'Save'}
+                            </button>
+                        </div>
+                        <div className="version-tag">
+                            {APP_VERSION}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -512,7 +518,6 @@ function SettingsPage() {
                 .settings-sidebar::-webkit-scrollbar {
                     display: none; /* Hide scrollbar Chrome/Safari */
                 }
-                /* REMOVED: Desktop expansion rule to keep it icon-only */
 
                 .settings-tab-btn {
                     display: flex;
@@ -537,7 +542,6 @@ function SettingsPage() {
                 .tab-icon { font-size: 1.5rem; }
 
                 .tab-label {
-                    /* Visually hide label but keep accessible if needed, or just hide entirely */
                     display: none;
                 }
 
@@ -561,11 +565,45 @@ function SettingsPage() {
 
                 .settings-content {
                     flex: 1;
-                    padding: 15px;
-                    overflow-y: auto;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
                 }
+
+                .settings-scroll-area {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 15px;
+                    padding-bottom: 20px;
+                }
+
+                .settings-footer {
+                    flex-shrink: 0;
+                    background: var(--bg-secondary);
+                    border-top: 1px solid var(--border-default);
+                    padding: 15px;
+                    position: relative;
+                    z-index: 10;
+                    box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+                }
+
+                .version-tag {
+                    text-align: right;
+                    font-size: 0.7rem;
+                    color: var(--text-muted);
+                    margin-top: 8px;
+                    font-family: monospace;
+                    opacity: 0.7;
+                }
+
+                .settings-footer .btn {
+                    padding: 12px;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                }
+
                 @media (min-width: 600px) {
-                    .settings-content { padding: 30px; }
+                    .settings-scroll-area { padding: 30px; }
                 }
 
                 .settings-card {
