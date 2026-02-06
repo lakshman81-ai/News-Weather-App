@@ -2,6 +2,15 @@ import React, { useState } from 'react';
 import { getWeatherTimeBlocks } from '../utils/timeSegment';
 import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 
+// Splash-style humidity SVG (matches QuickWeather)
+const HumidityIcon = ({ size = '1em' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ color: '#60a5fa', verticalAlign: 'middle' }}>
+        <path d="M12,2 C12,2 7,7 7,10 C7,12.76 9.24,15 12,15 C14.76,15 17,12.76 17,10 C17,7 12,2 12,2 Z" opacity="0.9" />
+        <path d="M6,12 C6,12 4,14 4,15.5 C4,16.6 4.9,17.5 6,17.5 C7.1,17.5 8,16.6 8,15.5 C8,14 6,12 6,12 Z" opacity="0.7" />
+        <path d="M18,12 C18,12 16,14 16,15.5 C16,16.6 16.9,17.5 18,17.5 C19.1,17.5 20,16.6 20,15.5 C20,14 18,12 18,12 Z" opacity="0.7" />
+    </svg>
+);
+
 /**
  * Weather Card Component
  * Displays weather for Chennai, Trichy, Muscat with:
@@ -162,7 +171,7 @@ function WeatherCard({ weatherData }) {
                                         <div className="weather-extra-metrics">
                                             {data.humidity != null && (
                                                 <div className="weather-metric">
-                                                    💧 {data.humidity}%
+                                                    <HumidityIcon size="0.95em" /> {data.humidity}%
                                                 </div>
                                             )}
                                             {data.windSpeed != null && (
@@ -217,7 +226,7 @@ function WeatherCard({ weatherData }) {
                                             color: 'var(--text-muted)',
                                             fontWeight: 400
                                         }}>
-                                            💧 {weatherData[city].current.humidity}% •
+                                            <HumidityIcon size="0.85em" /> {weatherData[city].current.humidity}% •
                                             🌬️ {weatherData[city].current.windSpeed || 0} km/h {getWindDirection(weatherData[city].current.windDirection)}
                                         </span>
                                     )}
