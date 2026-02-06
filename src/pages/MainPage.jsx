@@ -19,6 +19,7 @@ import { requestNotificationPermission } from '../utils/notifications';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import LazySection from '../components/LazySection';
 import SidebarNews from '../components/SidebarNews';
+import OnThisDay from '../components/OnThisDay';
 
 // DEBUG LOGGING SYSTEM
 const logs = [];
@@ -395,6 +396,9 @@ const MainPage = () => {
                             )}
                         </div>
                     )}
+
+                    {/* On This Day - only in timeline/classic mode */}
+                    {!isNewspaperMode && <OnThisDay />}
 
                     {/* System Status / Debug */}
                     <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
