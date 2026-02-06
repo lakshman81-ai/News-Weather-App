@@ -181,7 +181,10 @@ function cleanSource(sourceName) {
 /**
  * Generates a "Critic's One Liner" heuristic from title/description
  */
-function generateCriticsOneLiner(title, description) {
+/**
+ * Generates a "Critic's One Liner" heuristic from title/description
+ */
+function generateCriticsOneLiner(title, description, source) {
     const text = (title + " " + description).toLowerCase();
 
     // 1. Sector-Specific Insights
@@ -223,8 +226,6 @@ function generateCriticsOneLiner(title, description) {
 }
 
 export function computeImpactScore(item, section) {
-    const settings = getSettings();
-
     // 1. Freshness Decay (Linear)
     // 24 hours = 0 score. 0 hours = 1 score.
     const ageInHours = (Date.now() - item.publishedAt) / (1000 * 60 * 60);
@@ -249,7 +250,38 @@ export function computeImpactScore(item, section) {
         else if (item.sentiment.label === 'negative') sentimentBoost = 0.3;
     }
 
-    // --- TEMPORAL BOOSTS (Moved Up) ---
+    // Breaking News Detection (Phase 5)
+    const breakingResult = breakingDetector.checkBreakingNews(item);
+    item.isBreaking = breakingResult.isBreaking;
+    item.breakingScore = breakingResult.breakingScore;
+    const breakingBoost = breakingResult.multiplier;
+
+    // --- NEW SCORING LOGIC CHECK ---
+    const scoringSettings = getSettings();
+    if (scoringSettings.enableNewScoring === false) {
+        // ORIGINAL SCORING (Status Quo)
+        return (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+    }
+
+    // --- NEW SCORING LOGIC (9-Factor) ---
+    // Calculate new multipliers
+    const impactMultiplier = calculateImpactScore(item.title, item.description);
+    const proximityMultiplier = calculateProximityScore(item.title, item.description);
+    const noveltyMultiplier = calculateNoveltyScore(item.title, item.description, section);
+    // Note: passing null for keywords array as it's not currently extracted in normalizeItem
+    const currencyMultiplier = calculateCurrencyScore(item.title, null);
+    const humanInterestMultiplier = calculateHumanInterestScore(item.title, item.description);
+    const visualMultiplier = calculateVisualScore(item.imageUrl);
+
+    // Base Score (Sum of additive components)
+    const baseScore = freshness + sourceComponent + keywordBoost + sentimentBoost;
+
+    // Multipliers (Product of multiplicative components)
+    const multipliers = impactMultiplier * proximityMultiplier * noveltyMultiplier *
+        currencyMultiplier * humanInterestMultiplier * visualMultiplier;
+
+    // --- TEMPORAL BOOSTS (Phase 9) ---
+    // Apply configured boosts for Weekend and Entertainment
     let temporalMultiplier = 1.0;
     const now = new Date();
     const day = now.getDay();
@@ -257,119 +289,20 @@ export function computeImpactScore(item, section) {
 
     // 1. Entertainment Boost (Always active for target sections)
     if (['entertainment', 'social', 'movies'].includes(section) || item.section === 'entertainment') {
-        const entBoost = settings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
+        const entBoost = scoringSettings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
         temporalMultiplier *= entBoost;
     }
 
     // 2. Weekend Boost (Active on Fri-Sun for leisure/local content)
     if (isWeekend) {
         if (['entertainment', 'social', 'local', 'chennai', 'trichy', 'events'].includes(section)) {
-            const wkndBoost = settings.rankingWeights?.temporal?.weekendBoost || 2.0;
+            const wkndBoost = scoringSettings.rankingWeights?.temporal?.weekendBoost || 2.0;
             temporalMultiplier *= wkndBoost;
         }
     }
 
-    // Apply legacy timestamp boost
-    if (settings.rankingMode === 'legacy') {
-        item._effectiveTimestamp = item.publishedAt * (1 + (temporalMultiplier - 1) * 0.1);
-    }
-
-    // Breaking News Detection (Phase 5)
-    const breakingResult = breakingDetector.checkBreakingNews(item);
-    item.isBreaking = breakingResult.isBreaking;
-    item.breakingScore = breakingResult.breakingScore;
-    const breakingBoost = breakingResult.multiplier;
-
-    const settings = getSettings();
-
-    // --- CALCULATE ALL MULTIPLIERS (Unconditionally for metadata) ---
-    const impactMultiplier = calculateImpactScore(item.title, item.description);
-
-    // FORCE Proximity check if Context-Aware mode is on
-    const forceProximity = settings.rankingMode === 'context-aware';
-    const effectiveProximityEnabled = (forceProximity || settings.enableProximityScoring !== false);
-
-    // Call proximity scorer (gating logic handled here now)
-    const proximityMultiplier = effectiveProximityEnabled
-        ? calculateProximityScore(item.title, item.description)
-        : 1.0;
-
-    const noveltyMultiplier = calculateNoveltyScore(item.title, item.description, section);
-    const currencyMultiplier = calculateCurrencyScore(item.title, null);
-    const humanInterestMultiplier = calculateHumanInterestScore(item.title, item.description);
-    const visualMultiplier = calculateVisualScore(item.imageUrl);
-
-    // --- TEMPORAL BOOSTS (Phase 9) ---
-    let temporalMultiplier = 1.0;
-    const now = new Date();
-    const day = now.getDay();
-    const isWeekend = (day === 0 || day === 6 || day === 5); // Fri, Sat, Sun
-
-    if (['entertainment', 'social', 'movies'].includes(section) || item.section === 'entertainment') {
-        const entBoost = settings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
-        temporalMultiplier *= entBoost;
-    }
-    if (isWeekend && ['entertainment', 'social', 'local', 'chennai', 'trichy', 'events'].includes(section)) {
-        const wkndBoost = settings.rankingWeights?.temporal?.weekendBoost || 2.0;
-        temporalMultiplier *= wkndBoost;
-    }
-
-    // Base Score (Sum of additive components)
-    const baseScore = freshness + sourceComponent + keywordBoost + sentimentBoost;
-
-    // --- ATTACH METADATA ---
-    // Used for badges and debugging
-    item._scoringDetails = {
-        ageHours: ageInHours,
-        freshness,
-        sourceScore: sourceComponent,
-        keywordBoost,
-        breaking: breakingBoost,
-        baseScore,
-        impact: impactMultiplier || 1,
-        proximity: proximityMultiplier || 1,
-        novelty: noveltyMultiplier || 1,
-        currency: currencyMultiplier || 1,
-        humanInterest: humanInterestMultiplier || 1,
-        visual: visualMultiplier || 1,
-        temporal: temporalMultiplier || 1,
-        // Will be overwritten by final calculation below
-        finalScore: 0
-    };
-
-    // --- FINAL SCORING LOGIC ---
-    if (settings.enableNewScoring === false) {
-        // ORIGINAL SCORING (Status Quo)
-        // Note: We ignore temporal/proximity here to preserve legacy behavior strictly
-        const legacyTotal = (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
-        item._scoringDetails.finalScore = legacyTotal;
-        return legacyTotal;
-    }
-
-    // NEW SCORING LOGIC (9-Factor)
-    const multipliers = impactMultiplier * proximityMultiplier * noveltyMultiplier *
-        currencyMultiplier * humanInterestMultiplier * visualMultiplier;
-
+    // Final Calculation with multipliers
     const total = baseScore * multipliers * temporalMultiplier * sectionPriority * breakingBoost;
-    item._scoringDetails.finalScore = total;
-
-    item._scoringDetails = {
-        ageHours: ageInHours,
-        freshness: freshness,
-        sourceScore: sourceComponent,
-        keywordBoost: keywordBoost,
-        breaking: breakingBoost,
-        baseScore: baseScore,
-        // New scoring factors:
-        impact: impactMultiplier || 1,
-        proximity: proximityMultiplier || 1,
-        novelty: noveltyMultiplier || 1,
-        currency: currencyMultiplier || 1,
-        humanInterest: humanInterestMultiplier || 1,
-        visual: visualMultiplier || 1,
-        temporal: temporalMultiplier || 1,
-        finalScore: total
-    };
 
     return total;
 }
@@ -425,8 +358,8 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
     if (section === 'entertainment') {
         console.log('[RSS] Using entertainmentService for entertainment section');
         try {
-            const settings = getSettings();
-            const entertainmentSettings = settings?.entertainment || {};
+            const entSettings = getSettings();
+            const entertainmentSettings = entSettings?.entertainment || {};
             const articles = await fetchAllEntertainment(entertainmentSettings);
             console.log(`[RSS] Entertainment: Got ${articles.length} articles with distribution`);
             return articles.slice(0, limit);
@@ -493,7 +426,6 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
         });
 
         // Only cache if enabled (Phase 6)
-        const settings = getSettings();
         if (settings.enableCache !== false) {
             memoryCache.set(cacheKey, {
                 timestamp: Date.now(),
@@ -603,7 +535,7 @@ function normalizeItem(item, feedSource, section = 'general') {
         time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         impactScore: 0,
         section: finalSection, // Use the classified section
-        criticsView: generateCriticsOneLiner(item.title, cleanDescription(description)),
+        criticsView: generateCriticsOneLiner(item.title, cleanDescription(description), source),
         sentiment: sentimentData ? {
             label: sentimentData.label,
             comparative: sentimentData.comparative,
@@ -651,11 +583,10 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 // Use the item's section (which might have been re-classified)
                 // or fallback to the requested section if missing
                 const itemSection = item.section || section;
-                const score = computeImpactScore(item, itemSection);
                 return {
                     ...item,
                     section: itemSection,
-                    impactScore: score
+                    impactScore: computeImpactScore(item, itemSection)
                 };
             })
             .filter(item => {
@@ -668,60 +599,9 @@ async function rankAndFilter(items, section, limit, allowedSources) {
 
         // Ranking Mode
         if (settings.rankingMode === 'legacy') {
-            // Legacy: Pure chronological, newest first
             clustered.sort((a, b) => b.publishedAt - a.publishedAt);
-
-        } else if (settings.rankingMode === 'context-aware') {
-            // Context-Aware: Impact score WITH location-interleaving
-            // Step 1: Sort by impact score
-            clustered.sort((a, b) => b.impactScore - a.impactScore);
-
-            // Step 2: Interleave local stories into top positions
-            const interleaveRatio = settings.rankingWeights?.context?.interleaveRatio || 3;
-            const threshold = 1.3; // Proximity threshold for "Local Story"
-
-            // Extract local stories
-            const localStories = clustered.filter(
-                item => item._scoringDetails?.proximity > threshold
-            );
-            const nonLocalStories = clustered.filter(
-                item => !item._scoringDetails || item._scoringDetails.proximity <= threshold
-            );
-
-            // If we have local stories, interleave them
-            if (localStories.length > 0) {
-                // Interleave: place a local story at every Nth position in top 30%
-                const topSlots = Math.ceil(clustered.length * 0.3);
-                const interleaved = [];
-                let localIdx = 0;
-                let nonLocalIdx = 0;
-
-                for (let i = 0; i < clustered.length; i++) {
-                    // Check if this slot should be forced local (every Nth slot, but not 0th if we want top news first)
-                    // e.g., ratio 3 -> indices 2, 5, 8... (0-based)
-                    const isLocalSlot = (i > 0) && ((i + 1) % interleaveRatio === 0);
-
-                    if (i < topSlots && isLocalSlot && localIdx < localStories.length) {
-                        interleaved.push(localStories[localIdx++]);
-                    } else if (nonLocalIdx < nonLocalStories.length) {
-                        interleaved.push(nonLocalStories[nonLocalIdx++]);
-                    } else if (localIdx < localStories.length) {
-                        // Fallback if ran out of non-locals (unlikely)
-                        interleaved.push(localStories[localIdx++]);
-                    }
-                }
-
-                // Append remaining
-                while (nonLocalIdx < nonLocalStories.length) interleaved.push(nonLocalStories[nonLocalIdx++]);
-                while (localIdx < localStories.length) interleaved.push(localStories[localIdx++]);
-
-                // Replace clustered content
-                clustered.length = 0;
-                clustered.push(...interleaved);
-            }
-
         } else {
-            // Smart: Pure impact score ranking
+            // Default 'smart'
             clustered.sort((a, b) => b.impactScore - a.impactScore);
         }
 

@@ -9,8 +9,9 @@ export function calculateProximityScore(title, description) {
     const settings = getSettings();
 
     // 1. Check if proximity scoring is enabled
-    // Note: Caller (rssAggregator) now handles the gating logic.
-    // We calculate the score regardless so it's available for context-aware mode.
+    if (settings.enableProximityScoring === false) {
+        return 1.0;
+    }
 
     const text = `${title} ${description}`.toLowerCase();
     let maxBoost = 1.0;

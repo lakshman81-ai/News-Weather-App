@@ -19,7 +19,6 @@ import { requestNotificationPermission } from '../utils/notifications';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import LazySection from '../components/LazySection';
 import SidebarNews from '../components/SidebarNews';
-import OnThisDay from '../components/OnThisDay';
 
 // DEBUG LOGGING SYSTEM
 const logs = [];

@@ -1,10 +1,9 @@
 /**
  * Multi-Model Weather Service
- * Fetches data from 4 weather models via Open-Meteo API:
+ * Fetches data from 3 weather models via Open-Meteo API:
  * - ECMWF IFS (European, highest accuracy)
  * - GFS (NOAA, strong precipitation)
  * - ICON (DWD Germany, excellent global coverage)
- * - Best Match (Open-Meteo's auto-selection)
  * 
  * NO MOCK DATA - Returns null/error on failure
  */
@@ -14,7 +13,7 @@ import {
     averageTemperature,
     averageApparentTemperature,
     getMostCommonWeatherCode,
-    maxPrecipitation,
+    averagePrecipitation,
     getSuccessfulModels,
     formatModelNames
 } from '../utils/multiModelUtils';
@@ -24,8 +23,7 @@ import { getSettings } from '../utils/storage';
 const MODELS = {
     ecmwf: 'https://api.open-meteo.com/v1/ecmwf',
     gfs: 'https://api.open-meteo.com/v1/gfs',
-    icon: 'https://api.open-meteo.com/v1/dwd-icon',
-    best_match: 'https://api.open-meteo.com/v1/forecast'
+    icon: 'https://api.open-meteo.com/v1/dwd-icon'
 };
 
 // Coordinates for key cities
@@ -37,10 +35,10 @@ const LOCATIONS = {
 
 /**
  * Fetch weather from a single model
- * @param {string} modelName - 'ecmwf', 'gfs', 'icon', or 'best_match'
+ * @param {string} modelName - 'ecmwf', 'gfs', or 'icon'
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
- * @returns {Promise<Object>} Raw weather data from model with metadata
+ * @returns {Promise<Object>} Raw weather data from model
  */
 async function fetchSingleModel(modelName, lat, lon) {
     const baseUrl = MODELS[modelName];
@@ -70,17 +68,13 @@ async function fetchSingleModel(modelName, lat, lon) {
 
     const data = await response.json();
 
-    // Attach metadata for weighted averaging
-    data.modelKey = modelName;
-    data.fetchedAt = Date.now();
-
     console.log(`[WeatherService] ✅ ${modelName.toUpperCase()}: Success`);
 
     return data;
 }
 
 /**
- * Fetch weather from all enabled models for a specific location
+ * Fetch weather from all 3 models for a specific location
  * @param {string} locationKey - 'chennai', 'trichy', 'muscat'
  * @returns {Promise<Object>} Multi-model weather data object
  */
@@ -93,14 +87,14 @@ export async function fetchWeather(locationKey) {
 
     // Get enabled models from settings
     const settings = getSettings();
-    const modelSettings = settings.weather?.models || { ecmwf: true, gfs: true, icon: true, best_match: true };
+    const modelSettings = settings.weather?.models || { ecmwf: true, gfs: true, icon: true };
 
     // Filter to only enabled models
     const enabledModelNames = Object.keys(MODELS).filter(m => modelSettings[m] !== false);
 
     if (enabledModelNames.length === 0) {
         console.warn('[WeatherService] No models enabled, using all models');
-        enabledModelNames.push('ecmwf', 'gfs', 'icon', 'best_match');
+        enabledModelNames.push('ecmwf', 'gfs', 'icon');
     }
 
     console.log(`[WeatherService] Fetching from models: ${enabledModelNames.join(', ')}`);
@@ -142,23 +136,12 @@ export async function fetchWeather(locationKey) {
  * Process raw multi-model data into app format
  */
 function processMultiModelData(modelData, locationName) {
-    const settings = getSettings();
-    const weights = settings.weather?.weights;
-    const freshnessLimit = settings.weather?.freshnessLimit;
-
-    // Identify available models
-    const availableModelKeys = Object.keys(modelData).filter(key => modelData[key] != null);
-
-    // Get current data from all models with metadata
-    const currentData = availableModelKeys.map(key => {
-        const d = modelData[key].current;
-        if (!d) return null;
-        return {
-            ...d,
-            modelKey: key,
-            fetchedAt: modelData[key].fetchedAt
-        };
-    }).filter(Boolean);
+    // Get current data from all models
+    const currentData = [
+        modelData.ecmwf?.current,
+        modelData.gfs?.current,
+        modelData.icon?.current
+    ].filter(Boolean);
 
     // Weather codes to icons
     const getIcon = (code) => {
@@ -183,12 +166,12 @@ function processMultiModelData(modelData, locationName) {
         const indices = [];
         for (let i = startHour; i <= endHour; i++) indices.push(i);
 
-        // Collect hourly data wrappers from all available models
-        const allModelHourlyData = availableModelKeys.map(key => ({
-            data: modelData[key].hourly,
-            modelKey: key,
-            fetchedAt: modelData[key].fetchedAt
-        })).filter(item => item.data);
+        // Collect data from all available models
+        const allModelHourlyData = [];
+
+        if (modelData.ecmwf?.hourly) allModelHourlyData.push(modelData.ecmwf.hourly);
+        if (modelData.gfs?.hourly) allModelHourlyData.push(modelData.gfs.hourly);
+        if (modelData.icon?.hourly) allModelHourlyData.push(modelData.icon.hourly);
 
         // Average temperatures across models for this time segment
         const segmentTemps = [];
@@ -201,41 +184,27 @@ function processMultiModelData(modelData, locationName) {
         const segmentUV = [];
         const segmentCloud = [];
 
-        let segmentMaxRainWarning = false;
-
         indices.forEach(hourIdx => {
-            const hourData = allModelHourlyData.map(item => ({
-                temperature_2m: item.data.temperature_2m?.[hourIdx],
-                apparent_temperature: item.data.apparent_temperature?.[hourIdx],
-                precipitation: item.data.precipitation?.[hourIdx],
-                precipitation_probability: item.data.precipitation_probability?.[hourIdx],
-                weather_code: item.data.weather_code?.[hourIdx],
-                relative_humidity_2m: item.data.relative_humidity_2m?.[hourIdx],
-                wind_speed_10m: item.data.wind_speed_10m?.[hourIdx],
-                uv_index: item.data.uv_index?.[hourIdx],
-                cloud_cover: item.data.cloud_cover?.[hourIdx],
-                modelKey: item.modelKey,
-                fetchedAt: item.fetchedAt
+            const hourData = allModelHourlyData.map(hourly => ({
+                temperature_2m: hourly.temperature_2m?.[hourIdx],
+                apparent_temperature: hourly.apparent_temperature?.[hourIdx],
+                precipitation: hourly.precipitation?.[hourIdx],
+                precipitation_probability: hourly.precipitation_probability?.[hourIdx],
+                weather_code: hourly.weather_code?.[hourIdx],
+                relative_humidity_2m: hourly.relative_humidity_2m?.[hourIdx],
+                wind_speed_10m: hourly.wind_speed_10m?.[hourIdx],
+                uv_index: hourly.uv_index?.[hourIdx],
+                cloud_cover: hourly.cloud_cover?.[hourIdx]
             }));
 
-            const avgTemp = averageTemperature(hourData, weights, freshnessLimit);
-            const avgApparent = averageApparentTemperature(hourData, weights, freshnessLimit);
-
-            // Use max precipitation logic
-            const precipMetric = maxPrecipitation(
-                hourData.map(m => ({ value: m.precipitation, modelKey: m.modelKey }))
-            );
-
+            const avgTemp = averageTemperature(hourData);
+            const avgApparent = averageApparentTemperature(hourData);
+            const avgPrecip = averagePrecipitation(hourData);
             const weatherCode = getMostCommonWeatherCode(hourData);
 
             if (avgTemp !== null) segmentTemps.push(avgTemp);
             if (avgApparent !== null) segmentApparent.push(avgApparent);
-
-            if (precipMetric.value !== null) {
-                segmentPrecip.push(precipMetric.value);
-                if (precipMetric.warning) segmentMaxRainWarning = true;
-            }
-
+            if (avgPrecip !== null) segmentPrecip.push(avgPrecip);
             if (weatherCode !== null) segmentWeatherCodes.push(weatherCode);
 
             // Collect precipitation probabilities for consensus
@@ -258,7 +227,6 @@ function processMultiModelData(modelData, locationName) {
             ? Math.round(segmentApparent.reduce((a, b) => a + b, 0) / segmentApparent.length)
             : avgTemp;
 
-        // Sum of max precipitations per hour
         const totalRainVal = segmentPrecip.reduce((a, b) => a + b, 0);
 
         // Calculate rainfall consensus
@@ -269,8 +237,6 @@ function processMultiModelData(modelData, locationName) {
         // Display '-' if rainfall is negligible (< 1mm)
         if (totalRainVal < 1.0) {
             rainDisplay = '-';
-        } else if (segmentMaxRainWarning) {
-            rainDisplay += ' ⚠️';
         }
 
         // Get representative weather code (most common)
@@ -297,14 +263,9 @@ function processMultiModelData(modelData, locationName) {
 
         // Collect hourly breakdown for this segment
         const hourlyBreakdown = indices.map((hourIdx, i) => {
-            // Priority: Best Match -> ECMWF -> GFS -> ICON -> any available
-            const preferredOrder = ['best_match', 'ecmwf', 'gfs', 'icon'];
-            let modelKey = preferredOrder.find(k => modelData[k] != null);
-
-            if (!modelKey && availableModelKeys.length > 0) {
-                modelKey = availableModelKeys[0];
-            }
-
+            // Use the first successful model's data for hourly visualization to ensure consistency
+            // Default to ECMWF if available, else GFS, else ICON
+            const modelKey = modelData.ecmwf ? 'ecmwf' : (modelData.gfs ? 'gfs' : 'icon');
             const hourly = modelData[modelKey]?.hourly;
 
             if (!hourly) return null;
@@ -350,12 +311,12 @@ function processMultiModelData(modelData, locationName) {
     const today = getDaySegments(0);
     const tomorrow = getDaySegments(1);
 
-    // Current weather (weighted averaged)
-    const currentTemp = averageTemperature(currentData, weights, freshnessLimit);
-    const currentFeelsLike = averageApparentTemperature(currentData, weights, freshnessLimit);
+    // Current weather (averaged from all models)
+    const currentTemp = averageTemperature(currentData);
+    const currentFeelsLike = averageApparentTemperature(currentData);
     const currentWeatherCode = getMostCommonWeatherCode(currentData);
 
-    // Get additional current metrics (simple average is fine for these, or implement weighted if critical)
+    // Get additional current metrics
     const currentHumidity = currentData.length > 0 && currentData[0].relative_humidity_2m != null
         ? Math.round(currentData.reduce((sum, d) => sum + (d.relative_humidity_2m || 0), 0) / currentData.length)
         : null;
@@ -368,28 +329,34 @@ function processMultiModelData(modelData, locationName) {
         ? Math.round(currentData.reduce((sum, d) => sum + (d.wind_direction_10m || 0), 0) / currentData.length)
         : null;
 
-    // Get daily max precipitation probability (across all available models)
-    const dailyMaxPrecipProb = availableModelKeys
-        .map(k => modelData[k].daily?.precipitation_probability_max?.[0])
-        .filter(v => v != null);
+    // Get daily max precipitation probability
+    const dailyMaxPrecipProb = [
+        modelData.ecmwf?.daily?.precipitation_probability_max?.[0],
+        modelData.gfs?.daily?.precipitation_probability_max?.[0],
+        modelData.icon?.daily?.precipitation_probability_max?.[0]
+    ].filter(v => v != null);
 
     const maxPrecipProb = dailyMaxPrecipProb.length > 0
         ? Math.round(dailyMaxPrecipProb.reduce((a, b) => a + b, 0) / dailyMaxPrecipProb.length)
         : 0;
 
     // Get daily precipitation sum
-    const dailyPrecipSum = availableModelKeys
-        .map(k => modelData[k].daily?.precipitation_sum?.[0])
-        .filter(v => v != null);
+    const dailyPrecipSum = [
+        modelData.ecmwf?.daily?.precipitation_sum?.[0],
+        modelData.gfs?.daily?.precipitation_sum?.[0],
+        modelData.icon?.daily?.precipitation_sum?.[0]
+    ].filter(v => v != null);
 
     const totalPrecip = dailyPrecipSum.length > 0
         ? (dailyPrecipSum.reduce((a, b) => a + b, 0) / dailyPrecipSum.length).toFixed(1)
         : 0;
 
     // Get UV index max
-    const dailyUVMax = availableModelKeys
-        .map(k => modelData[k].daily?.uv_index_max?.[0])
-        .filter(v => v != null);
+    const dailyUVMax = [
+        modelData.ecmwf?.daily?.uv_index_max?.[0],
+        modelData.gfs?.daily?.uv_index_max?.[0],
+        modelData.icon?.daily?.uv_index_max?.[0]
+    ].filter(v => v != null);
 
     const maxUV = dailyUVMax.length > 0
         ? Math.round(dailyUVMax.reduce((a, b) => a + b, 0) / dailyUVMax.length)
