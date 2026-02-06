@@ -352,14 +352,14 @@ function SettingsPage() {
                         <SettingCard>
                             <div className="settings-item__label" style={{marginBottom:'10px'}}>Active Categories</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom:'15px' }}>
-                                {['movies', 'events', 'festivals', 'alerts', 'sports'].map(cat => (
+                                {['movies', 'events', 'festivals', 'alerts', 'sports', 'shopping', 'civic', 'weather_alerts'].map(cat => (
                                     <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', textTransform: 'capitalize' }}>
                                         <input
                                             type="checkbox"
                                             checked={settings.upAhead?.categories?.[cat] !== false}
                                             onChange={(e) => updateNested(`upAhead.categories.${cat}`, e.target.checked)}
                                         />
-                                        {cat}
+                                        {cat.replace('_', ' ')}
                                     </label>
                                 ))}
                             </div>
