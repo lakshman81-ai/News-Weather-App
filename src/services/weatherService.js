@@ -364,6 +364,39 @@ function processMultiModelData(modelData, locationName) {
 
     const successfulModels = getSuccessfulModels(modelData);
 
+    // Build 24-hour forecast from current hour (8 slots, every 3 hours)
+    // Uses cross-model averaging for each slot
+    const currentHour = new Date().getHours();
+    const allModelHourly = [];
+    if (modelData.ecmwf?.hourly) allModelHourly.push(modelData.ecmwf.hourly);
+    if (modelData.gfs?.hourly) allModelHourly.push(modelData.gfs.hourly);
+    if (modelData.icon?.hourly) allModelHourly.push(modelData.icon.hourly);
+
+    const hourly24 = [];
+    for (let offset = 0; offset < 24; offset += 3) {
+        const hourIdx = currentHour + offset;
+        const displayHour = (currentHour + offset) % 24;
+
+        const temps = allModelHourly.map(h => h.temperature_2m?.[hourIdx]).filter(v => v != null);
+        const precips = allModelHourly.map(h => h.precipitation?.[hourIdx]).filter(v => v != null);
+        const probs = allModelHourly.map(h => h.precipitation_probability?.[hourIdx]).filter(v => v != null);
+        const codes = allModelHourly.map(h => h.weather_code?.[hourIdx]).filter(v => v != null);
+
+        const avgTemp = temps.length > 0 ? Math.round(temps.reduce((a, b) => a + b, 0) / temps.length) : null;
+        const avgPrecip = precips.length > 0 ? parseFloat((precips.reduce((a, b) => a + b, 0) / precips.length).toFixed(1)) : 0;
+        const avgProb = probs.length > 0 ? Math.round(probs.reduce((a, b) => a + b, 0) / probs.length) : 0;
+        const code = codes.length > 0 ? codes[Math.floor(codes.length / 2)] : 0;
+
+        hourly24.push({
+            hour: displayHour,
+            label: offset === 0 ? 'Now' : `${displayHour}:00`,
+            temp: avgTemp,
+            precip: avgPrecip,
+            prob: avgProb,
+            icon: getIcon(code)
+        });
+    }
+
     // Dynamic Summary Construction
     let summaryText = "";
     if (parseFloat(totalPrecip) > 0) {
@@ -393,6 +426,7 @@ function processMultiModelData(modelData, locationName) {
         noon: today.noon,
         evening: today.evening,
         tomorrow: tomorrow,
+        hourly24: hourly24,
         summary: summaryText
     };
 }
