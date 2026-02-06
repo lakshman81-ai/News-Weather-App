@@ -16,11 +16,16 @@ export function useMediaQuery() {
         const handleResize = () => {
             const width = window.innerWidth;
             setScreenWidth(width);
-            setIsDesktop(width >= 1024);
-            setIsTablet(width >= 768 && width < 1024);
+            const desktop = width >= 1024;
+            const tablet = width >= 768 && width < 1024;
+
+            setIsDesktop(desktop);
+            setIsTablet(tablet);
             // We define "WebView" or "Desktop View" as effectively the same for this layout 
             // context - meaning a large screen that supports the sidebar layout.
-            setIsWebView(width >= 1024);
+            setIsWebView(desktop);
+
+            console.log(`[Layout] Width: ${width}px, Mode: ${desktop ? 'desktop' : tablet ? 'tablet' : 'mobile'}`);
         };
 
         // Set initial values

@@ -455,24 +455,40 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
         const failedFeeds = [];
 
         results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
+            if (result.status === 'fulfilled' && result.value) {
                 successfulResults.push(result.value);
                 console.log(`[RSS] ✅ Feed ${index + 1}/${feeds.length} succeeded`);
             } else {
-                failedFeeds.push({
-                    url: feeds[index],
-                    reason: result.reason?.message || 'Unknown error'
-                });
-                console.warn(`[RSS] ⚠️ Feed ${index + 1}/${feeds.length} failed:`, result.reason);
+                failedFeeds.push(feeds[index]);
+                console.warn(`[RSS] ⚠️ Feed ${index + 1}/${feeds.length} failed: ${result.reason?.message || 'Unknown error'}`);
             }
         });
+
+        // Retry Logic: Only retry if some succeeded (indicating network is OK) but not all failed
+        if (failedFeeds.length > 0 && successfulResults.length > 0) {
+            console.log(`[RSS] Retrying ${failedFeeds.length} failed feed(s) for ${section}...`);
+            await new Promise(r => setTimeout(r, 2000)); // 2-second delay
+
+            const retryResults = await Promise.allSettled(
+                failedFeeds.map(url => fetchAndParseFeed(url, section))
+            );
+
+            retryResults.forEach((result, index) => {
+                if (result.status === 'fulfilled' && result.value) {
+                    successfulResults.push(result.value);
+                    console.log(`[RSS] ✅ Retry succeeded: ${failedFeeds[index]}`);
+                } else {
+                    console.error(`[RSS] ❌ Retry also failed: ${failedFeeds[index]}`);
+                }
+            });
+        }
 
         items = successfulResults.flat();
 
         console.log(`[RSS] Section '${section}' stats:`, {
             totalFeeds: feeds.length,
             successCount: successfulResults.length,
-            failureCount: failedFeeds.length,
+            failureCount: feeds.length - successfulResults.length,
             totalItems: items.length
         });
 
