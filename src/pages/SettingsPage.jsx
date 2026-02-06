@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { DEFAULT_SETTINGS } from '../utils/storage';
@@ -10,7 +9,6 @@ import { discoverFeeds } from '../utils/feedDiscovery';
  * Settings Page Component - Vertical Tabs Layout
  */
 function SettingsPage() {
-    const navigate = useNavigate();
     const { settings, updateSettings, reloadSettings } = useSettings();
     const [activeTab, setActiveTab] = useState('general');
     const [saved, setSaved] = useState(false);
@@ -43,11 +41,8 @@ function SettingsPage() {
 
     const handleSave = () => {
         setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
         reloadSettings();
-        setTimeout(() => {
-            setSaved(false);
-            navigate('/');
-        }, 600);
     };
 
     const handleReset = () => {
@@ -214,28 +209,6 @@ function SettingsPage() {
                                 <Toggle checked={settings.strictFreshness} onChange={(val) => updateSettings({ ...settings, strictFreshness: val })} />
                             </SettingItem>
 
-                            <SectionTitle icon="🔬" title="Scoring Engine" />
-                            <SettingCard>
-                                <SettingItem label="9-Factor Scoring" subLabel="Uses impact, novelty, visual, human interest multipliers">
-                                    <Toggle checked={settings.enableNewScoring !== false}
-                                            onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
-                                </SettingItem>
-                                <SettingItem label="Location-Based Scoring" subLabel="Boost news from your cities (Chennai, Trichy, Muscat)">
-                                    <Toggle checked={settings.enableProximityScoring !== false}
-                                            onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
-                                </SettingItem>
-                                {settings.rankingMode === 'context-aware' && (
-                                    <SettingItem label={`Local News Frequency: Every ${settings.rankingWeights?.context?.interleaveRatio || 3} items`}>
-                                        <input
-                                            type="range" min="2" max="10" step="1"
-                                            value={settings.rankingWeights?.context?.interleaveRatio || 3}
-                                            onChange={(e) => updateNested('rankingWeights.context.interleaveRatio', parseInt(e.target.value))}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </SettingItem>
-                                )}
-                            </SettingCard>
-
                             <div style={{ padding: '10px 0', borderTop: '1px solid var(--border-default)' }}>
                                 <SettingItem label={`Diversity: Max Topic ${settings.maxTopicPercent || 40}%`}>
                                     <input type="range" min="10" max="100" step="5" value={settings.maxTopicPercent || 40} onChange={(e) => updateSettings({ ...settings, maxTopicPercent: parseInt(e.target.value) })} style={{ width: '100%' }} />
@@ -311,37 +284,6 @@ function SettingsPage() {
                             <SettingItem label="ICON (DWD)" subLabel="Excellent Coverage">
                                 <Toggle checked={settings.weather?.models?.icon !== false} onChange={(val) => updateNested('weather.models.icon', val)} />
                             </SettingItem>
-                            <SettingItem label="Best Match (Auto)" subLabel="Open-Meteo's best pick per location">
-                                <Toggle checked={settings.weather?.models?.best_match !== false} onChange={(val) => updateNested('weather.models.best_match', val)} />
-                            </SettingItem>
-                        </SettingCard>
-
-                        <SectionTitle icon="⚖️" title="Model Weights" />
-                        <SettingCard>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                                Adjust how much each model influences the final forecast.
-                                Higher weight = more influence. Weights are auto-normalized.
-                            </div>
-                            {['ecmwf', 'gfs', 'icon', 'best_match'].map(model => {
-                                const defaults = { ecmwf: 0.40, gfs: 0.20, icon: 0.15, best_match: 0.25 };
-                                const weight = settings.weather?.weights?.[model] ?? defaults[model];
-                                const label = model === 'ecmwf' ? 'ECMWF (European)'
-                                    : model === 'gfs' ? 'GFS (NOAA)'
-                                    : model === 'icon' ? 'ICON (DWD)'
-                                        : 'Best Match (Auto)';
-                                return (
-                                    <SettingItem key={model} label={`${label}: ${(weight * 100).toFixed(0)}%`}>
-                                        <input
-                                            type="range"
-                                            min="0" max="1" step="0.05"
-                                            value={weight}
-                                            onChange={(e) => updateNested(`weather.weights.${model}`, parseFloat(e.target.value))}
-                                            style={{ width: '100%' }}
-                                            disabled={settings.weather?.models?.[model] === false}
-                                        />
-                                    </SettingItem>
-                                );
-                            })}
                         </SettingCard>
                     </div>
                 );
@@ -515,9 +457,7 @@ function SettingsPage() {
 
     return (
         <>
-            <div className="settings-header-container">
-                <Header title="Settings" showBack backTo="/" />
-            </div>
+            <Header title="Settings" showBack backTo="/" />
             <div className="settings-layout">
                 {/* SIDEBAR TABS */}
                 <div className="settings-sidebar">
@@ -688,40 +628,6 @@ function SettingsPage() {
                     margin-left: 6px;
                     cursor: pointer;
                     padding: 0;
-                }
-
-                @media (min-width: 1024px) {
-                    /* Hide the page-specific header on desktop as the Top Nav serves that purpose */
-                    .settings-header-container {
-                        display: none;
-                    }
-
-                    .settings-layout {
-                        margin-top: 60px; /* Clear the fixed desktop top-nav */
-                        height: calc(100vh - 60px);
-                    }
-
-                    .settings-sidebar {
-                        width: 240px;
-                        padding: 20px 15px;
-                    }
-
-                    .settings-tab-btn {
-                        flex-direction: row;
-                        justify-content: flex-start;
-                        padding: 12px 18px;
-                        gap: 14px;
-                    }
-
-                    .tab-label {
-                        font-size: 0.95rem;
-                        margin-top: 0;
-                        text-align: left;
-                    }
-
-                    .tab-icon {
-                        font-size: 1.3rem;
-                    }
                 }
             `}</style>
         </>

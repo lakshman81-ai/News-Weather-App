@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { useMarket } from '../context/MarketContext';
 import './MarketTicker.css';
 
@@ -6,13 +6,6 @@ const MarketTicker = () => {
     const { marketData, loading, lastFetch } = useMarket();
     const scrollRef = useRef(null);
     const isPaused = useRef(false);
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-    useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     // Filter and prepare market items
     const markets = useMemo(() => {
@@ -21,40 +14,13 @@ const MarketTicker = () => {
         const { indices = [], commodities = [] } = marketData;
         const allItems = [...indices, ...commodities];
 
-        // Specific items to show in the ticker
+        // Specific items to display in order (Removed Currencies as requested)
         const allowedNames = ['NIFTY 50', 'SENSEX', 'Gold', 'Silver'];
 
-        return allItems.filter(item => allowedNames.includes(item.name) && item.value !== null && item.value !== undefined);
+        return allowedNames
+            .map(name => allItems.find(item => item.name === name))
+            .filter(Boolean);
     }, [marketData]);
-
-    const repeatCount = useMemo(() => {
-        if (markets.length === 0) return 0;
-
-        // Each ticker item is roughly 180-220px wide
-        const estimatedItemWidth = 200;
-        const minItemsToFill = Math.ceil(windowWidth / estimatedItemWidth);
-
-        // Need at least 2x items to fill screen + buffer for seamless scroll
-        let repeats = Math.ceil((minItemsToFill * 2) / Math.max(markets.length, 1));
-
-        // Ensure even number of repeats for the half-width reset logic to work perfectly
-        if (repeats % 2 !== 0) repeats++;
-
-        // Minimum repeats to be safe
-        return Math.max(4, repeats);
-    }, [markets.length, windowWidth]);
-
-    const tickerItems = useMemo(() => {
-        const items = [];
-        for (let i = 0; i < repeatCount; i++) {
-            items.push(...markets);
-        }
-
-        // Debug logging
-        console.log(`[Ticker] ${markets.length} items × ${repeatCount} repeats = ${items.length} total items`);
-
-        return items;
-    }, [markets, repeatCount]);
 
     // Auto-scroll logic (Same as before)
     useEffect(() => {
@@ -99,7 +65,7 @@ const MarketTicker = () => {
             cancelAnimationFrame(animationFrameId);
             clearTimeout(timeoutId);
         };
-    }, [tickerItems]);
+    }, [markets]);
 
     const isItemStale = (item) => {
         if (!item.timestamp) return true;
@@ -133,8 +99,8 @@ const MarketTicker = () => {
                 onTouchEnd={() => isPaused.current = false}
             >
                 <div className="ticker-track">
-                    {/* Dynamic list for infinite scroll effect */}
-                    {tickerItems.map((item, index) => {
+                    {/* Double the list for infinite scroll effect */}
+                    {[...markets, ...markets].map((item, index) => {
                         const stale = isItemStale(item);
                         return (
                             <div key={`${item.name}-${index}`} className={`ticker-item ${stale ? 'stale-data' : ''}`}>

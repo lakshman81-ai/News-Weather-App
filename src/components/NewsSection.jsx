@@ -109,16 +109,20 @@ function NewsSection({
                                         color: 'var(--accent-secondary)'
                                     }}>↗</span>
                                 )}
-                                {/* Badges — show at most ONE badge per article (priority order) */}
-                                {item.isBreaking ? (
-                                    <span className="news-badge news-badge--breaking">Breaking</span>
-                                ) : item._scoringDetails?.ageHours < 2 ? (
-                                    <span className="news-badge news-badge--time-sensitive">Time Sensitive</span>
-                                ) : item._scoringDetails?.proximity > 1.3 ? (
-                                    <span className="news-badge news-badge--local">Local Top Story</span>
-                                ) : item.impactScore > 12 ? (
-                                    <span className="news-badge news-badge--trending">Trending</span>
-                                ) : null}
+                                {/* Context Badge (Phase 9) */}
+                                {item.impactScore > 10 && (
+                                    <span style={{
+                                        fontSize: '0.6rem',
+                                        marginLeft: '8px',
+                                        padding: '2px 4px',
+                                        borderRadius: '4px',
+                                        background: 'var(--accent-primary)',
+                                        color: '#fff',
+                                        verticalAlign: 'middle'
+                                    }}>
+                                        {item.isBreaking ? '⚡ Breaking' : '🔥 Trending'}
+                                    </span>
+                                )}
                             </h3>
                             {item.summary && (
                                 <p className="news-item__summary">

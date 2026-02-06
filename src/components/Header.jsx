@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MarketTicker from './MarketTicker';
 import ThemeToggle from './ThemeToggle';
-import { useSettings } from '../context/SettingsContext';
 
 /**
  * Header Component with optional back navigation
  */
 function Header({ title, icon, showBack = false, backTo = '/', actions, pills, activePill, onPillChange }) {
-    const { settings } = useSettings();
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     useEffect(() => {
@@ -16,8 +14,6 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    const showLocationIcon = settings?.rankingMode === 'context-aware' || settings?.enableProximityScoring;
 
     // Icon Mapping helper
     const getPillIcon = (pillName) => {
@@ -63,11 +59,6 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {showLocationIcon && (
-                    <span title="Location Boost Active" style={{ fontSize: '1.2rem', cursor: 'help' }}>
-                        📍
-                    </span>
-                )}
                 {actions}
             </div>
         </header>

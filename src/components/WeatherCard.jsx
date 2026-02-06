@@ -112,7 +112,7 @@ function WeatherCard({ weatherData }) {
                                         {/* Enhanced Rainfall Display - Dynamic Palette */}
                                         {(() => {
                                             const status = getRainStatus(data.rainProb?.value, data.rainMm);
-                                            if (!status || !status.showCard) return null;
+                                            if (!status) return null;
                                             const style = getRainStyle(status.intensity);
                                             return (
                                                 <div className="weather-rain" style={{ marginTop: '4px' }}>
