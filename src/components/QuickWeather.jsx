@@ -105,7 +105,8 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     if (!displayData) return null;
 
     // --- LOGIC: Rain Display ---
-    const rainStatus = getRainStatus(displayData.rainProb?.value, displayData.rainMm);
+    // rainProb is a consensus object { avg, min, max, ... } from calculateRainfallConsensus()
+    const rainStatus = getRainStatus(displayData.rainProb?.avg, displayData.rainMm);
     const isRaining = rainStatus && (rainStatus.intensity === 'moderate' || rainStatus.intensity === 'heavy');
 
     // --- LOGIC: Background Gradient ---

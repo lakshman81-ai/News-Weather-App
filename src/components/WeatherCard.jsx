@@ -104,7 +104,12 @@ function WeatherCard({ weatherData }) {
                                 <span className="weather-grid__time-label">{block.sublabel}</span>
                             </div>
                             {cities.map(city => {
-                                const data = weatherData[city]?.[block.period];
+                                // When sublabel indicates tomorrow, read from the tomorrow nested object
+                                const isTomorrow = block.sublabel === 'Tmrw' || block.sublabel === 'Tomorrow';
+                                const cityData = weatherData[city];
+                                const data = isTomorrow
+                                    ? cityData?.tomorrow?.[block.period]
+                                    : cityData?.[block.period];
                                 if (!data) {
                                     return (
                                         <div key={city} className="weather-grid__cell">
@@ -120,7 +125,8 @@ function WeatherCard({ weatherData }) {
 
                                         {/* Enhanced Rainfall Display - Dynamic Palette */}
                                         {(() => {
-                                            const status = getRainStatus(data.rainProb?.value, data.rainMm);
+                                            // rainProb is a consensus object { avg, min, max, ... } from calculateRainfallConsensus()
+                                            const status = getRainStatus(data.rainProb?.avg, data.rainMm);
                                             if (!status) return null;
                                             const style = getRainStyle(status.intensity);
                                             return (
