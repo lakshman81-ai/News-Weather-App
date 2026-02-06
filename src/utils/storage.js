@@ -147,12 +147,13 @@ export const DEFAULT_SETTINGS = {
         locations: ["Chennai", "Muscat"],
         customLocation: "",
         keywords: {
-            movies: ["tickets", "showtimes", "releases", "trailer", "review"],
-            events: ["concert", "standup", "live", "workshop", "exhibition", "theatre", "art", "show"],
-            shopping: ["sale", "offer", "discount", "expo"],
-            civic: ["road", "traffic", "power", "visit"],
-            weather_alerts: ["rain", "cyclone", "heat", "storm"],
-            negative: ["review", "interview", "shares", "gossip", "opinion", "reaction"]
+            // User-added extras (built-in keywords are in upAheadService.js)
+            movies: [],
+            events: [],
+            shopping: [],
+            civic: [],
+            weather_alerts: [],
+            negative: []
         }
     },
 

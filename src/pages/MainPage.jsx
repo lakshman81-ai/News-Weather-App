@@ -32,7 +32,6 @@ const addLog = (msg) => {
 const MainPage = () => {
     const { settings } = useSettings();
     const { currentSegment } = useSegment();
-    const [activePill, setActivePill] = useState('Morning');
     const [vLog, setVLog] = useState([...logs]);
     const [notifPermission, setNotifPermission] = useState(Notification.permission);
     const [toplineContent, setToplineContent] = useState(null);
@@ -84,25 +83,6 @@ const MainPage = () => {
         const granted = await requestNotificationPermission();
         setNotifPermission(granted ? 'granted' : 'denied');
     };
-
-    // Dynamic Timeline Logic
-    const getTimelinePills = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return ['Morning', 'Midday', 'Evening'];
-        if (hour < 17) return ['Midday', 'Evening', 'Tomorrow Morning'];
-        return ['Evening', 'Tomorrow Morning', 'Tomorrow Midday'];
-    };
-
-    const [timelinePills, setTimelinePills] = useState(() => getTimelinePills());
-
-    // Update active pill to match first available slot on mount/change
-    useEffect(() => {
-        const currentPills = getTimelinePills();
-        setTimelinePills(currentPills);
-        if (!currentPills.includes(activePill)) {
-            setActivePill(currentPills[0]);
-        }
-    }, []);
 
     // Update logs Reactively
     useEffect(() => {
@@ -261,11 +241,7 @@ const MainPage = () => {
                 {/* Desktop Sidebar */}
                 {isWebView && (
                     <div className="desktop-sidebar">
-                        <QuickWeather
-                            activePill={activePill}
-                            onPillChange={setActivePill}
-                            pills={timelinePills}
-                        />
+                        <QuickWeather />
                         <SidebarNews
                             news={newsData.world && newsData.world.length > 0 ? newsData.world : (newsData.india && newsData.india.length > 0 ? newsData.india : newsData.frontPage)}
                             title={newsData.world && newsData.world.length > 0 ? "Global Headlines" : "Top Stories"}
@@ -303,11 +279,7 @@ const MainPage = () => {
 
                     {/* Mobile Weather */}
                     {!isWebView && (
-                        <QuickWeather
-                            activePill={activePill}
-                            onPillChange={setActivePill}
-                            pills={timelinePills}
-                        />
+                        <QuickWeather />
                     )}
 
                     {/* Newspaper Mode */}

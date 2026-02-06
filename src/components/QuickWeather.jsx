@@ -1,41 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
-import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 
-// --- ICONS (SVG) ---
-// Using SVGs for consistency across PC/Mobile instead of emojis
-const HumidityIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{color:'#60a5fa', width:'1.2em', height:'1.2em'}}>
-        {/* 3-Droplet Splash Style */}
+// --- SVG ICONS ---
+const HumidityIcon = ({ size = '1em' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ color: '#60a5fa', verticalAlign: 'middle' }}>
         <path d="M12,2 C12,2 7,7 7,10 C7,12.76 9.24,15 12,15 C14.76,15 17,12.76 17,10 C17,7 12,2 12,2 Z" opacity="0.9" />
         <path d="M6,12 C6,12 4,14 4,15.5 C4,16.6 4.9,17.5 6,17.5 C7.1,17.5 8,16.6 8,15.5 C8,14 6,12 6,12 Z" opacity="0.7" />
         <path d="M18,12 C18,12 16,14 16,15.5 C16,16.6 16.9,17.5 18,17.5 C19.1,17.5 20,16.6 20,15.5 C20,14 18,12 18,12 Z" opacity="0.7" />
     </svg>
 );
 
-const WindIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#cbd5e1', width:'1.2em', height:'1.2em'}}>
+const WindIcon = ({ size = '1em' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#cbd5e1', verticalAlign: 'middle' }}>
         <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
     </svg>
 );
 
-const UVIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#fbbf24', width:'1.2em', height:'1.2em'}}>
-        <circle cx="12" cy="12" r="5" />
-        <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-    </svg>
-);
-
 /**
- * Quick Weather Widget (Redesigned)
- * Apple/Google-style card with dynamic gradients and rich data visualization.
+ * Quick Weather Widget — Redesigned
+ * Shows present conditions for all 3 cities at a glance,
+ * plus a 24-hour heads-up timeline for the selected city.
+ * No pills, no fine details — just "what's now" and "what's coming".
  */
-const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning', 'Midday', 'Evening'] }) => {
+const QuickWeather = () => {
     const { weatherData, loading, error } = useWeather();
     const [activeCity, setActiveCity] = useState(() => {
         try {
             return localStorage.getItem('weather_active_city') || 'chennai';
-        } catch (e) {
+        } catch {
             return 'chennai';
         }
     });
@@ -43,186 +35,140 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
     useEffect(() => {
         try {
             localStorage.setItem('weather_active_city', activeCity);
-        } catch (e) {
+        } catch {
             // Ignore storage errors
         }
     }, [activeCity]);
 
-    // Icon Mapping helper
-    const getPillIcon = (pillName) => {
-        if (pillName.includes('Morning')) return '🌅';
-        if (pillName.includes('Midday')) return '☀️';
-        if (pillName.includes('Evening')) return '🌙';
-        return pillName;
-    };
+    if (loading) return <div className="quick-weather-card qw-bg-day"><div style={{ textAlign: 'center', padding: '20px 0' }}>Loading weather...</div></div>;
+    if (error || !weatherData) return <div className="quick-weather-card qw-bg-night"><div style={{ textAlign: 'center', padding: '20px 0' }}>Weather unavailable</div></div>;
 
-    const getCityIcon = (cityName) => {
-        if (cityName === 'chennai') return '🏛️';
-        if (cityName === 'trichy') return '🏯';
-        if (cityName === 'muscat') return '📍';
-        return cityName;
-    };
+    const cities = ['chennai', 'trichy', 'muscat'];
+    const cityLabels = { chennai: 'Chennai', trichy: 'Trichy', muscat: 'Muscat' };
+    const cityIcons = { chennai: '🏛️', trichy: '🏯', muscat: '📍' };
 
-    if (loading) return <div className="quick-weather-card qw-bg-day"><div style={{textAlign:'center'}}>Loading weather...</div></div>;
-    if (error || !weatherData) return <div className="quick-weather-card qw-bg-night"><div style={{textAlign:'center'}}>Weather unavailable</div></div>;
+    // Determine background based on current hour
+    const hour = new Date().getHours();
+    let bgClass = 'qw-bg-day';
+    if (hour >= 6 && hour < 11) bgClass = 'qw-bg-morning';
+    else if (hour >= 11 && hour < 17) bgClass = 'qw-bg-day';
+    else if (hour >= 17 && hour < 20) bgClass = 'qw-bg-evening';
+    else bgClass = 'qw-bg-night';
 
-    const data = weatherData[activeCity];
-    if (!data) return null;
-
-    // Map Time Pill to Data Key
-    let timeKey = 'morning';
-    let summaryPrefix = "Start your day with";
-
-    const pill = activePill;
-    if (pill === 'Morning') {
-        timeKey = 'morning';
-        summaryPrefix = "Start your day with";
-    } else if (pill === 'Midday') {
-        timeKey = 'noon';
-        summaryPrefix = "As the day progresses, expect";
-    } else if (pill === 'Evening') {
-        timeKey = 'evening';
-        summaryPrefix = "Your evening outlook is";
-    } else if (pill === 'Tomorrow Morning') {
-        timeKey = 'tomorrow.morning';
-        summaryPrefix = "Tomorrow starts with";
-    } else if (pill === 'Tomorrow Midday') {
-        timeKey = 'tomorrow.noon';
-        summaryPrefix = "Tomorrow midday will be";
-    }
-
-    // Handle nested keys like 'tomorrow.morning'
-    let displayData;
-    if (timeKey.includes('.')) {
-        const [root, sub] = timeKey.split('.');
-        displayData = data[root]?.[sub];
-    } else {
-        displayData = data[timeKey];
-    }
-    displayData = displayData || data.current;
-
-    // Safety check for displayData
-    if (!displayData) return null;
-
-    // --- LOGIC: Rain Display ---
-    const rainStatus = getRainStatus(displayData.rainProb?.value, displayData.rainMm);
-    const isRaining = rainStatus && (rainStatus.intensity === 'moderate' || rainStatus.intensity === 'heavy');
-
-    // --- LOGIC: Background Gradient ---
-    const getBgClass = (pill, raining) => {
-        // If actively raining (significantly), use rain bg
-        if (raining) return 'qw-bg-rain';
-
-        if (pill.includes('Morning')) return 'qw-bg-morning';
-        if (pill.includes('Midday')) return 'qw-bg-day';
-        if (pill.includes('Evening')) return 'qw-bg-evening';
-        if (pill.includes('Tomorrow')) return 'qw-bg-morning';
-        return 'qw-bg-night';
-    };
-
-    const bgClass = getBgClass(activePill, isRaining);
+    // Check if rain is coming in the next 24h for the active city
+    const activeCityData = weatherData[activeCity];
+    const headsUp = getHeadsUp(activeCityData);
 
     return (
         <section className={`quick-weather-card ${bgClass}`}>
 
-            {/* Header: Pills + City */}
-            <div className="qw-header-row">
-                <div className="qw-pills-row">
-                    {pills.map((p) => (
-                        <button
-                            key={p}
-                            className={`qw-pill-btn ${activePill === p ? 'active' : ''}`}
-                            onClick={() => onPillChange && onPillChange(p)}
-                            title={p}
-                        >
-                            {getPillIcon(p)}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="qw-pills-row">
-                    {['chennai', 'trichy', 'muscat'].map(city => (
-                        <button
+            {/* All 3 Cities — Current Conditions */}
+            <div className="qw-cities-grid">
+                {cities.map(city => {
+                    const d = weatherData[city];
+                    if (!d?.current) return null;
+                    const c = d.current;
+                    const isActive = city === activeCity;
+                    return (
+                        <div
                             key={city}
-                            className={`qw-pill-btn ${activeCity === city ? 'active' : ''}`}
+                            className={`qw-city-card ${isActive ? 'qw-city-card--active' : ''}`}
                             onClick={() => setActiveCity(city)}
-                            title={city.charAt(0).toUpperCase() + city.slice(1)}
                         >
-                            {getCityIcon(city)}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Location Label - Dynamic */}
-            <div style={{ textAlign: 'right', marginTop: '-12px', marginBottom: '12px', paddingRight: '12px', fontSize: '0.9rem', fontWeight: 600, opacity: 0.8, color: 'var(--weather-sun)' }}>
-                {activeCity.charAt(0).toUpperCase() + activeCity.slice(1)}
-            </div>
-
-            {/* Main Display: Temp + Icon */}
-            <div className="qw-main-display">
-                <div className="qw-temp-container">
-                    <div className="qw-temp-large">{displayData.temp}°</div>
-                    <div className="qw-condition-text">
-                        {displayData.condition} • Feels {displayData.feelsLike}°
-                    </div>
-                </div>
-                <div className="qw-main-icon">
-                    {displayData.icon}
-                </div>
-            </div>
-
-            {/* Details Grid */}
-            <div className="qw-details-grid">
-
-                {/* Wind */}
-                <div className="qw-detail-item">
-                    <div className="qw-detail-label">Wind</div>
-                    <div className="qw-detail-value">
-                        <WindIcon />
-                        {displayData.windSpeed ? `${displayData.windSpeed} km/h` : 'N/A'}
-                    </div>
-                </div>
-
-                {/* Humidity */}
-                <div className="qw-detail-item">
-                    <div className="qw-detail-label">Humidity</div>
-                    <div className="qw-detail-value">
-                        <HumidityIcon />
-                        {displayData.humidity ? `${displayData.humidity}%` : 'N/A'}
-                    </div>
-                </div>
-
-                {/* UV Index */}
-                {displayData.uvIndex != null && (
-                    <div className="qw-detail-item">
-                        <div className="qw-detail-label">UV Index</div>
-                        <div className="qw-detail-value">
-                            <UVIcon />
-                            {displayData.uvIndex}
+                            <div className="qw-city-header">
+                                <span className="qw-city-icon">{cityIcons[city]}</span>
+                                <span className="qw-city-name">{cityLabels[city]}</span>
+                            </div>
+                            <div className="qw-city-temp-row">
+                                <span className="qw-city-temp">{c.temp}°</span>
+                                <span className="qw-city-weather-icon">{c.icon}</span>
+                            </div>
+                            <div className="qw-city-condition">{c.condition}</div>
+                            <div className="qw-city-meta">
+                                <span><HumidityIcon size="0.85em" /> {c.humidity ?? '--'}%</span>
+                                <span><WindIcon size="0.85em" /> {c.windSpeed ?? '--'}</span>
+                            </div>
                         </div>
-                    </div>
-                )}
-
-                {/* Rain - Conditional Display */}
-                {rainStatus && (
-                    <div className="qw-detail-item">
-                        <div className="qw-detail-label">Rainfall</div>
-                        <div className="qw-detail-value" style={getRainStyle(rainStatus.intensity)}>
-                            <span style={{fontSize:'1.2em'}}>{rainStatus.icon}</span>
-                            {rainStatus.label}
-                        </div>
-                    </div>
-                )}
-
+                    );
+                })}
             </div>
 
-            {/* Summary Text */}
-            <div className="qw-summary-text">
-                {summaryPrefix} {displayData.temp}°C. {data.summary}
-            </div>
+            {/* 24-Hour Timeline Strip */}
+            {activeCityData?.hourly24 && (
+                <div className="qw-timeline-section">
+                    <div className="qw-timeline-label">
+                        Next 24h &middot; {cityLabels[activeCity]}
+                    </div>
+                    <div className="qw-timeline-strip">
+                        {activeCityData.hourly24.map((slot, i) => (
+                            <div key={i} className="qw-timeline-slot">
+                                <div className="qw-slot-time">{slot.label}</div>
+                                <div className="qw-slot-icon">{slot.icon}</div>
+                                <div className="qw-slot-temp">{slot.temp}°</div>
+                                {slot.precip > 0.5 && (
+                                    <div className="qw-slot-rain">{slot.precip}mm</div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Heads-Up Alert */}
+            {headsUp && (
+                <div className="qw-headsup">
+                    <span className="qw-headsup-icon">{headsUp.icon}</span>
+                    <span>{headsUp.message}</span>
+                </div>
+            )}
+
         </section>
     );
 };
+
+/**
+ * Generates a plain-English heads-up from the 24h forecast.
+ * e.g. "Rain expected around 9PM–3AM (~4.2mm)"
+ */
+function getHeadsUp(cityData) {
+    if (!cityData?.hourly24) return null;
+
+    const slots = cityData.hourly24;
+
+    // Find consecutive rain slots (precip > 0.5mm or prob > 40%)
+    const rainSlots = slots.filter(s => s.precip > 0.5 || s.prob > 40);
+
+    if (rainSlots.length === 0) return null;
+
+    const totalMm = rainSlots.reduce((sum, s) => sum + (s.precip || 0), 0);
+    const maxProb = Math.max(...rainSlots.map(s => s.prob || 0));
+
+    const formatHour = (h) => {
+        if (h === 0) return '12AM';
+        if (h === 12) return '12PM';
+        return h < 12 ? `${h}AM` : `${h - 12}PM`;
+    };
+
+    const startHour = formatHour(rainSlots[0].hour);
+    const endHour = rainSlots.length > 1 ? formatHour(rainSlots[rainSlots.length - 1].hour) : null;
+
+    let intensity = 'Rain';
+    let icon = '🌧️';
+    if (totalMm >= 10 || maxProb >= 80) {
+        intensity = 'Heavy rain';
+        icon = '⛈️';
+    } else if (totalMm < 2 && maxProb < 50) {
+        intensity = 'Light showers possible';
+        icon = '🌦️';
+    }
+
+    const timeRange = endHour ? `${startHour}–${endHour}` : `around ${startHour}`;
+    const mmText = totalMm > 0.5 ? ` (~${totalMm.toFixed(1)}mm)` : '';
+
+    return {
+        icon,
+        message: `${intensity} expected ${timeRange}${mmText}`
+    };
+}
 
 export default QuickWeather;
