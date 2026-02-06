@@ -507,6 +507,10 @@ function SettingsPage() {
                     padding: 10px 5px;
                     overflow-y: auto;
                     flex-shrink: 0;
+                    scrollbar-width: none; /* Hide scrollbar Firefox */
+                }
+                .settings-sidebar::-webkit-scrollbar {
+                    display: none; /* Hide scrollbar Chrome/Safari */
                 }
                 /* REMOVED: Desktop expansion rule to keep it icon-only */
 
