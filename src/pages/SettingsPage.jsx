@@ -457,8 +457,8 @@ function SettingsPage() {
     };
 
     return (
-        <>
-            <Header title="Settings" showBack backTo="/" />
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+            <Header title="Settings" showBack backTo="/" compact={true} style={{ flex: '0 0 auto' }} />
             <div className="settings-layout">
                 {/* SIDEBAR TABS */}
                 <div className="settings-sidebar">
@@ -501,7 +501,8 @@ function SettingsPage() {
             <style>{`
                 .settings-layout {
                     display: flex;
-                    height: calc(100vh - 60px); /* Adjust for header */
+                    flex: 1; /* Fill remaining space */
+                    overflow: hidden; /* Prevent outer scroll */
                     background: var(--bg-primary);
                 }
                 .settings-sidebar {
@@ -680,7 +681,7 @@ function SettingsPage() {
                     padding: 0;
                 }
             `}</style>
-        </>
+        </div>
     );
 }
 

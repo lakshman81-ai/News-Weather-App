@@ -6,7 +6,7 @@ import ThemeToggle from './ThemeToggle';
 /**
  * Header Component with optional back navigation
  */
-function Header({ title, icon, showBack = false, backTo = '/', actions, pills, activePill, onPillChange }) {
+function Header({ title, icon, showBack = false, backTo = '/', actions, pills, activePill, onPillChange, compact = false }) {
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     useEffect(() => {
@@ -24,7 +24,7 @@ function Header({ title, icon, showBack = false, backTo = '/', actions, pills, a
     };
 
     return (
-        <header className="header">
+        <header className={`header ${compact ? 'header--compact' : ''}`}>
             {/* Left Side: Back or Theme Toggle (PC Only) */}
             {showBack ? (
                 <Link to={backTo} className="header__back">
