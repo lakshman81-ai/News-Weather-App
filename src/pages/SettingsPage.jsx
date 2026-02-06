@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { DEFAULT_SETTINGS } from '../utils/storage';
@@ -202,6 +202,28 @@ function SettingsPage() {
                             <SettingItem label="Strict Freshness Mode" subLabel="Hide stale stories completely">
                                 <Toggle checked={settings.strictFreshness} onChange={(val) => updateSettings({ ...settings, strictFreshness: val })} />
                             </SettingItem>
+
+                            <SectionTitle icon="🔬" title="Scoring Engine" />
+                            <SettingCard>
+                                <SettingItem label="9-Factor Scoring" subLabel="Uses impact, novelty, visual, human interest multipliers">
+                                    <Toggle checked={settings.enableNewScoring !== false}
+                                            onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
+                                </SettingItem>
+                                <SettingItem label="Location-Based Scoring" subLabel="Boost news from your cities (Chennai, Trichy, Muscat)">
+                                    <Toggle checked={settings.enableProximityScoring !== false}
+                                            onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
+                                </SettingItem>
+                                {settings.rankingMode === 'context-aware' && (
+                                    <SettingItem label={`Local News Frequency: Every ${settings.rankingWeights?.context?.interleaveRatio || 3} items`}>
+                                        <input
+                                            type="range" min="2" max="10" step="1"
+                                            value={settings.rankingWeights?.context?.interleaveRatio || 3}
+                                            onChange={(e) => updateNested('rankingWeights.context.interleaveRatio', parseInt(e.target.value))}
+                                            style={{ width: '100%' }}
+                                        />
+                                    </SettingItem>
+                                )}
+                            </SettingCard>
 
                             <div style={{ padding: '10px 0', borderTop: '1px solid var(--border-default)' }}>
                                 <SettingItem label={`Diversity: Max Topic ${settings.maxTopicPercent || 40}%`}>
