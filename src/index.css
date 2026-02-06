@@ -1,6 +1,17 @@
 /* Google Fonts Import - must be first */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Outfit:wght@400;500;600;700&display=swap');
 
+/* =========================================
+ * RESPONSIVE BREAKPOINTS
+ * -----------------------------------------
+ * Mobile:  < 768px  (default styles)
+ * Tablet:  768px - 1023px
+ * Desktop: >= 1024px (sidebar layout, top nav)
+ *
+ * Exception: SettingsPage uses 600px for
+ * sidebar label visibility (intentional).
+ * ========================================= */
+
 :root {
   /* Color Palette - Dark Theme Improved Contrast */
   --bg-primary: #0A0D11;
@@ -1657,6 +1668,16 @@ body {
     grid-column: 1;
     z-index: 10;
     scrollbar-width: thin;
+  }
+
+  /* Ensure pills wrap in narrow sidebar */
+  .desktop-sidebar .quick-weather-card {
+    margin: 0 0 20px 0;
+  }
+  .desktop-sidebar .qw-pills-row {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
   }
 
   /* News sections expand to main column */

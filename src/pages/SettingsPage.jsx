@@ -189,6 +189,12 @@ function SettingsPage() {
                                     <option value="legacy">Legacy (Freshness)</option>
                                 </select>
                             </SettingItem>
+                            <SettingItem label="Enhanced Scoring Algorithm" subLabel="9-Factor Impact Analysis">
+                                <Toggle checked={settings.enableNewScoring !== false} onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
+                            </SettingItem>
+                            <SettingItem label="Proximity Boost" subLabel="Prioritize local content">
+                                <Toggle checked={settings.enableProximityScoring !== false} onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
+                            </SettingItem>
                             <SettingItem label="Hide Older Than (Hours)">
                                 <input
                                     type="number"
