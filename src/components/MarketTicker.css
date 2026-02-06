@@ -3,7 +3,7 @@
     min-width: 0; /* Crucial for flex child truncation/scrolling */
     background: transparent; /* Blend with header */
     color: #e2e8f0;
-    height: 32px; /* Reduce height to fit in header */
+    height: 28px; /* Reduce height to fit in header */
     display: flex;
     align-items: center;
     position: relative;
@@ -79,7 +79,7 @@
 .ticker-item {
     display: inline-flex;
     align-items: center;
-    margin-right: 24px;
+    margin-right: 20px;
     transition: opacity 0.2s;
 }
 
@@ -87,18 +87,18 @@
     color: #cbd5e1;
     font-weight: 500;
     margin-right: 6px;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
 }
 
 .ticker-price {
     font-weight: 600;
     color: #f8fafc;
     margin-right: 4px;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
 }
 
 .ticker-change {
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     font-weight: 500;
 }
 

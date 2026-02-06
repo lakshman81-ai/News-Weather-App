@@ -63,6 +63,24 @@ function MarketPage() {
         marketSettings.showIPO !== false && { id: 'ipo-tracker', icon: '🎯', label: 'IPO Watch' }
     ].filter(Boolean);
 
+    // Back to Top Logic
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 400) {
+                setShowBackToTop(true);
+            } else {
+                setShowBackToTop(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     if (loading && !marketData) {
         return (
             <div className="page-container">
@@ -92,24 +110,6 @@ function MarketPage() {
     }
 
     const { indices, mutualFunds, ipo, movers, sectorals, commodities, currencies, fiidii } = marketData || {};
-
-    // Back to Top Logic
-    const [showBackToTop, setShowBackToTop] = useState(false);
-    useEffect(() => {
-        const handleScroll = () => {
-            if (window.scrollY > 400) {
-                setShowBackToTop(true);
-            } else {
-                setShowBackToTop(false);
-            }
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
 
     return (
         <div className="page-container">

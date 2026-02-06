@@ -181,9 +181,6 @@ function cleanSource(sourceName) {
 /**
  * Generates a "Critic's One Liner" heuristic from title/description
  */
-/**
- * Generates a "Critic's One Liner" heuristic from title/description
- */
 function generateCriticsOneLiner(title, description) {
     const text = (title + " " + description).toLowerCase();
 
@@ -593,10 +590,11 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 // Use the item's section (which might have been re-classified)
                 // or fallback to the requested section if missing
                 const itemSection = item.section || section;
+                const score = computeImpactScore(item, itemSection);
                 return {
                     ...item,
                     section: itemSection,
-                    impactScore: computeImpactScore(item, itemSection)
+                    impactScore: score
                 };
             })
             .filter(item => {

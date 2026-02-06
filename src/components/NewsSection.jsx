@@ -109,7 +109,7 @@ function NewsSection({
                                         color: 'var(--accent-secondary)'
                                     }}>↗</span>
                                 )}
-                                {/* Context Badge (Phase 7 - Ranking Overhaul) */}
+                                {/* Badges — show at most ONE badge per article (priority order) */}
                                 {item.isBreaking ? (
                                     <span className="news-badge news-badge--breaking">Breaking</span>
                                 ) : item._scoringDetails?.ageHours < 2 ? (
