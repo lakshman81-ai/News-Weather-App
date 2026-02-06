@@ -466,6 +466,7 @@ function SettingsPage() {
                             key={tab.id}
                             className={`settings-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
+                            data-tooltip={tab.label}
                         >
                             <span className="tab-icon">{tab.icon}</span>
                             <span className="tab-label">{tab.label}</span>
@@ -479,6 +480,9 @@ function SettingsPage() {
                         <button className="btn btn--danger btn--full" onClick={handleReset} style={{fontSize:'0.85rem'}}>
                             Reset
                         </button>
+                        <div style={{textAlign:'center', fontSize:'0.6rem', color:'var(--text-muted)', marginTop:'10px'}}>
+                            v1.1 (Sidebar Fix)
+                        </div>
                     </div>
                 </div>
 
@@ -495,7 +499,7 @@ function SettingsPage() {
                     background: var(--bg-primary);
                 }
                 .settings-sidebar {
-                    width: 80px; /* Mobile width (icons) */
+                    width: 60px; /* Reduced width */
                     background: var(--bg-secondary);
                     border-right: 1px solid var(--border-default);
                     display: flex;
@@ -504,12 +508,8 @@ function SettingsPage() {
                     overflow-y: auto;
                     flex-shrink: 0;
                 }
-                @media (min-width: 600px) {
-                    .settings-sidebar {
-                        width: 200px;
-                        padding: 20px 10px;
-                    }
-                }
+                /* REMOVED: Desktop expansion rule to keep it icon-only */
+
                 .settings-tab-btn {
                     display: flex;
                     flex-direction: column;
@@ -523,28 +523,36 @@ function SettingsPage() {
                     border-radius: 8px;
                     margin-bottom: 5px;
                     transition: all 0.2s;
+                    position: relative; /* For tooltip */
                 }
-                @media (min-width: 600px) {
-                    .settings-tab-btn {
-                        flex-direction: row;
-                        justify-content: flex-start;
-                        padding: 10px 15px;
-                        gap: 12px;
-                    }
-                }
+
                 .settings-tab-btn.active {
                     background: var(--accent-primary);
                     color: #fff;
                 }
                 .tab-icon { font-size: 1.5rem; }
+
                 .tab-label {
-                    font-size: 0.7rem;
-                    margin-top: 4px;
-                    text-align: center;
-                    display: block;
+                    /* Visually hide label but keep accessible if needed, or just hide entirely */
+                    display: none;
                 }
-                @media (min-width: 600px) {
-                    .tab-label { font-size: 0.9rem; margin-top: 0; text-align: left; }
+
+                /* Tooltip on Hover */
+                .settings-tab-btn:hover::after {
+                    content: attr(data-tooltip);
+                    position: absolute;
+                    left: 100%;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    white-space: nowrap;
+                    z-index: 10;
+                    margin-left: 10px;
+                    pointer-events: none;
                 }
 
                 .settings-content {
