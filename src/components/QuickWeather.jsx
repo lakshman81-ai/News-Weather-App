@@ -82,7 +82,8 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
 
     // --- LOGIC: Rain Display ---
     const rainStatus = getRainStatus(displayData.rainProb?.value, displayData.rainMm);
-    const isRaining = rainStatus && (rainStatus.intensity === 'moderate' || rainStatus.intensity === 'heavy');
+    const isRaining = rainStatus && rainStatus.showCard &&
+        (rainStatus.intensity === 'moderate' || rainStatus.intensity === 'moderate-high' || rainStatus.intensity === 'heavy');
 
     // --- LOGIC: Background Gradient ---
     const getBgClass = (pill, raining) => {
@@ -164,7 +165,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 <div className="qw-detail-item">
                     <div className="qw-detail-label">Humidity</div>
                     <div className="qw-detail-value">
-                        <span style={{fontSize:'1.2em'}}>💧</span>
+                        <span style={{fontSize:'1.2em'}}>💦</span>
                         {displayData.humidity ? `${displayData.humidity}%` : 'N/A'}
                     </div>
                 </div>
@@ -181,7 +182,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 )}
 
                 {/* Rain - Conditional Display */}
-                {rainStatus && (
+                {rainStatus && rainStatus.showCard && (
                     <div className="qw-detail-item">
                         <div className="qw-detail-label">Rainfall</div>
                         <div className="qw-detail-value" style={getRainStyle(rainStatus.intensity)}>
@@ -195,7 +196,11 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
 
             {/* Summary Text */}
             <div className="qw-summary-text">
-                {summaryPrefix} {displayData.temp}°C. {data.summary}
+                {summaryPrefix} {displayData.temp}°C.
+                {rainStatus && !rainStatus.showCard && rainStatus.summaryHint && (
+                    <span style={getRainStyle('hint')}> {rainStatus.summaryHint}</span>
+                )}
+                {' '}{data.summary}
             </div>
         </section>
     );
