@@ -2711,3 +2711,35 @@ html {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   border: 1px solid var(--border-default);
 }
+
+/* ========================================
+   RANKING BADGES
+   ======================================== */
+.news-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.news-badge--breaking {
+    background: #ef4444;
+    color: #fff;
+    animation: pulse 1.5s infinite;
+}
+.news-badge--time-sensitive {
+    background: #f59e0b;
+    color: #000;
+}
+.news-badge--local {
+    background: #10b981;
+    color: #fff;
+}
+.news-badge--trending {
+    background: #3b82f6;
+    color: #fff;
+}

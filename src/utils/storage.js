@@ -172,7 +172,7 @@ export const DEFAULT_SETTINGS = {
     // SCORING & PERSONALIZATION (NEW)
     // ========================================
     enableNewScoring: true,      // Master switch for new 9-factor scoring
-    enableProximityScoring: false, // Boost local news (default OFF)
+    enableProximityScoring: true,  // Boost local news (default ON)
 
     // Diversity Settings (Phase 6)
     maxTopicPercent: 40,         // Max % of front page for one topic
