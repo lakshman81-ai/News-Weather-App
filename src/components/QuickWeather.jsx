@@ -2,6 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
 import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 
+// --- ICONS (SVG) ---
+// Using SVGs for consistency across PC/Mobile instead of emojis
+const HumidityIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{color:'#60a5fa', width:'1.2em', height:'1.2em'}}>
+        <path d="M12 2.5c-3 3.5-7 8.5-7 12.5 0 4 3 7 7 7s7-3 7-7c0-4-4-9-7-12.5z" />
+    </svg>
+);
+
+const WindIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#cbd5e1', width:'1.2em', height:'1.2em'}}>
+        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
+    </svg>
+);
+
+const UVIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#fbbf24', width:'1.2em', height:'1.2em'}}>
+        <circle cx="12" cy="12" r="5" />
+        <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+);
+
 /**
  * Quick Weather Widget (Redesigned)
  * Apple/Google-style card with dynamic gradients and rich data visualization.
@@ -155,7 +176,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 <div className="qw-detail-item">
                     <div className="qw-detail-label">Wind</div>
                     <div className="qw-detail-value">
-                        <span style={{fontSize:'1.2em'}}>💨</span>
+                        <WindIcon />
                         {displayData.windSpeed ? `${displayData.windSpeed} km/h` : 'N/A'}
                     </div>
                 </div>
@@ -164,7 +185,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 <div className="qw-detail-item">
                     <div className="qw-detail-label">Humidity</div>
                     <div className="qw-detail-value">
-                        <span style={{fontSize:'1.2em'}}>💧</span>
+                        <HumidityIcon />
                         {displayData.humidity ? `${displayData.humidity}%` : 'N/A'}
                     </div>
                 </div>
@@ -174,7 +195,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                     <div className="qw-detail-item">
                         <div className="qw-detail-label">UV Index</div>
                         <div className="qw-detail-value">
-                            <span style={{fontSize:'1.2em'}}>☀️</span>
+                            <UVIcon />
                             {displayData.uvIndex}
                         </div>
                     </div>
