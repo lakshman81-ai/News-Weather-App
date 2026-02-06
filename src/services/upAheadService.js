@@ -3,37 +3,73 @@ import { proxyManager } from './proxyManager.js';
 // Configuration for search queries based on categories
 const CATEGORY_QUERIES = {
     movies: [
-        'movie tickets booking',
-        'showtimes near me',
-        'movie releases this friday',
-        'cinema listings',
-        'upcoming movies'
+        'Tamil movie release this week',
+        'new movie release OTT',
+        'BookMyShow Chennai movies',
+        'upcoming movies Kollywood',
+        'movie tickets showtimes'
     ],
     events: [
-        'live concert tickets',
-        'standup comedy show',
-        'music festival line up',
-        'upcoming workshops',
-        'events happening this weekend',
-        'things to do'
+        // General Events
+        'Chennai events this week',
+        'LiveChennai events',
+        'concert tickets Chennai',
+        'standup comedy show Chennai',
+        'exhibition workshops Chennai',
+        'things to do Chennai weekend',
+        'Muscat events this week',
+        'Muscat concerts exhibitions',
+        // Entertainment (Merged)
+        'theatre shows Chennai this week',
+        'art exhibition Chennai',
+        'food festival Chennai',
+        'cultural event Chennai',
+        'music sabha Chennai',
+        'Muscat Royal Opera House events'
     ],
     festivals: [
-        'upcoming festivals india',
-        'bank holidays upcoming',
-        'public holidays list',
-        'religious festivals this month'
+        'upcoming festivals Tamil Nadu 2026',
+        'bank holidays India upcoming',
+        'public holidays Tamil Nadu',
+        'religious festivals this month India',
+        'Oman festivals holidays'
     ],
     alerts: [
-        'traffic advisory',
-        'heavy rain alert',
-        'power shutdown scheduled',
-        'metro rail maintenance',
-        'road closure update'
+        'TANGEDCO power cut Chennai tomorrow',
+        'TNEB power shutdown schedule',
+        'Chennai traffic advisory today',
+        'Chennai metro maintenance',
+        'water supply disruption Chennai',
+        'road closure Chennai'
+    ],
+    weather_alerts: [
+        'IMD Chennai weather warning',
+        'Tamil Nadu heavy rain alert',
+        'cyclone warning Chennai',
+        'heat wave advisory Tamil Nadu',
+        'Oman weather warning Muscat'
     ],
     sports: [
-        'cricket match schedule upcoming',
-        'football match upcoming',
-        'sports events this week'
+        'IPL 2026 schedule matches',
+        'cricket match Chennai CSK',
+        'ISL football match schedule',
+        'Pro Kabaddi schedule',
+        'sports events Chennai this week'
+    ],
+    shopping: [
+        'Chennai sale offers discount today',
+        'exhibition sale Chennai',
+        'Pongal sale Tamil Nadu',
+        'Diwali offers Chennai',
+        'end of season sale Chennai mall',
+        'Muscat shopping festival offers'
+    ],
+    civic: [
+        'VIP visit Chennai road closure',
+        'minister visit Tamil Nadu traffic',
+        'protest bandh Chennai tomorrow',
+        'Chennai corporation announcement',
+        'Muscat road closure traffic'
     ]
 };
 
@@ -47,7 +83,10 @@ const STATIC_FEEDS = {
         "https://www.espn.com/espn/rss/news"
     ],
     festivals: [
-        "https://www.timeanddate.com/holidays/india/feed" // Note: Might need proxy
+        "https://www.timeanddate.com/holidays/india/feed"
+    ],
+    events: [
+        "https://www.thehindu.com/news/cities/chennai/feeder/default.rss"
     ]
 };
 
@@ -196,11 +235,18 @@ export function normalizeUpAheadItem(item, config) {
  */
 export function detectCategory(text) {
     const t = text.toLowerCase();
-    if (t.includes('movie') || t.includes('release') || t.includes('trailer') || t.includes('film') || t.includes('cinema') || t.includes('ott')) return 'movies';
-    if (t.includes('cricket') || t.includes('match') || t.includes('football') || t.includes('tournament') || t.includes('vs')) return 'sports';
-    if (t.includes('festival') || t.includes('holiday') || t.includes('jayanti') || t.includes('puja')) return 'festivals';
-    if (t.includes('alert') || t.includes('warning') || t.includes('heavy rain') || t.includes('traffic') || t.includes('shut')) return 'alerts';
-    if (t.includes('concert') || t.includes('exhibition') || t.includes('show') || t.includes('workshop')) return 'events';
+    // Order matters — more specific checks first
+    if (t.includes('power cut') || t.includes('power shutdown') || t.includes('tangedco') || t.includes('tneb')) return 'alerts';
+    if (t.includes('traffic advisory') || t.includes('road closure') || t.includes('water supply')) return 'alerts';
+    if (t.includes('cyclone') || t.includes('heavy rain') || t.includes('weather warning') || t.includes('heat wave') || t.includes('imd')) return 'weather_alerts';
+    if (t.includes('movie') || t.includes('release') || t.includes('trailer') || t.includes('film') || t.includes('cinema') || t.includes('ott') || t.includes('booking')) return 'movies';
+    if (t.includes('cricket') || t.includes('ipl') || t.includes('match') || t.includes('football') || t.includes('kabaddi') || t.includes('tournament')) return 'sports';
+    if (t.includes('festival') || t.includes('holiday') || t.includes('jayanti') || t.includes('puja') || t.includes('pongal') || t.includes('diwali') || t.includes('ramadan') || t.includes('eid')) return 'festivals';
+    if (t.includes('sale') || t.includes('offer') || t.includes('discount') || t.includes('shopping') || t.includes('deal') || t.includes('expo')) return 'shopping';
+    if (t.includes('minister') || t.includes('vip visit') || t.includes('rally') || t.includes('protest') || t.includes('bandh') || t.includes('corporation')) return 'civic';
+    // Entertainment merged into events logic
+    if (t.includes('concert') || t.includes('exhibition') || t.includes('show') || t.includes('workshop') || t.includes('theatre') || t.includes('opera') || t.includes('sabha') || t.includes('comedy')) return 'events';
+    if (t.includes('alert') || t.includes('warning') || t.includes('shut')) return 'alerts';
     return 'general';
 }
 
@@ -299,7 +345,10 @@ export function processUpAheadData(rawItems, settings) {
         festivals: [],
         alerts: [],
         events: [],
-        sports: []
+        sports: [],
+        shopping: [],
+        civic: [],
+        weather_alerts: []
     };
 
     const seenIds = new Set();
@@ -354,13 +403,11 @@ export function processUpAheadData(rawItems, settings) {
 
         // Populate Sections
         if (item.category && sections[item.category]) {
-            // STRICT FILTER: For planner sections (Movies, Festivals, Events, Sports),
-            // we REQUIRE a valid extracted date.
-            // Alerts are exempt as they often imply "Immediate/Now" without explicit dates.
-            const isPlannerCategory = ['movies', 'festivals', 'events', 'sports'].includes(item.category);
+            // STRICT FILTER: For planner sections, we REQUIRE a valid extracted date.
+            // Alerts/Weather Alerts are exempt as they often imply "Immediate/Now".
+            const isPlannerCategory = ['movies', 'festivals', 'events', 'sports', 'shopping', 'civic'].includes(item.category);
 
             if (isPlannerCategory && !item.extractedDate) {
-                // Skip generic news items that don't have a specific date (e.g. opinion pieces, rumors)
                 return;
             }
 
@@ -368,11 +415,11 @@ export function processUpAheadData(rawItems, settings) {
             const displayItem = {
                 title: item.title,
                 link: item.link,
-                releaseDate: item.extractedDate ? item.extractedDate.toDateString() : null, // For movies
-                date: item.extractedDate ? item.extractedDate.toDateString() : null, // For festivals
-                text: item.title, // For alerts
-                severity: 'medium', // Default
-                language: 'Unknown' // Placeholder
+                releaseDate: item.extractedDate ? item.extractedDate.toDateString() : null,
+                date: item.extractedDate ? item.extractedDate.toDateString() : null,
+                text: item.title,
+                severity: 'medium',
+                language: 'Unknown'
             };
             sections[item.category].push(displayItem);
         }
@@ -380,8 +427,8 @@ export function processUpAheadData(rawItems, settings) {
         // Populate Timeline
         let targetDate = item.extractedDate;
 
-        // If no date, but it's an alert or very recent news, put in Today
-        if (!targetDate && item.category === 'alerts') {
+        // If no date, but it's an alert/weather_alert or very recent news, put in Today
+        if (!targetDate && (item.category === 'alerts' || item.category === 'weather_alerts')) {
              // Only if very fresh (< 24h)
              if (item.pubDate && (Date.now() - item.pubDate.getTime() < 24 * 60 * 60 * 1000)) {
                  targetDate = today;
@@ -455,47 +502,53 @@ function getItemType(category) {
         events: 'event',
         festivals: 'festival',
         alerts: 'alert',
-        sports: 'sport'
+        sports: 'sport',
+        shopping: 'shopping',
+        civic: 'civic',
+        weather_alerts: 'weather_alert'
     };
     return map[category] || 'event';
 }
 
 function generateWeeklyPlan(timeline) {
-    // Generate plan for the next 7 days from today
     const plan = {};
     const today = new Date();
 
-    // Create list of next 7 days
-    const next7Days = [];
     for (let i = 0; i < 7; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
-        next7Days.push(d);
-    }
+        const dateStr = d.toISOString().split('T')[0];
+        const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
 
-    next7Days.forEach(dateObj => {
-        const dateStr = dateObj.toISOString().split('T')[0];
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-
-        // Find events for this date
         const timelineDay = timeline.find(t => t.date === dateStr);
 
         if (timelineDay && timelineDay.items.length > 0) {
-            // Use the first event title, strip "Attend " if present (though we removed it)
-            // Just use title directly
-            plan[dayName] = timelineDay.items[0].title;
+            plan[dayName] = timelineDay.items.map(item => ({
+                title: item.title,
+                type: item.type,
+                icon: getCategoryIcon(item.type),
+                link: item.link
+            }));
         } else {
-            // Rotating placeholder text for variety
-            const placeholders = [
-                "Relax and recharge.",
-                "Nothing scheduled yet.",
-                "Free day.",
-                "Good time for a hobby.",
-                "Catch up on reading."
-            ];
-            plan[dayName] = placeholders[dateObj.getDay() % placeholders.length];
+            plan[dayName] = []; // Return empty array
         }
-    });
+    }
 
     return plan;
+}
+
+function getCategoryIcon(type) {
+    const icons = {
+        movie: '🎬',
+        event: '🎭',
+        festival: '🎊',
+        alert: '⚠️',
+        sport: '⚽',
+        shopping: '🛒',
+        civic: '🏛️',
+        entertainment: '🎶',
+        weather_alert: '🌪️',
+        general: '📅'
+    };
+    return icons[type] || '📅';
 }

@@ -100,9 +100,12 @@ function UpAheadPage() {
         );
     }
 
-    // Phase 2: Alerts Banner
-    const alerts = data.sections?.alerts || [];
-    const highPriorityAlert = alerts.length > 0 ? alerts[0] : null;
+    // Phase 2: Alerts Banner (Priority: Weather > Alerts)
+    const weatherAlerts = data.sections?.weather_alerts || [];
+    const generalAlerts = data.sections?.alerts || [];
+    const highPriorityAlert = weatherAlerts[0] || generalAlerts[0] || null;
+    const alertIcon = weatherAlerts.length > 0 ? '🌪️' : '⚠️';
+    const alertTitle = weatherAlerts.length > 0 ? 'Weather Warning' : 'Worth Knowing';
 
     return (
         <div className="page-container up-ahead-page">
@@ -121,10 +124,10 @@ function UpAheadPage() {
 
             {/* Alert Banner */}
             {highPriorityAlert && (
-                <div className="ua-alert-banner">
-                    <span className="ua-alert-icon">⚠️</span>
+                <div className={`ua-alert-banner ${weatherAlerts.length > 0 ? 'weather-alert' : ''}`}>
+                    <span className="ua-alert-icon">{alertIcon}</span>
                     <div className="ua-alert-content">
-                        <h4>Worth Knowing</h4>
+                        <h4>{alertTitle}</h4>
                         <p>{highPriorityAlert.text}</p>
                     </div>
                 </div>
@@ -240,14 +243,22 @@ function UpAheadPage() {
             ) : (
                 /* Plan My Week View */
                 <div className="ua-weekly-plan">
-                     {Object.entries(data.weekly_plan || {}).map(([day, plan]) => (
-                         <div key={day} className="ua-plan-item">
-                             <div className="ua-plan-day">
-                                 <span className="ua-plan-day-name" style={{ textTransform: 'capitalize' }}>{day}</span>
-                                 <div className="ua-plan-day-circle"></div>
+                     {Object.entries(data.weekly_plan || {}).map(([day, items]) => (
+                         <div key={day} className="ua-plan-day-row">
+                             <div className="ua-plan-day-label">
+                                 <span className="ua-day-name">{day}</span>
                              </div>
-                             <div className="ua-plan-content">
-                                 <p className="ua-plan-text">{plan}</p>
+                             <div className="ua-plan-day-content">
+                                 {Array.isArray(items) && items.length > 0 ? (
+                                     items.map((item, idx) => (
+                                         <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className="ua-plan-event-item">
+                                             <span className="ua-event-icon">{item.icon}</span>
+                                             <span className="ua-event-title">{item.title}</span>
+                                         </a>
+                                     ))
+                                 ) : (
+                                     <span className="ua-plan-empty">-</span>
+                                 )}
                              </div>
                          </div>
                      ))}

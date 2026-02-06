@@ -161,6 +161,9 @@
 .type-sport { background: rgba(63, 185, 80, 0.2); color: #3FB950; } /* Green */
 .type-festival { background: rgba(168, 85, 247, 0.2); color: #A855F7; } /* Purple */
 .type-alert { background: rgba(255, 71, 87, 0.2); color: #FF4757; } /* Red */
+.type-shopping { background: rgba(255, 105, 180, 0.2); color: #FF69B4; } /* HotPink */
+.type-civic { background: rgba(112, 128, 144, 0.2); color: #708090; } /* SlateGray */
+.type-weather_alert { background: rgba(220, 38, 38, 0.2); color: #DC2626; } /* Dark Red */
 
 .ua-card-title {
   font-size: 1.1rem;
@@ -234,46 +237,64 @@
   padding: 16px;
 }
 
-.ua-plan-item {
+.ua-plan-day-row {
   display: flex;
-  gap: 16px;
   margin-bottom: 24px;
+  gap: 16px;
 }
 
-.ua-plan-day {
-  min-width: 50px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.ua-plan-day-label {
+  min-width: 60px;
+  text-align: right;
+  padding-top: 8px;
 }
 
-.ua-plan-day-name {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.ua-plan-day-circle {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-default);
-  margin-top: 4px;
-}
-
-.ua-plan-content {
-  background: var(--bg-card);
-  padding: 12px 16px;
-  border-radius: 0 16px 16px 16px;
-  border: 1px solid var(--border-default);
-  flex: 1;
-}
-
-.ua-plan-text {
-  font-size: 0.95rem;
+.ua-day-name {
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.5;
+  display: block;
+}
+
+.ua-plan-day-content {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 4px 12px;
+}
+
+.ua-plan-event-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border-default);
+}
+
+.ua-plan-event-item:last-child {
+  border-bottom: none;
+}
+
+.ua-event-icon {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.ua-event-title {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ua-plan-empty {
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  font-weight: 300;
+  display: block;
+  text-align: center;
+  padding: 8px;
 }
 
 /* Worth Knowing Section */

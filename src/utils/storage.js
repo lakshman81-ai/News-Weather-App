@@ -136,16 +136,22 @@ export const DEFAULT_SETTINGS = {
     upAhead: {
         categories: {
             movies: true,
-            events: true,
+            events: true, // Includes entertainment (theatre, arts)
             festivals: true,
             alerts: true,
-            sports: true
+            sports: true,
+            shopping: true,      // NEW
+            civic: true,         // NEW
+            weather_alerts: true // NEW
         },
         locations: ["Chennai", "Muscat"],
         customLocation: "",
         keywords: {
             movies: ["tickets", "showtimes", "releases", "trailer", "review"],
-            events: ["concert", "standup", "live", "workshop", "exhibition"],
+            events: ["concert", "standup", "live", "workshop", "exhibition", "theatre", "art", "show"],
+            shopping: ["sale", "offer", "discount", "expo"],
+            civic: ["road", "traffic", "power", "visit"],
+            weather_alerts: ["rain", "cyclone", "heat", "storm"],
             negative: ["review", "interview", "shares", "gossip", "opinion", "reaction"]
         }
     },
