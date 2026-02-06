@@ -36,6 +36,9 @@ export const DEFAULT_SETTINGS = {
         geo: {
             cityMatch: 1.5,
             maxScore: 5.0
+        },
+        context: {
+            interleaveRatio: 3 // Insert local story every 3rd position in top results
         }
     },
 
@@ -46,8 +49,16 @@ export const DEFAULT_SETTINGS = {
         models: {
             ecmwf: true,   // European Centre (most accurate)
             gfs: true,     // NOAA GFS (good precipitation)
-            icon: true     // DWD ICON (excellent coverage)
+            icon: true,    // DWD ICON (excellent coverage)
+            best_match: true // Open-Meteo best pick (new)
         },
+        weights: {
+            ecmwf: 0.40,
+            gfs: 0.20,
+            icon: 0.15,
+            best_match: 0.25
+        },
+        freshnessLimit: 4, // hours
         cities: ['chennai', 'trichy', 'muscat'],
         showHumidity: true,
         showWind: false,
@@ -172,7 +183,7 @@ export const DEFAULT_SETTINGS = {
     // SCORING & PERSONALIZATION (NEW)
     // ========================================
     enableNewScoring: true,      // Master switch for new 9-factor scoring
-    enableProximityScoring: false, // Boost local news (default OFF)
+    enableProximityScoring: true, // Boost local news (default ON)
 
     // Diversity Settings (Phase 6)
     maxTopicPercent: 40,         // Max % of front page for one topic

@@ -1,0 +1,12 @@
+
+> news-weather-app@1.0.0 dev
+> vite
+
+
+  VITE v7.3.1  ready in 398 ms
+
+  ➜  Local:   http://localhost:5173/News-Weather-App/
+  ➜  Network: use --host to expose
+1:27:45 AM [vite] (client) hmr update /src/components/MarketTicker.jsx
+1:29:02 AM [vite] (client) hmr update /src/components/MarketTicker.jsx
+1:30:37 AM [vite] (client) hmr update /src/components/MarketTicker.jsx
