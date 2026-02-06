@@ -223,6 +223,8 @@ function generateCriticsOneLiner(title, description) {
 }
 
 export function computeImpactScore(item, section) {
+    const settings = getSettings();
+
     // 1. Freshness Decay (Linear)
     // 24 hours = 0 score. 0 hours = 1 score.
     const ageInHours = (Date.now() - item.publishedAt) / (1000 * 60 * 60);
@@ -245,6 +247,31 @@ export function computeImpactScore(item, section) {
     if (item.sentiment) {
         if (item.sentiment.label === 'positive') sentimentBoost = 0.5;
         else if (item.sentiment.label === 'negative') sentimentBoost = 0.3;
+    }
+
+    // --- TEMPORAL BOOSTS (Moved Up) ---
+    let temporalMultiplier = 1.0;
+    const now = new Date();
+    const day = now.getDay();
+    const isWeekend = (day === 0 || day === 6 || day === 5); // Fri, Sat, Sun
+
+    // 1. Entertainment Boost (Always active for target sections)
+    if (['entertainment', 'social', 'movies'].includes(section) || item.section === 'entertainment') {
+        const entBoost = settings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
+        temporalMultiplier *= entBoost;
+    }
+
+    // 2. Weekend Boost (Active on Fri-Sun for leisure/local content)
+    if (isWeekend) {
+        if (['entertainment', 'social', 'local', 'chennai', 'trichy', 'events'].includes(section)) {
+            const wkndBoost = settings.rankingWeights?.temporal?.weekendBoost || 2.0;
+            temporalMultiplier *= wkndBoost;
+        }
+    }
+
+    // Apply legacy timestamp boost
+    if (settings.rankingMode === 'legacy') {
+        item._effectiveTimestamp = item.publishedAt * (1 + (temporalMultiplier - 1) * 0.1);
     }
 
     // Breaking News Detection (Phase 5)
@@ -325,6 +352,24 @@ export function computeImpactScore(item, section) {
 
     const total = baseScore * multipliers * temporalMultiplier * sectionPriority * breakingBoost;
     item._scoringDetails.finalScore = total;
+
+    item._scoringDetails = {
+        ageHours: ageInHours,
+        freshness: freshness,
+        sourceScore: sourceComponent,
+        keywordBoost: keywordBoost,
+        breaking: breakingBoost,
+        baseScore: baseScore,
+        // New scoring factors:
+        impact: impactMultiplier || 1,
+        proximity: proximityMultiplier || 1,
+        novelty: noveltyMultiplier || 1,
+        currency: currencyMultiplier || 1,
+        humanInterest: humanInterestMultiplier || 1,
+        visual: visualMultiplier || 1,
+        temporal: temporalMultiplier || 1,
+        finalScore: total
+    };
 
     return total;
 }
