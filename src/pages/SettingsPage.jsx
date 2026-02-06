@@ -480,6 +480,9 @@ function SettingsPage() {
                         <button className="btn btn--danger btn--full" onClick={handleReset} style={{fontSize:'0.85rem'}}>
                             Reset
                         </button>
+                        <div style={{textAlign:'center', fontSize:'0.6rem', color:'var(--text-muted)', marginTop:'10px'}}>
+                            v1.1 (Sidebar Fix)
+                        </div>
                     </div>
                 </div>
 
