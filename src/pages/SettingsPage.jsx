@@ -278,6 +278,37 @@ function SettingsPage() {
                             <SettingItem label="ICON (DWD)" subLabel="Excellent Coverage">
                                 <Toggle checked={settings.weather?.models?.icon !== false} onChange={(val) => updateNested('weather.models.icon', val)} />
                             </SettingItem>
+                            <SettingItem label="Best Match (Auto)" subLabel="Open-Meteo's best pick per location">
+                                <Toggle checked={settings.weather?.models?.best_match !== false} onChange={(val) => updateNested('weather.models.best_match', val)} />
+                            </SettingItem>
+                        </SettingCard>
+
+                        <SectionTitle icon="⚖️" title="Model Weights" />
+                        <SettingCard>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                                Adjust how much each model influences the final forecast.
+                                Higher weight = more influence. Weights are auto-normalized.
+                            </div>
+                            {['ecmwf', 'gfs', 'icon', 'best_match'].map(model => {
+                                const defaults = { ecmwf: 0.40, gfs: 0.20, icon: 0.15, best_match: 0.25 };
+                                const weight = settings.weather?.weights?.[model] ?? defaults[model];
+                                const label = model === 'ecmwf' ? 'ECMWF (European)'
+                                    : model === 'gfs' ? 'GFS (NOAA)'
+                                    : model === 'icon' ? 'ICON (DWD)'
+                                        : 'Best Match (Auto)';
+                                return (
+                                    <SettingItem key={model} label={`${label}: ${(weight * 100).toFixed(0)}%`}>
+                                        <input
+                                            type="range"
+                                            min="0" max="1" step="0.05"
+                                            value={weight}
+                                            onChange={(e) => updateNested(`weather.weights.${model}`, parseFloat(e.target.value))}
+                                            style={{ width: '100%' }}
+                                            disabled={settings.weather?.models?.[model] === false}
+                                        />
+                                    </SettingItem>
+                                );
+                            })}
                         </SettingCard>
                     </div>
                 );
