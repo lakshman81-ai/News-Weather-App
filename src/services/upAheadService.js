@@ -3,17 +3,42 @@ import { proxyManager } from './proxyManager.js';
 // ============================================================
 // SMART KEYWORD FILTERS FOR PLANNING
 // The "Up Ahead" planner needs FORWARD-LOOKING, ACTIONABLE items.
-// We filter in two layers:
+// We filter in three layers:
 //   1. Global negative: Drop backward-looking noise (reviews, opinions, crime)
 //   2. Forward-looking signals: Boost/require temporal action words
 //   3. Category-specific positive: Fine-grained relevance per section
 // ============================================================
+
+// Word-boundary matching to prevent substring collisions
+// e.g. "review" must NOT match "preview", "dating" must NOT match "updating"
+const _wbCache = new Map();
+function matchesWord(text, word) {
+    let re = _wbCache.get(word);
+    if (!re) {
+        // Escape regex special chars, then wrap in word boundaries
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        re = new RegExp(`\\b${escaped}\\b`, 'i');
+        _wbCache.set(word, re);
+    }
+    return re.test(text);
+}
+
+// For multi-word phrases, use includes() (no boundary issues)
+// For short/ambiguous single words, use matchesWord()
+function matchesKeyword(text, keyword) {
+    if (keyword.includes(' ')) {
+        return text.includes(keyword);
+    }
+    return matchesWord(text, keyword);
+}
 
 // --- LAYER 1: Global Negative Keywords ---
 // These words almost NEVER appear in actionable, plannable content.
 // Grouped by noise type for maintainability.
 const NEGATIVE_KEYWORDS = {
     // Backward-looking commentary — articles ABOUT things, not things TO DO
+    // NOTE: "review" uses word-boundary matching via matchesKeyword() so
+    // "preview" is NOT caught. Same for other short words.
     commentary: [
         "review", "reviewed", "reviews",
         "opinion", "editorial", "column", "op-ed",
@@ -54,6 +79,30 @@ const NEGATIVE_KEYWORDS = {
         "came to an end", "successfully completed",
         "inaugurated by", "flagged off",
         "took place", "was celebrated"
+    ],
+    // Obituaries & tragedy — not plannable
+    obituary: [
+        "passes away", "passed away", "demise", "rip",
+        "condolences", "last rites", "funeral",
+        "pays tribute", "mourns", "obituary"
+    ],
+    // Listicles & editorial roundups — not events
+    listicle: [
+        "top 10", "top 5", "best of", "worst of",
+        "reasons why", "things you", "ranked",
+        "all you need to know", "everything we know"
+    ],
+    // Box office / collection reports — backward-looking movie stats
+    collection_reports: [
+        "box office collection", "day 1 collection",
+        "total collection", "worldwide gross",
+        "opening weekend", "first week collection",
+        "crosses crore", "nett collection"
+    ],
+    // Clickbait & sensationalism
+    clickbait: [
+        "shocking", "you won't believe", "jaw dropping",
+        "gone viral", "breaks the internet", "exclusive"
     ]
 };
 
@@ -97,8 +146,8 @@ const CATEGORY_POSITIVE_KEYWORDS = {
     movies: [
         // Release signals
         "release date", "releasing", "in theatres", "in theaters",
-        "box office", "first day", "advance booking", "fdfs",
-        "premiere", "sneak peek", "special screening",
+        "first day", "advance booking", "fdfs",
+        "premiere", "preview", "sneak peek", "special screening",
         // OTT signals
         "ott release", "streaming from", "now streaming",
         "available on", "direct to ott", "digital premiere",
@@ -107,15 +156,16 @@ const CATEGORY_POSITIVE_KEYWORDS = {
         "ticketnew", "paytm movies",
         // Trailer as a plannable event
         "trailer launch", "teaser release", "motion poster"
+        // NOTE: "box office" removed — too ambiguous (matches collection reports)
     ],
     events: [
         // Performance types
         "concert", "live music", "standup", "comedy show",
-        "theatre", "theater", "drama", "play",
+        "theatre", "theater", "drama", "stage play",
         "dance recital", "sabha", "kutcheri", "kutchery",
         // Exhibitions & fairs
-        "exhibition", "expo", "fair", "flea market",
-        "art gallery", "book fair", "trade show",
+        "exhibition", "expo", "book fair", "trade fair",
+        "flea market", "art gallery", "trade show",
         // Workshops & learning
         "workshop", "masterclass", "bootcamp", "seminar",
         "webinar", "hackathon", "meetup",
@@ -125,10 +175,12 @@ const CATEGORY_POSITIVE_KEYWORDS = {
         // Ticketed experiences
         "entry fee", "passes available", "gate open",
         "limited slots", "registration"
+        // NOTE: "play" removed (matches "player", "playing", "display")
+        // NOTE: "fair" removed (matches "affair", "unfair"); use "book fair", "trade fair" etc.
     ],
     sports: [
-        // Match signals
-        "vs", "match", "fixture", "squad announced",
+        // Match signals — " vs " with spaces to avoid substring collisions
+        " vs ", " v/s ", "match", "fixture", "squad announced",
         "playing xi", "toss", "innings",
         // Tournament signals
         "schedule", "points table", "qualifier",
@@ -136,6 +188,7 @@ const CATEGORY_POSITIVE_KEYWORDS = {
         // Venue/broadcast
         "stadium", "live on", "broadcast", "streaming",
         "start time", "kick off", "first ball"
+        // NOTE: bare "vs" removed (2 chars, matches substrings)
     ],
     festivals: [
         // Calendar markers
@@ -556,6 +609,17 @@ export function processUpAheadData(rawItems, settings) {
     const maxAgeHours = settings?.hideOlderThanHours || 60;
     const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
+    // Pre-compute merged keyword lists ONCE (not per-item)
+    const userKeywords = settings?.upAhead?.keywords || {};
+    const mergedNegatives = [...ALL_NEGATIVE_KEYWORDS, ...(userKeywords.negative || [])];
+    const mergedPositives = {};
+    for (const cat of Object.keys(sections)) {
+        const builtIn = CATEGORY_POSITIVE_KEYWORDS[cat] || [];
+        const userAdded = userKeywords[cat] || [];
+        mergedPositives[cat] = [...builtIn, ...userAdded];
+    }
+    const userLocations = (settings?.upAhead?.locations || ['Chennai', 'Muscat', 'Trichy']).map(l => l.toLowerCase());
+
     rawItems.forEach(item => {
         if (seenIds.has(item.id)) return;
         seenIds.add(item.id);
@@ -571,13 +635,11 @@ export function processUpAheadData(rawItems, settings) {
         const fullText = (item.title + " " + item.description).toLowerCase();
 
         // --- SMART KEYWORD FILTERING ---
-        const userKeywords = settings?.upAhead?.keywords || {};
+        // Uses matchesKeyword() for word-boundary safety on single words.
+        // Multi-word phrases use includes() (no substring collision risk).
 
         // LAYER 1: Global Negative Filter
-        // Merge built-in negatives with any user-defined negatives
-        const userNegatives = userKeywords.negative || [];
-        const allNegatives = [...ALL_NEGATIVE_KEYWORDS, ...userNegatives];
-        if (allNegatives.some(w => fullText.includes(w.toLowerCase()))) {
+        if (mergedNegatives.some(w => matchesKeyword(fullText, w.toLowerCase()))) {
             return; // Drop backward-looking noise
         }
 
@@ -586,16 +648,12 @@ export function processUpAheadData(rawItems, settings) {
         const forwardScore = FORWARD_LOOKING_SIGNALS.reduce((score, signal) => {
             return fullText.includes(signal) ? score + 1 : score;
         }, 0);
-        item._forwardScore = forwardScore;
 
         // LAYER 3: Category-Specific Positive Filter
-        // Built-in positives + user overrides. Require at least one match.
-        const builtInPositive = CATEGORY_POSITIVE_KEYWORDS[item.category] || [];
-        const userPositive = userKeywords[item.category] || [];
-        const allPositive = [...builtInPositive, ...userPositive];
+        const allPositive = mergedPositives[item.category] || [];
 
         if (allPositive.length > 0) {
-            const hasPositiveMatch = allPositive.some(w => fullText.includes(w.toLowerCase()));
+            const hasPositiveMatch = allPositive.some(w => matchesKeyword(fullText, w.toLowerCase()));
             // For planner categories, require a positive match OR strong forward-looking signal
             const isPlannerCategory = ['movies', 'events', 'sports', 'shopping'].includes(item.category);
             if (isPlannerCategory && !hasPositiveMatch && forwardScore === 0) {
@@ -603,14 +661,16 @@ export function processUpAheadData(rawItems, settings) {
             }
         }
 
-        // LAYER 4: Strict Location for Alerts
+        // LAYER 4: Strict Location for Alerts & Civic
         if (item.category === 'alerts' || item.category === 'civic') {
-            const userLocations = settings?.upAhead?.locations || ['Chennai', 'Muscat', 'Trichy'];
-            const hasLocation = userLocations.some(loc => fullText.includes(loc.toLowerCase()));
+            const hasLocation = userLocations.some(loc => fullText.includes(loc));
             if (!hasLocation) {
                 return; // Drop alerts not mentioning user's specific locations
             }
         }
+
+        // Attach score for sorting (cleaned before API return)
+        item._forwardScore = forwardScore;
 
         // Populate Sections
         if (item.category && sections[item.category]) {
@@ -677,6 +737,8 @@ export function processUpAheadData(rawItems, settings) {
     const sortedTimeline = Array.from(timelineMap.values()).sort((a, b) => a.date.localeCompare(b.date));
     sortedTimeline.forEach(day => {
         day.items.sort((a, b) => (b._forwardScore || 0) - (a._forwardScore || 0));
+        // Clean internal scoring field from API response
+        day.items.forEach(item => delete item._forwardScore);
     });
 
     // Limit sections length
