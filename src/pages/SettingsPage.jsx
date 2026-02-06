@@ -203,6 +203,18 @@ function SettingsPage() {
                                 <Toggle checked={settings.strictFreshness} onChange={(val) => updateSettings({ ...settings, strictFreshness: val })} />
                             </SettingItem>
 
+                            <SectionTitle icon="🔬" title="Scoring Engine" />
+                            <SettingCard>
+                                <SettingItem label="9-Factor Scoring" subLabel="Uses impact, novelty, visual, human interest multipliers">
+                                    <Toggle checked={settings.enableNewScoring !== false}
+                                            onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
+                                </SettingItem>
+                                <SettingItem label="Location-Based Scoring" subLabel="Boost news from your cities (Chennai, Trichy, Muscat)">
+                                    <Toggle checked={settings.enableProximityScoring !== false}
+                                            onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
+                                </SettingItem>
+                            </SettingCard>
+
                             <div style={{ padding: '10px 0', borderTop: '1px solid var(--border-default)' }}>
                                 <SettingItem label={`Diversity: Max Topic ${settings.maxTopicPercent || 40}%`}>
                                     <input type="range" min="10" max="100" step="5" value={settings.maxTopicPercent || 40} onChange={(e) => updateSettings({ ...settings, maxTopicPercent: parseInt(e.target.value) })} style={{ width: '100%' }} />
