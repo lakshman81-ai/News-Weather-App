@@ -181,10 +181,7 @@ function cleanSource(sourceName) {
 /**
  * Generates a "Critic's One Liner" heuristic from title/description
  */
-/**
- * Generates a "Critic's One Liner" heuristic from title/description
- */
-function generateCriticsOneLiner(title, description, source) {
+function generateCriticsOneLiner(title, description) {
     const text = (title + " " + description).toLowerCase();
 
     // 1. Sector-Specific Insights
@@ -283,49 +280,78 @@ export function computeImpactScore(item, section) {
     item.breakingScore = breakingResult.breakingScore;
     const breakingBoost = breakingResult.multiplier;
 
-    // --- NEW SCORING LOGIC CHECK ---
-    if (settings.enableNewScoring === false) {
-        // ORIGINAL SCORING (Status Quo)
-        const baseScore = (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+    const settings = getSettings();
 
-        item._scoringDetails = {
-             ageHours: ageInHours,
-             freshness: freshness,
-             sourceScore: sourceComponent,
-             keywordBoost: keywordBoost,
-             breaking: breakingBoost,
-             baseScore: baseScore,
-             temporal: temporalMultiplier,
-             finalScore: baseScore
-        };
-        return baseScore;
-    }
-
-    // --- NEW SCORING LOGIC (9-Factor) ---
-    // Calculate new multipliers
+    // --- CALCULATE ALL MULTIPLIERS (Unconditionally for metadata) ---
     const impactMultiplier = calculateImpactScore(item.title, item.description);
 
-    // NEW: Force proximity ON for context-aware mode
+    // FORCE Proximity check if Context-Aware mode is on
     const forceProximity = settings.rankingMode === 'context-aware';
-    const proximityMultiplier = (forceProximity || settings.enableProximityScoring)
+    const effectiveProximityEnabled = (forceProximity || settings.enableProximityScoring !== false);
+
+    // Call proximity scorer (gating logic handled here now)
+    const proximityMultiplier = effectiveProximityEnabled
         ? calculateProximityScore(item.title, item.description)
         : 1.0;
 
     const noveltyMultiplier = calculateNoveltyScore(item.title, item.description, section);
-    // Note: passing null for keywords array as it's not currently extracted in normalizeItem
     const currencyMultiplier = calculateCurrencyScore(item.title, null);
     const humanInterestMultiplier = calculateHumanInterestScore(item.title, item.description);
     const visualMultiplier = calculateVisualScore(item.imageUrl);
 
+    // --- TEMPORAL BOOSTS (Phase 9) ---
+    let temporalMultiplier = 1.0;
+    const now = new Date();
+    const day = now.getDay();
+    const isWeekend = (day === 0 || day === 6 || day === 5); // Fri, Sat, Sun
+
+    if (['entertainment', 'social', 'movies'].includes(section) || item.section === 'entertainment') {
+        const entBoost = settings.rankingWeights?.temporal?.entertainmentBoost || 2.5;
+        temporalMultiplier *= entBoost;
+    }
+    if (isWeekend && ['entertainment', 'social', 'local', 'chennai', 'trichy', 'events'].includes(section)) {
+        const wkndBoost = settings.rankingWeights?.temporal?.weekendBoost || 2.0;
+        temporalMultiplier *= wkndBoost;
+    }
+
     // Base Score (Sum of additive components)
     const baseScore = freshness + sourceComponent + keywordBoost + sentimentBoost;
 
-    // Multipliers (Product of multiplicative components)
+    // --- ATTACH METADATA ---
+    // Used for badges and debugging
+    item._scoringDetails = {
+        ageHours: ageInHours,
+        freshness,
+        sourceScore: sourceComponent,
+        keywordBoost,
+        breaking: breakingBoost,
+        baseScore,
+        impact: impactMultiplier || 1,
+        proximity: proximityMultiplier || 1,
+        novelty: noveltyMultiplier || 1,
+        currency: currencyMultiplier || 1,
+        humanInterest: humanInterestMultiplier || 1,
+        visual: visualMultiplier || 1,
+        temporal: temporalMultiplier || 1,
+        // Will be overwritten by final calculation below
+        finalScore: 0
+    };
+
+    // --- FINAL SCORING LOGIC ---
+    if (settings.enableNewScoring === false) {
+        // ORIGINAL SCORING (Status Quo)
+        // Note: We ignore temporal/proximity here to preserve legacy behavior strictly
+        const legacyTotal = (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
+        item._scoringDetails.finalScore = legacyTotal;
+        return legacyTotal;
+    }
+
+    // NEW SCORING LOGIC (9-Factor)
     const multipliers = impactMultiplier * proximityMultiplier * noveltyMultiplier *
         currencyMultiplier * humanInterestMultiplier * visualMultiplier;
 
-    // Final Calculation with multipliers
     const total = baseScore * multipliers * temporalMultiplier * sectionPriority * breakingBoost;
+    item._scoringDetails.finalScore = total;
 
     item._scoringDetails = {
         ageHours: ageInHours,
@@ -561,7 +587,7 @@ function normalizeItem(item, feedSource, section = 'general') {
         time: new Date(publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         impactScore: 0,
         section: finalSection, // Use the classified section
-        criticsView: generateCriticsOneLiner(item.title, cleanDescription(description), source),
+        criticsView: generateCriticsOneLiner(item.title, cleanDescription(description)),
         sentiment: sentimentData ? {
             label: sentimentData.label,
             comparative: sentimentData.comparative,
@@ -626,8 +652,8 @@ async function rankAndFilter(items, section, limit, allowedSources) {
 
         // Ranking Mode
         if (settings.rankingMode === 'legacy') {
-            // Legacy: Pure chronological, newest first (with optional temporal weighting)
-            clustered.sort((a, b) => (b._effectiveTimestamp || b.publishedAt) - (a._effectiveTimestamp || a.publishedAt));
+            // Legacy: Pure chronological, newest first
+            clustered.sort((a, b) => b.publishedAt - a.publishedAt);
 
         } else if (settings.rankingMode === 'context-aware') {
             // Context-Aware: Impact score WITH location-interleaving
@@ -635,40 +661,48 @@ async function rankAndFilter(items, section, limit, allowedSources) {
             clustered.sort((a, b) => b.impactScore - a.impactScore);
 
             // Step 2: Interleave local stories into top positions
-            // Extract local stories (proximity > 1.3)
+            const interleaveRatio = settings.rankingWeights?.context?.interleaveRatio || 3;
+            const threshold = 1.3; // Proximity threshold for "Local Story"
+
+            // Extract local stories
             const localStories = clustered.filter(
-                item => item._scoringDetails?.proximity > 1.3
+                item => item._scoringDetails?.proximity > threshold
             );
             const nonLocalStories = clustered.filter(
-                item => !item._scoringDetails || item._scoringDetails.proximity <= 1.3
+                item => !item._scoringDetails || item._scoringDetails.proximity <= threshold
             );
 
-            // Interleave: place a local story at every 3rd position in top 30%
-            const topSlots = Math.ceil(clustered.length * 0.3);
-            const interleaved = [];
-            let localIdx = 0;
-            let nonLocalIdx = 0;
+            // If we have local stories, interleave them
+            if (localStories.length > 0) {
+                // Interleave: place a local story at every Nth position in top 30%
+                const topSlots = Math.ceil(clustered.length * 0.3);
+                const interleaved = [];
+                let localIdx = 0;
+                let nonLocalIdx = 0;
 
-            for (let i = 0; i < clustered.length; i++) {
-                if (i < topSlots && i % 3 === 1 && localIdx < localStories.length) {
-                    // Every 3rd slot in top 30%, place a local story
-                    interleaved.push(localStories[localIdx]);
-                    localIdx++;
-                } else if (nonLocalIdx < nonLocalStories.length) {
-                    interleaved.push(nonLocalStories[nonLocalIdx]);
-                    nonLocalIdx++;
-                } else if (localIdx < localStories.length) {
-                    interleaved.push(localStories[localIdx]);
-                    localIdx++;
+                for (let i = 0; i < clustered.length; i++) {
+                    // Check if this slot should be forced local (every Nth slot, but not 0th if we want top news first)
+                    // e.g., ratio 3 -> indices 2, 5, 8... (0-based)
+                    const isLocalSlot = (i > 0) && ((i + 1) % interleaveRatio === 0);
+
+                    if (i < topSlots && isLocalSlot && localIdx < localStories.length) {
+                        interleaved.push(localStories[localIdx++]);
+                    } else if (nonLocalIdx < nonLocalStories.length) {
+                        interleaved.push(nonLocalStories[nonLocalIdx++]);
+                    } else if (localIdx < localStories.length) {
+                        // Fallback if ran out of non-locals (unlikely)
+                        interleaved.push(localStories[localIdx++]);
+                    }
                 }
+
+                // Append remaining
+                while (nonLocalIdx < nonLocalStories.length) interleaved.push(nonLocalStories[nonLocalIdx++]);
+                while (localIdx < localStories.length) interleaved.push(localStories[localIdx++]);
+
+                // Replace clustered content
+                clustered.length = 0;
+                clustered.push(...interleaved);
             }
-
-            // Append any remaining
-            while (localIdx < localStories.length) interleaved.push(localStories[localIdx++]);
-            while (nonLocalIdx < nonLocalStories.length) interleaved.push(nonLocalStories[nonLocalIdx++]);
-
-            clustered.length = 0;
-            clustered.push(...interleaved);
 
         } else {
             // Smart: Pure impact score ranking

@@ -114,7 +114,7 @@ function NewsSection({
                                     <span className="news-badge news-badge--breaking">Breaking</span>
                                 ) : item._scoringDetails?.ageHours < 2 ? (
                                     <span className="news-badge news-badge--time-sensitive">Time Sensitive</span>
-                                ) : item._scoringDetails?.proximity > 1.5 ? (
+                                ) : item._scoringDetails?.proximity > 1.3 ? (
                                     <span className="news-badge news-badge--local">Local Top Story</span>
                                 ) : item.impactScore > 12 ? (
                                     <span className="news-badge news-badge--trending">Trending</span>

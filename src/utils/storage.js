@@ -36,6 +36,9 @@ export const DEFAULT_SETTINGS = {
         geo: {
             cityMatch: 1.5,
             maxScore: 5.0
+        },
+        context: {
+            interleaveRatio: 3 // Insert local story every 3rd position in top results
         }
     },
 
@@ -180,7 +183,7 @@ export const DEFAULT_SETTINGS = {
     // SCORING & PERSONALIZATION (NEW)
     // ========================================
     enableNewScoring: true,      // Master switch for new 9-factor scoring
-    enableProximityScoring: true,  // Boost local news (default ON)
+    enableProximityScoring: true, // Boost local news (default ON)
 
     // Diversity Settings (Phase 6)
     maxTopicPercent: 40,         // Max % of front page for one topic

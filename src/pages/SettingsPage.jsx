@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
@@ -218,6 +218,16 @@ function SettingsPage() {
                                     <Toggle checked={settings.enableProximityScoring !== false}
                                             onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
                                 </SettingItem>
+                                {settings.rankingMode === 'context-aware' && (
+                                    <SettingItem label={`Local News Frequency: Every ${settings.rankingWeights?.context?.interleaveRatio || 3} items`}>
+                                        <input
+                                            type="range" min="2" max="10" step="1"
+                                            value={settings.rankingWeights?.context?.interleaveRatio || 3}
+                                            onChange={(e) => updateNested('rankingWeights.context.interleaveRatio', parseInt(e.target.value))}
+                                            style={{ width: '100%' }}
+                                        />
+                                    </SettingItem>
+                                )}
                             </SettingCard>
 
                             <div style={{ padding: '10px 0', borderTop: '1px solid var(--border-default)' }}>
