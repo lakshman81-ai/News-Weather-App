@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { DEFAULT_SETTINGS } from '../utils/storage';
@@ -9,6 +10,7 @@ import { discoverFeeds } from '../utils/feedDiscovery';
  * Settings Page Component - Vertical Tabs Layout
  */
 function SettingsPage() {
+    const navigate = useNavigate();
     const { settings, updateSettings, reloadSettings } = useSettings();
     const [activeTab, setActiveTab] = useState('general');
     const [saved, setSaved] = useState(false);
@@ -41,8 +43,11 @@ function SettingsPage() {
 
     const handleSave = () => {
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
         reloadSettings();
+        setTimeout(() => {
+            setSaved(false);
+            navigate('/');
+        }, 600);
     };
 
     const handleReset = () => {
@@ -451,7 +456,9 @@ function SettingsPage() {
 
     return (
         <>
-            <Header title="Settings" showBack backTo="/" />
+            <div className="settings-header-container">
+                <Header title="Settings" showBack backTo="/" />
+            </div>
             <div className="settings-layout">
                 {/* SIDEBAR TABS */}
                 <div className="settings-sidebar">
@@ -622,6 +629,40 @@ function SettingsPage() {
                     margin-left: 6px;
                     cursor: pointer;
                     padding: 0;
+                }
+
+                @media (min-width: 1024px) {
+                    /* Hide the page-specific header on desktop as the Top Nav serves that purpose */
+                    .settings-header-container {
+                        display: none;
+                    }
+
+                    .settings-layout {
+                        margin-top: 60px; /* Clear the fixed desktop top-nav */
+                        height: calc(100vh - 60px);
+                    }
+
+                    .settings-sidebar {
+                        width: 240px;
+                        padding: 20px 15px;
+                    }
+
+                    .settings-tab-btn {
+                        flex-direction: row;
+                        justify-content: flex-start;
+                        padding: 12px 18px;
+                        gap: 14px;
+                    }
+
+                    .tab-label {
+                        font-size: 0.95rem;
+                        margin-top: 0;
+                        text-align: left;
+                    }
+
+                    .tab-icon {
+                        font-size: 1.3rem;
+                    }
                 }
             `}</style>
         </>
