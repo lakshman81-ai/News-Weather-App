@@ -6,10 +6,10 @@ import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
 // Using SVGs for consistency across PC/Mobile instead of emojis
 const HumidityIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{color:'#60a5fa', width:'1.2em', height:'1.2em'}}>
-        {/* Splash/Droplet style */}
-        <path d="M12 22c4.97 0 9-4.03 9-9 0-4.97-9-13-9-13S3 8.03 3 13c0 4.97 4.03 9 9 9z" opacity="0.5"/>
-        <path d="M12 22c4.97 0 9-4.03 9-9 0-4.97-9-13-9-13S3 8.03 3 13c0 4.97 4.03 9 9 9zm-1.5-6.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5z" />
-        <path d="M7 13c0-2.8 2.2-5 5-5 .6 0 1.1-.5 1.1-1s-.4-1-1-1c-3.9 0-7 3.1-7 7 0 .6.5 1.1 1 1.1s1-.5 1-1.1z" fill="white" fillOpacity="0.4"/>
+        {/* 3-Droplet Splash Style */}
+        <path d="M12,2 C12,2 7,7 7,10 C7,12.76 9.24,15 12,15 C14.76,15 17,12.76 17,10 C17,7 12,2 12,2 Z" opacity="0.9" />
+        <path d="M6,12 C6,12 4,14 4,15.5 C4,16.6 4.9,17.5 6,17.5 C7.1,17.5 8,16.6 8,15.5 C8,14 6,12 6,12 Z" opacity="0.7" />
+        <path d="M18,12 C18,12 16,14 16,15.5 C16,16.6 16.9,17.5 18,17.5 C19.1,17.5 20,16.6 20,15.5 C20,14 18,12 18,12 Z" opacity="0.7" />
     </svg>
 );
 
