@@ -156,7 +156,7 @@ const QuickWeather = ({ activePill = 'Morning', onPillChange, pills = ['Morning'
                 <div className="qw-detail-item">
                     <div className="qw-detail-label">Wind</div>
                     <div className="qw-detail-value">
-                        <span style={{fontSize:'1.2em'}}>💨</span>
+                        <span style={{fontSize:'1.2em'}}>🌬️</span>
                         {displayData.windSpeed ? `${displayData.windSpeed} km/h` : 'N/A'}
                     </div>
                 </div>
