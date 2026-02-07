@@ -53,22 +53,6 @@ const MainPage = () => {
         refreshWeather();
         refreshNews();
 
-        // 2. Map Segment to Weather Pill
-        const pillMap = {
-            'morning_weather': 'Morning',
-            'morning_news': 'Morning',
-            'market_brief': 'Morning',
-            'midday_brief': 'Midday',
-            'market_movers': 'Midday',
-            'evening_news': 'Evening',
-            'local_events': 'Evening',
-            'night_wrap': 'Evening',
-            'urgent_only': 'Evening'
-        };
-        if (pillMap[currentSegment.id]) {
-            setActivePill(pillMap[currentSegment.id]);
-        }
-
     }, [currentSegment.id, refreshNews, refreshWeather]);
 
     // Generate Topline when data is ready
@@ -144,13 +128,6 @@ const MainPage = () => {
     // Detect uiMode changes
     useEffect(() => {
         console.log('[MainPage] UI mode changed:', uiMode);
-    }, [uiMode]);
-
-    // Reset timeline state when switching to classic mode
-    useEffect(() => {
-        if (uiMode === 'classic') {
-            setActivePill('Morning');
-        }
     }, [uiMode]);
 
     // Pull-to-Refresh Logic
