@@ -459,7 +459,12 @@ export function normalizeUpAheadItem(item, config) {
     const title = stripHtml(item.title || '');
     const description = stripHtml(item.description || '');
     const fullText = `${title} ${description}`;
-    const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+
+    let pubDate = item.pubDate ? new Date(item.pubDate) : null;
+    // Ensure Invalid Date objects become null
+    if (pubDate && isNaN(pubDate.getTime())) {
+        pubDate = null;
+    }
 
     // Attempt to extract a date, using pubDate as context
     const extractedDate = extractFutureDate(fullText, pubDate);
@@ -625,11 +630,14 @@ export function processUpAheadData(rawItems, settings) {
         seenIds.add(item.id);
 
         // Strict Freshness Check
-        if (item.pubDate) {
-            const ageMs = Date.now() - item.pubDate.getTime();
-            if (ageMs > maxAgeMs) {
-                return;
-            }
+        // If pubDate is missing or invalid, we drop the item to prevent "zombie" news
+        if (!item.pubDate || isNaN(item.pubDate.getTime())) {
+            return;
+        }
+
+        const ageMs = Date.now() - item.pubDate.getTime();
+        if (ageMs > maxAgeMs) {
+            return;
         }
 
         const fullText = (item.title + " " + item.description).toLowerCase();
