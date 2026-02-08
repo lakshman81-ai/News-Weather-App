@@ -457,9 +457,17 @@ function stripHtml(html) {
 
 export function normalizeUpAheadItem(item, config) {
     const title = stripHtml(item.title || '');
-    const description = stripHtml(item.description || '');
+    // Keep HTML in description for parsing lists/tables if needed
+    // But for general fullText search, we strip it
+    const rawDescription = item.description || '';
+    const description = stripHtml(rawDescription);
     const fullText = `${title} ${description}`;
-    const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+
+    let pubDate = item.pubDate ? new Date(item.pubDate) : null;
+    // Ensure Invalid Date objects become null
+    if (pubDate && isNaN(pubDate.getTime())) {
+        pubDate = null;
+    }
 
     // Attempt to extract a date, using pubDate as context
     const extractedDate = extractFutureDate(fullText, pubDate);
@@ -470,6 +478,24 @@ export function normalizeUpAheadItem(item, config) {
         category = detectCategory(fullText);
     }
 
+    // Check for Roundup List
+    let subItems = [];
+    let isRoundup = false;
+
+    // Detect if this is likely a roundup article
+    if (/ott|releases|week/i.test(title) && /\d+ new/i.test(title)) {
+        isRoundup = true;
+    }
+
+    if (isRoundup && category === 'movies') {
+        // Try parsing description immediately
+        subItems = parseRoundupContent(rawDescription, pubDate);
+
+        // If description didn't yield items (often truncated RSS), we MIGHT need to fetch full content.
+        // But for now, client-side, we can't easily fetch full HTML without CORS issues or a heavy proxy.
+        // We will mark it as a roundup so the UI can handle it (e.g. "Click to see 33 items")
+    }
+
     return {
         id: item.guid || item.link || title,
         title: title,
@@ -478,8 +504,62 @@ export function normalizeUpAheadItem(item, config) {
         pubDate: pubDate, // Store as Date object or null
         extractedDate: extractedDate, // This is the crucial "Event Date"
         category: category,
-        rawSource: config.originalQuery || 'feed'
+        rawSource: config.originalQuery || 'feed',
+        isRoundup: isRoundup,
+        subItems: subItems // Array of { title, date, platform }
     };
+}
+
+/**
+ * Heuristic Parser for OTT Roundups
+ * Extracts items like "Movie Name (Platform) - Date" or from HTML Lists
+ */
+function parseRoundupContent(html, contextDate) {
+    const items = [];
+
+    // 1. Text-based Line Parsing (for plain descriptions)
+    // Looking for patterns like: "1. Movie Name (Netflix) - Feb 5" or "• Movie Name - Platform"
+    const lines = html.split(/<br\s*\/?>|\n|<\/li>|<\/p>|•/i);
+
+    const ottPlatforms = ['netflix', 'prime', 'prime video', 'hotstar', 'sony liv', 'zee5', 'jiocinema', 'aha', 'sunnxt', 'hulu', 'disney'];
+    // Sort by length desc to match "prime video" before "prime"
+    const platformRegex = new RegExp(`\\b(${ottPlatforms.sort((a,b) => b.length - a.length).join('|')})\\b`, 'i');
+
+    lines.forEach(line => {
+        const cleanLine = stripHtml(line).trim();
+        if (cleanLine.length < 5) return;
+
+        // Must match a platform OR contain a date
+        const hasPlatform = platformRegex.test(cleanLine);
+        const date = extractFutureDate(cleanLine, contextDate);
+
+        if (hasPlatform || date) {
+            // Cleanup title: remove numbering "1. ", " - ", dates, platforms
+            let title = cleanLine
+                .replace(/^\d+\.\s*/, '') // Remove "1. "
+                .replace(/^[-\u2013\u2014]\s*/, '') // Remove leading dash
+                .replace(/\(.*\)/g, '') // Remove (Parentheses content often platform/year)
+                .trim();
+
+            // If the title became too short, it might have been just "Netflix"
+            if (title.length < 3) return;
+
+            const platformMatch = cleanLine.match(platformRegex);
+            const platform = platformMatch ? platformMatch[0] : 'OTT';
+
+            // Title-case the platform (e.g., netflix -> Netflix)
+            const formatPlatform = p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+
+            items.push({
+                title: title,
+                date: date,
+                originalText: cleanLine,
+                platform: formatPlatform(platform)
+            });
+        }
+    });
+
+    return items;
 }
 
 /**
@@ -625,11 +705,14 @@ export function processUpAheadData(rawItems, settings) {
         seenIds.add(item.id);
 
         // Strict Freshness Check
-        if (item.pubDate) {
-            const ageMs = Date.now() - item.pubDate.getTime();
-            if (ageMs > maxAgeMs) {
-                return;
-            }
+        // If pubDate is missing or invalid, we drop the item to prevent "zombie" news
+        if (!item.pubDate || isNaN(item.pubDate.getTime())) {
+            return;
+        }
+
+        const ageMs = Date.now() - item.pubDate.getTime();
+        if (ageMs > maxAgeMs) {
+            return;
         }
 
         const fullText = (item.title + " " + item.description).toLowerCase();
@@ -639,7 +722,10 @@ export function processUpAheadData(rawItems, settings) {
         // Multi-word phrases use includes() (no substring collision risk).
 
         // LAYER 1: Global Negative Filter
-        if (mergedNegatives.some(w => matchesKeyword(fullText, w.toLowerCase()))) {
+        // Exception: Allow OTT/Movie roundups (e.g. "33 New Releases")
+        const isRoundup = /ott|releases|week|weekend/i.test(fullText) && /\d+ new/i.test(fullText);
+
+        if (!isRoundup && mergedNegatives.some(w => matchesKeyword(fullText, w.toLowerCase()))) {
             return; // Drop backward-looking noise
         }
 
@@ -676,9 +762,10 @@ export function processUpAheadData(rawItems, settings) {
         if (item.category && sections[item.category]) {
             // STRICT FILTER: For planner sections, we REQUIRE a valid extracted date.
             // Alerts/Weather Alerts are exempt as they often imply "Immediate/Now".
+            // EXCEPTION: Roundup articles (e.g. "33 new releases") are allowed even without a specific date
             const isPlannerCategory = ['movies', 'festivals', 'events', 'sports', 'shopping', 'civic'].includes(item.category);
 
-            if (isPlannerCategory && !item.extractedDate) {
+            if (isPlannerCategory && !item.extractedDate && !item.isRoundup) {
                 return;
             }
 
@@ -690,7 +777,9 @@ export function processUpAheadData(rawItems, settings) {
                 date: item.extractedDate ? item.extractedDate.toDateString() : null,
                 text: item.title,
                 severity: 'medium',
-                language: 'Unknown'
+                language: 'Unknown',
+                isRoundup: item.isRoundup,
+                subItemsCount: item.subItems ? item.subItems.length : 0
             };
             sections[item.category].push(displayItem);
         }
@@ -704,6 +793,11 @@ export function processUpAheadData(rawItems, settings) {
              if (item.pubDate && (Date.now() - item.pubDate.getTime() < 24 * 60 * 60 * 1000)) {
                  targetDate = today;
              }
+        }
+
+        // If it's a roundup without a specific date, assume "This Week" (Today)
+        if (!targetDate && item.isRoundup) {
+            targetDate = today;
         }
 
         // Only add to timeline if targetDate is >= Today
@@ -722,10 +816,12 @@ export function processUpAheadData(rawItems, settings) {
                 id: item.id,
                 type: getItemType(item.category), // "movie", "alert", etc.
                 title: item.title,
-                subtitle: item.category.toUpperCase(),
+                subtitle: item.isRoundup ? `${item.subItems?.length || 'Multiple'} ITEMS` : item.category.toUpperCase(),
                 description: item.description,
                 tags: [item.category],
                 link: item.link,
+                isRoundup: item.isRoundup,
+                subItems: item.subItems,
                 _forwardScore: item._forwardScore || 0
             };
 
