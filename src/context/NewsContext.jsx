@@ -3,6 +3,7 @@ import { fetchSectionNews, clearNewsCache } from '../services/rssAggregator';
 import { composeBalancedFeed } from '../services/frontPageComposer';
 import { getSettings } from '../utils/storage';
 import { useSettings } from './SettingsContext';
+import { runFullAudit } from '../utils/newsAudit';
 
 const NewsContext = createContext();
 
@@ -17,6 +18,7 @@ export function NewsProvider({ children }) {
     const [loadedSections, setLoadedSections] = useState([]);
     const [errors, setErrors] = useState({});
     const [lastFetch, setLastFetch] = useState(0);
+    const [auditResults, setAuditResults] = useState({});
 
 
     const loadSection = useCallback(async (section) => {
@@ -172,6 +174,26 @@ export function NewsProvider({ children }) {
         }
     }, []);
 
+    // Audit Logic: Runs after fetch completes (idle time)
+    useEffect(() => {
+        if (lastFetch === 0) return;
+
+        console.log('[NewsContext] Scheduling audit...');
+        const timer = setTimeout(async () => {
+            try {
+                const settings = getSettings();
+                // Pass current newsData snapshot
+                const results = await runFullAudit(newsData, settings);
+                setAuditResults(prev => ({ ...prev, ...results }));
+            } catch (err) {
+                console.error('[NewsContext] Audit failed:', err);
+            }
+        }, 3000); // 3 seconds delay for "pop-in" effect
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lastFetch]); // Only run when a fetch cycle completes
+
     // Refresh when settings are saved (settingsVersion bumps)
     useEffect(() => {
         if (prevVersion.current !== settingsVersion) {
@@ -209,7 +231,8 @@ export function NewsProvider({ children }) {
             breakingNews,
             lastFetch,
             loadSection,
-            loadedSections
+            loadedSections,
+            auditResults
         }}>
             {children}
         </NewsContext.Provider>
