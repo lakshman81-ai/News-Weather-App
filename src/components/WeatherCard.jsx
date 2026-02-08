@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getWeatherTimeBlocks } from '../utils/timeSegment';
 import { getRainStatus, getRainStyle } from '../utils/weatherUtils';
+import WeatherIcon from './WeatherIcons';
 
 // Splash-style humidity SVG (matches QuickWeather)
 const HumidityIcon = ({ size = '1em' }) => (
@@ -119,7 +120,9 @@ function WeatherCard({ weatherData }) {
                                 }
                                 return (
                                     <div key={city} className="weather-grid__cell">
-                                        <div className="weather-icon">{data.icon}</div>
+                                        <div className="weather-icon">
+                                            {data.iconId ? <WeatherIcon id={data.iconId} size={28} /> : data.icon}
+                                        </div>
                                         <div className="weather-temp">{data.temp}°C</div>
                                         <div className="weather-feels">Feels {data.feelsLike}°</div>
 
@@ -173,28 +176,20 @@ function WeatherCard({ weatherData }) {
                                             </div>
                                         )}
 
-                                        {/* Additional Metrics */}
-                                        <div className="weather-extra-metrics">
-                                            {data.humidity != null && (
-                                                <div className="weather-metric">
-                                                    <HumidityIcon size="0.95em" /> {data.humidity}%
-                                                </div>
-                                            )}
-                                            {data.windSpeed != null && (
-                                                <div className="weather-metric">
-                                                    🌬️ {data.windSpeed} km/h
-                                                </div>
-                                            )}
-                                            {data.uvIndex != null && (
-                                                <div className={`weather-metric ${getUVClass(data.uvIndex)}`}>
-                                                    ☀️ UV {data.uvIndex}
-                                                </div>
-                                            )}
-                                            {data.cloudCover != null && (
-                                                <div className="weather-metric">
-                                                    ☁️ {data.cloudCover}%
-                                                </div>
-                                            )}
+                                        {/* Additional Metrics — always render all 4 for alignment */}
+                                        <div className="weather-extra-metrics weather-metrics-grid">
+                                            <div className="weather-metric">
+                                                <HumidityIcon size="0.95em" /> {data.humidity ?? '—'}%
+                                            </div>
+                                            <div className="weather-metric">
+                                                🌬️ {data.windSpeed ?? '—'}
+                                            </div>
+                                            <div className={`weather-metric ${getUVClass(data.uvIndex)}`}>
+                                                ☀️ UV {data.uvIndex ?? '—'}
+                                            </div>
+                                            <div className="weather-metric">
+                                                ☁️ {data.cloudCover ?? '—'}%
+                                            </div>
                                         </div>
                                     </div>
                                 );

@@ -27,7 +27,7 @@ function BottomNav() {
                     title={item.label} // Accessibility/Tooltip
                 >
                     <span className="bottom-nav__icon">{item.icon}</span>
-                    {/* Labels removed for cleaner look & space */}
+                    <span className="bottom-nav__label">{item.label}</span>
                 </NavLink>
             ))}
         </nav>

@@ -5,19 +5,20 @@ const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
     const [settings, setSettingsState] = useState(() => getSettings());
+    const [settingsVersion, setSettingsVersion] = useState(0);
 
-    // Global settings update function
+    // Global settings update function — bumps version so consumers can react
     const updateSettings = useCallback((newSettings) => {
-        console.log('[SettingsContext] Updating settings:', newSettings);
         saveSettings(newSettings);
         setSettingsState(newSettings);
+        setSettingsVersion(v => v + 1);
     }, []);
 
     // Reload settings from storage
     const reloadSettings = useCallback(() => {
-        console.log('[SettingsContext] Reloading settings from storage');
         const freshSettings = getSettings();
         setSettingsState(freshSettings);
+        setSettingsVersion(v => v + 1);
     }, []);
 
     // Listen for storage changes from other tabs
@@ -46,7 +47,7 @@ export function SettingsProvider({ children }) {
     }, [settings.theme]);
 
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, reloadSettings }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, reloadSettings, settingsVersion }}>
             {children}
         </SettingsContext.Provider>
     );

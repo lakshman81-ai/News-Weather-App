@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWeather } from '../services/weatherService';
 import { getSettings } from '../utils/storage';
-
+import { useSettings } from './SettingsContext';
 
 const WeatherContext = createContext();
 
 export function WeatherProvider({ children }) {
+    const { settingsVersion } = useSettings();
+    const prevVersion = useRef(settingsVersion);
+
     const [weatherData, setWeatherData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -22,9 +25,7 @@ export function WeatherProvider({ children }) {
                 return; // Cache valid (short term)
             }
             if (settings?.strictFreshness && age > freshnessLimitMs) {
-                // Fail-Closed: Data is too old (e.g. > 4 hours)
                 setWeatherData(null);
-                // Continue to fetch...
             }
         }
 
@@ -36,17 +37,15 @@ export function WeatherProvider({ children }) {
         }
 
         try {
-            const cities = ['chennai', 'trichy', 'muscat'];
+            const cities = settings?.weather?.cities || ['chennai', 'trichy', 'muscat'];
             const results = await Promise.allSettled(
                 cities.map(city => fetchWeather(city))
             );
 
-            // If a fetch fails, data is null. 
-            const data = {
-                chennai: results[0].status === 'fulfilled' ? results[0].value : null,
-                trichy: results[1].status === 'fulfilled' ? results[1].value : null,
-                muscat: results[2].status === 'fulfilled' ? results[2].value : null,
-            };
+            const data = {};
+            cities.forEach((city, i) => {
+                data[city] = results[i].status === 'fulfilled' ? results[i].value : null;
+            });
 
             setWeatherData(data);
             setLastFetch(Date.now());
@@ -54,7 +53,7 @@ export function WeatherProvider({ children }) {
         } catch (err) {
             console.error("Weather Context Error:", err);
             setError(err);
-            setWeatherData(null); // Fail-Closed on error too
+            setWeatherData(null);
         } finally {
             setLoading(false);
         }
@@ -63,6 +62,14 @@ export function WeatherProvider({ children }) {
     useEffect(() => {
         loadWeather();
     }, [loadWeather]);
+
+    // Refresh when settings change
+    useEffect(() => {
+        if (prevVersion.current !== settingsVersion) {
+            prevVersion.current = settingsVersion;
+            loadWeather(true);
+        }
+    }, [settingsVersion, loadWeather]);
 
     return (
         <WeatherContext.Provider value={{ weatherData, loading, error, refreshWeather: loadWeather }}>

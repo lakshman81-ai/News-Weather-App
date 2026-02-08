@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import Header from '../components/Header';
 import Toggle from '../components/Toggle';
 import { DEFAULT_SETTINGS } from '../utils/storage';
 import { useSettings } from '../context/SettingsContext';
 import { discoverFeeds } from '../utils/feedDiscovery';
 import { APP_VERSION } from '../utils/version';
+import logStore from '../utils/logStore';
 
 /**
  * Settings Page Component - Vertical Tabs Layout
@@ -108,6 +109,7 @@ function SettingsPage() {
         { id: 'upahead', label: 'Up Ahead', icon: '🗓️' },
         { id: 'market', label: 'Market', icon: '📈' },
         { id: 'advanced', label: 'Advanced', icon: '🔧' },
+        { id: 'debug', label: 'Debug', icon: '🐛' },
     ];
 
     // --- RENDER CONTENT ---
@@ -452,6 +454,9 @@ function SettingsPage() {
                     </div>
                 );
 
+            case 'debug':
+                return <DebugTab />;
+
             default: return null;
         }
     };
@@ -733,5 +738,80 @@ const KeywordInput = ({ label, placeholder, value, onChange, onAdd, items, onRem
         </div>
     </div>
 );
+
+// --- Debug Tab with logStore subscription ---
+function DebugTab() {
+    // Subscribe to logStore reactively
+    const entries = useSyncExternalStore(
+        logStore.subscribe,
+        logStore.getEntries
+    );
+    const stats = logStore.getStats();
+    const services = stats.byService;
+
+    const levelColor = { info: '#88f', warn: '#fa0', error: '#f44', success: '#4f4' };
+
+    return (
+        <div className="settings-tab-content">
+            <SectionTitle icon="📊" title="Fetch Summary" />
+            <SettingCard>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '0.8rem' }}>
+                    <div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-primary)' }}>{stats.totalFetches}</div>
+                        <div style={{ color: 'var(--text-muted)' }}>Fetches</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#4f4' }}>{stats.successes}</div>
+                        <div style={{ color: 'var(--text-muted)' }}>OK</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f44' }}>{stats.failures}</div>
+                        <div style={{ color: 'var(--text-muted)' }}>Failed</div>
+                    </div>
+                </div>
+            </SettingCard>
+
+            <SectionTitle icon="🔌" title="Service Status" />
+            <SettingCard>
+                {Object.keys(services).length === 0 && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px 0' }}>No data yet. Navigate other tabs to trigger fetches.</div>
+                )}
+                {Object.entries(services).map(([name, svc]) => (
+                    <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: svc.lastStatus === 'ok' ? '#4f4' : '#f44', display: 'inline-block' }} />
+                            <span style={{ fontWeight: 500 }}>{name}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-muted)' }}>
+                            {svc.ok}/{svc.ok + svc.fail} &middot; {svc.totalMs > 0 ? `${Math.round(svc.totalMs / Math.max(svc.ok + svc.fail, 1))}ms avg` : '—'}
+                        </div>
+                    </div>
+                ))}
+            </SettingCard>
+
+            <SectionTitle icon="📜" title="Live Log" />
+            <div style={{
+                background: '#0a0a0a', border: '1px solid #333', borderRadius: '8px',
+                fontFamily: 'monospace', fontSize: '11px', color: '#00ff41',
+                height: '260px', overflowY: 'auto', padding: '10px',
+                boxShadow: '0 0 20px rgba(0,255,65,0.1)'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #333', paddingBottom: '5px', marginBottom: '8px' }}>
+                    <span>LOG ({entries.length} entries)</span>
+                    <button onClick={() => logStore.clear()} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px' }}>Clear</button>
+                </div>
+                {entries.length === 0 && <div style={{ color: '#555' }}>Waiting for activity...</div>}
+                {entries.map((e, i) => (
+                    <div key={i} style={{ marginBottom: '3px', color: levelColor[e.level] || '#ccc' }}>
+                        <span style={{ color: '#555' }}>{new Date(e.ts).toLocaleTimeString()}</span>{' '}
+                        <span style={{ color: '#888' }}>[{e.service}]</span>{' '}
+                        {e.message}
+                        {e.durationMs ? <span style={{ color: '#666' }}> ({e.durationMs}ms)</span> : ''}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default SettingsPage;

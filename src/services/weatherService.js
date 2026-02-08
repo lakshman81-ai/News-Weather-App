@@ -18,6 +18,8 @@ import {
     formatModelNames
 } from '../utils/multiModelUtils';
 import { getSettings } from '../utils/storage';
+import logStore from '../utils/logStore.js';
+import { getWeatherIconId } from '../components/WeatherIcons.jsx';
 
 // Model-specific API endpoints
 const MODELS = {
@@ -79,6 +81,7 @@ async function fetchSingleModel(modelName, lat, lon) {
  * @returns {Promise<Object>} Multi-model weather data object
  */
 export async function fetchWeather(locationKey) {
+    const _t0 = Date.now();
     if (!LOCATIONS[locationKey]) {
         throw new Error(`Unknown location: ${locationKey}`);
     }
@@ -121,13 +124,16 @@ export async function fetchWeather(locationKey) {
             throw new Error('All weather models failed to fetch data');
         }
 
+        const _dur = Date.now() - _t0;
         console.log(`[WeatherService] ✅ ${successfulModels.length}/${enabledModelNames.length} models succeeded: ${formatModelNames(successfulModels)}`);
+        logStore.success('weather', `${locationKey}: ${successfulModels.length}/${enabledModelNames.length} models OK`, { durationMs: _dur });
 
         // Process and combine data
         return processMultiModelData(modelData, locationKey);
 
     } catch (error) {
         console.error(`[WeatherService] ❌ Error fetching weather for ${locationKey}:`, error);
+        logStore.error('weather', `${locationKey}: ${error.message}`, { durationMs: Date.now() - _t0 });
         throw error;
     }
 }
@@ -143,12 +149,14 @@ function processMultiModelData(modelData, locationName) {
         modelData.icon?.current
     ].filter(Boolean);
 
-    // Weather codes to icons
+    // Weather codes to SVG icon IDs (time-aware)
+    const getIconForHour = (code, hour) => getWeatherIconId(code, hour ?? new Date().getHours());
+    // Backward-compat emoji fallback
     const getIcon = (code) => {
-        if (code <= 1) return '☀️'; // Clear
-        if (code <= 3) return '⛅'; // Cloudy
-        if (code <= 67) return '🌧️'; // Rain
-        if (code <= 99) return '⛈️'; // Storm
+        if (code <= 1) return '☀️';
+        if (code <= 3) return '⛅';
+        if (code <= 67) return '🌧️';
+        if (code <= 99) return '⛈️';
         return '❓';
     };
 
@@ -245,6 +253,8 @@ function processMultiModelData(modelData, locationName) {
             : 0;
 
         const icon = getIcon(midCode);
+        const midHour = Math.floor((startHour + endHour) / 2) % 24;
+        const iconId = getIconForHour(midCode, midHour);
 
         // Additional metrics
         const avgHumidity = segmentHumidity.length > 0
@@ -280,7 +290,8 @@ function processMultiModelData(modelData, locationName) {
                 temp: t,
                 precip: p,
                 prob: prob,
-                icon: getIcon(code)
+                icon: getIcon(code),
+                iconId: getIconForHour(code, hourIdx % 24)
             };
         }).filter(Boolean);
 
@@ -288,6 +299,7 @@ function processMultiModelData(modelData, locationName) {
             temp: avgTemp,
             feelsLike: feelsLike,
             icon: icon,
+            iconId: iconId,
             rainMm: rainDisplay,
             rainProb: rainfallConsensus || { avg: 0, min: 0, max: 0, displayString: '~0%', isWideRange: false },
             humidity: avgHumidity,
@@ -393,7 +405,8 @@ function processMultiModelData(modelData, locationName) {
             temp: avgTemp,
             precip: avgPrecip,
             prob: avgProb,
-            icon: getIcon(code)
+            icon: getIcon(code),
+            iconId: getIconForHour(code, displayHour)
         });
     }
 
@@ -418,6 +431,7 @@ function processMultiModelData(modelData, locationName) {
             feelsLike: currentFeelsLike,
             condition: getCondition(currentWeatherCode),
             icon: getIcon(currentWeatherCode),
+            iconId: getIconForHour(currentWeatherCode, new Date().getHours()),
             humidity: currentHumidity,
             windSpeed: currentWindSpeed,
             windDirection: currentWindDirection
