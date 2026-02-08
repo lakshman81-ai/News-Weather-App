@@ -726,9 +726,11 @@ export function processUpAheadData(rawItems, settings) {
     // Category-specific strict freshness limits (in hours)
     // Weather alerts decay very fast (6h) to avoid "Heavy Rain" warning on a sunny day.
     // General alerts decay fast (12h).
+    // Festivals allow a very wide window (2 weeks = 336h) to catch announcements made well in advance.
     const CATEGORY_MAX_AGE_HOURS = {
         weather_alerts: 6,
-        alerts: 12
+        alerts: 12,
+        festivals: 336
     };
 
     // Pre-compute merged keyword lists ONCE (not per-item)
@@ -843,10 +845,36 @@ export function processUpAheadData(rawItems, settings) {
             // STRICT FILTER: For planner sections, we REQUIRE a valid extracted date.
             // Alerts/Weather Alerts are exempt as they often imply "Immediate/Now".
             // EXCEPTION: Roundup articles (e.g. "33 new releases") are allowed even without a specific date
+            // EXCEPTION: Festivals allow +- 2 weeks window (handled below)
             const isPlannerCategory = ['movies', 'festivals', 'events', 'sports', 'shopping', 'civic'].includes(item.category);
 
             if (isPlannerCategory && !item.extractedDate && !item.isRoundup) {
                 return;
+            }
+
+            // Special Check for Festivals: Relaxed freshness + Recent Past Window
+            // Publication Freshness: Allowed up to 14 days old (via CATEGORY_MAX_AGE_HOURS above).
+            // Event Date Window: User requested "-3 days to Future".
+            // So if an event happened > 3 days ago, drop it.
+
+            if (item.category === 'festivals' && item.extractedDate) {
+                const diffTime = item.extractedDate.getTime() - today.getTime();
+                const diffDays = diffTime / (1000 * 3600 * 24);
+
+                // Allow if within -3 days to +infinity (Up Ahead implies future is fine)
+                // If it's older than 3 days ago, don't show in "Festivals & Holidays" list
+                if (diffDays < -3) {
+                    return;
+                }
+            } else if (isPlannerCategory && item.extractedDate) {
+                 // For other planner categories (Movies, Events), strict future check for the "Worth Knowing" lists?
+                 // Original logic didn't explicitly filter *out* past items from 'sections',
+                 // but 'timeline' logic only added future.
+                 // Let's ensure 'sections' lists also look fresh.
+                 if (item.extractedDate < today) {
+                     // Drop past movies/events from the sidebar lists
+                     return;
+                 }
             }
 
             // Simplify item for display
