@@ -160,6 +160,19 @@ function UpAheadPage() {
     const alertIcon = weatherAlerts.length > 0 ? '🌪️' : '⚠️';
     const alertTitle = weatherAlerts.length > 0 ? 'Weather Warning' : 'Worth Knowing';
 
+    // Helper to format date concisely: "Sun, 08-Feb"
+    const formatConciseDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+
+        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); // Sun
+        const dayNum = d.getDate().toString().padStart(2, '0'); // 08
+        const month = d.toLocaleDateString('en-US', { month: 'short' }); // Feb
+
+        return `${dayName}, ${dayNum}-${month}`;
+    };
+
     return (
         <div className="page-container up-ahead-page">
             <Header title="Up Ahead" icon="🗓️" />
@@ -270,8 +283,8 @@ function UpAheadPage() {
                                 <ul className="ua-wk-list">
                                     {data.sections.festivals.map((f, i) => (
                                         <li key={i} className="ua-wk-item">
-                                            <span>{f.title}</span>
-                                            <span>{f.date}</span>
+                                            <span className="ua-wk-text">{f.title}</span>
+                                            <span className="ua-wk-date">{formatConciseDate(f.date)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -284,8 +297,8 @@ function UpAheadPage() {
                                 <ul className="ua-wk-list">
                                     {data.sections.movies.map((m, i) => (
                                         <li key={i} className="ua-wk-item">
-                                            <span>{m.title}</span>
-                                            <span>{m.releaseDate}</span>
+                                            <span className="ua-wk-text">{m.title}</span>
+                                            <span className="ua-wk-date">{formatConciseDate(m.releaseDate)}</span>
                                         </li>
                                     ))}
                                 </ul>
