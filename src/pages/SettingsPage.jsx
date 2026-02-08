@@ -104,7 +104,7 @@ function SettingsPage() {
     // --- TABS CONFIGURATION ---
     const tabs = [
         { id: 'general', label: 'General', icon: '⚙️' },
-        { id: 'logic', label: 'Logic & Ranking', icon: '🧠' },
+        { id: 'ranking', label: 'Custom Ranking', icon: '🧠' },
         { id: 'weather', label: 'Weather', icon: '🌤️' },
         { id: 'sources', label: 'Sources', icon: '📡' },
         { id: 'upahead', label: 'Up Ahead', icon: '🗓️' },
@@ -167,11 +167,31 @@ function SettingsPage() {
                     </div>
                 );
 
-            case 'logic':
+            case 'ranking':
                 return (
                     <div className="settings-tab-content">
-                        <SectionTitle icon="🛡️" title="Freshness & Logic" />
+                        <SectionTitle icon="🎛️" title="Custom Ranking System" />
                         <SettingCard>
+                            <div style={{fontSize:'0.8rem', color:'var(--text-muted)', marginBottom:'10px'}}>
+                                Configure the weight of each factor in the news ranking algorithm.
+                            </div>
+                            <SettingItem label="Ranking Method">
+                                <select
+                                    value={settings.rankingMode || 'smart'}
+                                    onChange={(e) => updateSettings({ ...settings, rankingMode: e.target.value })}
+                                    className="settings-select"
+                                >
+                                    <option value="smart">Smart Mix (Impact)</option>
+                                    <option value="context-aware">Location/Time Aware (Beta)</option>
+                                    <option value="legacy">Legacy (Freshness)</option>
+                                </select>
+                            </SettingItem>
+                            <SettingItem label="Hide Older Than (Hours)">
+                                <input type="number" min={1} max={168} value={settings.hideOlderThanHours || 60} onChange={(e) => updateSettings({ ...settings, hideOlderThanHours: parseInt(e.target.value) || 60 })} className="settings-input-number" />
+                            </SettingItem>
+                            <SettingItem label="Strict Freshness Mode" subLabel="Hide stale stories completely">
+                                <Toggle checked={settings.strictFreshness} onChange={(val) => updateSettings({ ...settings, strictFreshness: val })} />
+                            </SettingItem>
                             <SettingItem label="Filtering Mode">
                                 <select
                                     value={settings.filteringMode || 'source'}
@@ -182,37 +202,6 @@ function SettingsPage() {
                                     <option value="keyword">Keyword Based</option>
                                 </select>
                             </SettingItem>
-                            <SettingItem label="Ranking Method">
-                                <select
-                                    value={settings.rankingMode || 'smart'}
-                                    onChange={(e) => updateSettings({ ...settings, rankingMode: e.target.value })}
-                                    className="settings-select"
-                                >
-                                    <option value="smart">Smart Mix (Impact)</option>
-                                    <option value="context-aware">Location/Time Aware (Beta) ✨</option>
-                                    <option value="legacy">Legacy (Freshness)</option>
-                                </select>
-                            </SettingItem>
-                            <SettingItem label="Enhanced Scoring Algorithm" subLabel="9-Factor Impact Analysis">
-                                <Toggle checked={settings.enableNewScoring !== false} onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
-                            </SettingItem>
-                            <SettingItem label="Proximity Boost" subLabel="Prioritize local content">
-                                <Toggle checked={settings.enableProximityScoring !== false} onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
-                            </SettingItem>
-                            <SettingItem label="Hide Older Than (Hours)">
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={168}
-                                    value={settings.hideOlderThanHours || 60}
-                                    onChange={(e) => updateSettings({ ...settings, hideOlderThanHours: parseInt(e.target.value) || 60 })}
-                                    className="settings-input-number"
-                                />
-                            </SettingItem>
-                            <SettingItem label="Strict Freshness Mode" subLabel="Hide stale stories completely">
-                                <Toggle checked={settings.strictFreshness} onChange={(val) => updateSettings({ ...settings, strictFreshness: val })} />
-                            </SettingItem>
-
                             <div style={{ padding: '10px 0', borderTop: '1px solid var(--border-default)' }}>
                                 <SettingItem label={`Diversity: Max Topic ${settings.maxTopicPercent || 40}%`}>
                                     <input type="range" min="10" max="100" step="5" value={settings.maxTopicPercent || 40} onChange={(e) => updateSettings({ ...settings, maxTopicPercent: parseInt(e.target.value) })} style={{ width: '100%' }} />
@@ -221,55 +210,69 @@ function SettingsPage() {
                                     <input type="range" min="10" max="100" step="5" value={settings.maxGeoPercent || 30} onChange={(e) => updateSettings({ ...settings, maxGeoPercent: parseInt(e.target.value) })} style={{ width: '100%' }} />
                                 </SettingItem>
                             </div>
+                            <SettingItem label="Proximity Boost" subLabel="Prioritize local content">
+                                <Toggle checked={settings.enableProximityScoring !== false} onChange={(val) => updateSettings({ ...settings, enableProximityScoring: val })} />
+                            </SettingItem>
+                            <SettingItem label="Enhanced Scoring Algorithm" subLabel="9-Factor Impact Analysis">
+                                <Toggle checked={settings.enableNewScoring !== false} onChange={(val) => updateSettings({ ...settings, enableNewScoring: val })} />
+                            </SettingItem>
                         </SettingCard>
 
-                        <SectionTitle icon="⚡" title="Ranking Weights" />
+                        <SectionTitle icon="⚖️" title="Impact Factors" />
                         <SettingCard>
-                            <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:'10px'}}>
-                                Adjust how much boost specific factors give to news items.
-                            </div>
-
-                            {/* Temporal */}
-                            <div style={{marginBottom:'15px'}}>
-                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Temporal Boosts</div>
-                                <SettingItem label={`Weekend Boost: ${(settings.rankingWeights?.temporal?.weekendBoost || 2.0).toFixed(1)}x`}>
-                                    <input
-                                        type="range" min="1.0" max="5.0" step="0.1"
-                                        value={settings.rankingWeights?.temporal?.weekendBoost || 2.0}
-                                        onChange={(e) => updateNested('rankingWeights.temporal.weekendBoost', parseFloat(e.target.value))}
-                                        style={{ width: '100%' }}
-                                    />
+                            {/* Freshness */}
+                            <div style={{marginBottom:'15px', borderBottom:'1px solid rgba(255,255,255,0.05)', paddingBottom:'10px'}}>
+                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Freshness</div>
+                                <SettingItem label={`Decay Window: ${settings.rankingWeights?.freshness?.decayHours || 26}h`}>
+                                    <input type="range" min="12" max="72" value={settings.rankingWeights?.freshness?.decayHours || 26} onChange={(e) => updateNested('rankingWeights.freshness.decayHours', parseInt(e.target.value))} style={{width:'100%'}} />
                                 </SettingItem>
-                                <SettingItem label={`Entertainment Boost: ${(settings.rankingWeights?.temporal?.entertainmentBoost || 2.5).toFixed(1)}x`}>
-                                    <input
-                                        type="range" min="1.0" max="5.0" step="0.1"
-                                        value={settings.rankingWeights?.temporal?.entertainmentBoost || 2.5}
-                                        onChange={(e) => updateNested('rankingWeights.temporal.entertainmentBoost', parseFloat(e.target.value))}
-                                        style={{ width: '100%' }}
-                                    />
+                                <SettingItem label={`Max Boost: ${(settings.rankingWeights?.freshness?.maxBoost || 3.0).toFixed(1)}x`}>
+                                    <input type="range" min="1" max="5" step="0.5" value={settings.rankingWeights?.freshness?.maxBoost || 3.0} onChange={(e) => updateNested('rankingWeights.freshness.maxBoost', parseFloat(e.target.value))} style={{width:'100%'}} />
                                 </SettingItem>
                             </div>
 
-                            {/* Geo */}
+                            {/* Source */}
+                            <div style={{marginBottom:'15px', borderBottom:'1px solid rgba(255,255,255,0.05)', paddingBottom:'10px'}}>
+                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Source Authority</div>
+                                <SettingItem label={`Tier 1 Boost: ${(settings.rankingWeights?.source?.tier1Boost || 5.0).toFixed(1)}`}>
+                                    <input type="range" min="1" max="10" step="0.5" value={settings.rankingWeights?.source?.tier1Boost || 5.0} onChange={(e) => updateNested('rankingWeights.source.tier1Boost', parseFloat(e.target.value))} style={{width:'100%'}} />
+                                </SettingItem>
+                            </div>
+
+                            {/* Visual */}
+                            <div style={{marginBottom:'15px', borderBottom:'1px solid rgba(255,255,255,0.05)', paddingBottom:'10px'}}>
+                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Visuals</div>
+                                <SettingItem label={`Video Boost: ${(settings.rankingWeights?.visual?.videoBoost || 1.3).toFixed(2)}x`}>
+                                    <input type="range" min="1" max="2" step="0.05" value={settings.rankingWeights?.visual?.videoBoost || 1.3} onChange={(e) => updateNested('rankingWeights.visual.videoBoost', parseFloat(e.target.value))} style={{width:'100%'}} />
+                                </SettingItem>
+                                <SettingItem label={`Image Boost: ${(settings.rankingWeights?.visual?.imageBoost || 1.15).toFixed(2)}x`}>
+                                    <input type="range" min="1" max="2" step="0.05" value={settings.rankingWeights?.visual?.imageBoost || 1.15} onChange={(e) => updateNested('rankingWeights.visual.imageBoost', parseFloat(e.target.value))} style={{width:'100%'}} />
+                                </SettingItem>
+                            </div>
+
+                            {/* Context & Keywords */}
                             <div>
-                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Geo Boosts</div>
-                                <SettingItem label={`City Match: ${(settings.rankingWeights?.geo?.cityMatch || 1.5).toFixed(1)}x`}>
-                                    <input
-                                        type="range" min="1.0" max="5.0" step="0.1"
-                                        value={settings.rankingWeights?.geo?.cityMatch || 1.5}
-                                        onChange={(e) => updateNested('rankingWeights.geo.cityMatch', parseFloat(e.target.value))}
-                                        style={{ width: '100%' }}
-                                    />
+                                <div className="settings-item__label" style={{color:'var(--accent-primary)', marginBottom:'5px'}}>Context & Keywords</div>
+                                <SettingItem label={`Keyword Match: +${settings.rankingWeights?.keyword?.matchBoost || 2.0}`}>
+                                    <input type="range" min="0" max="5" step="0.5" value={settings.rankingWeights?.keyword?.matchBoost || 2.0} onChange={(e) => updateNested('rankingWeights.keyword.matchBoost', parseFloat(e.target.value))} style={{width:'100%'}} />
                                 </SettingItem>
-                                <SettingItem label={`Max Geo Score: ${(settings.rankingWeights?.geo?.maxScore || 5.0).toFixed(1)}x`}>
-                                    <input
-                                        type="range" min="1.0" max="10.0" step="0.5"
-                                        value={settings.rankingWeights?.geo?.maxScore || 5.0}
-                                        onChange={(e) => updateNested('rankingWeights.geo.maxScore', parseFloat(e.target.value))}
-                                        style={{ width: '100%' }}
-                                    />
+                                <SettingItem label={`City Match: ${(settings.rankingWeights?.geo?.cityMatch || 1.5).toFixed(1)}x`}>
+                                    <input type="range" min="1" max="3" step="0.1" value={settings.rankingWeights?.geo?.cityMatch || 1.5} onChange={(e) => updateNested('rankingWeights.geo.cityMatch', parseFloat(e.target.value))} style={{width:'100%'}} />
+                                </SettingItem>
+                                <SettingItem label={`Weekend Boost: ${(settings.rankingWeights?.temporal?.weekendBoost || 2.0).toFixed(1)}x`}>
+                                    <input type="range" min="1" max="3" step="0.1" value={settings.rankingWeights?.temporal?.weekendBoost || 2.0} onChange={(e) => updateNested('rankingWeights.temporal.weekendBoost', parseFloat(e.target.value))} style={{width:'100%'}} />
                                 </SettingItem>
                             </div>
+                        </SettingCard>
+
+                        <SectionTitle icon="⚡" title="Audit Thresholds" />
+                        <SettingCard>
+                            <SettingItem label={`Consensus: Min ${settings.rankingWeights?.audit?.consensusThreshold || 2} Sources`}>
+                                <input type="range" min="2" max="5" step="1" value={settings.rankingWeights?.audit?.consensusThreshold || 2} onChange={(e) => updateNested('rankingWeights.audit.consensusThreshold', parseInt(e.target.value))} style={{width:'100%'}} />
+                            </SettingItem>
+                            <SettingItem label={`Anomaly: ${settings.rankingWeights?.audit?.anomalySigma || 2.0} Sigma`}>
+                                <input type="range" min="1" max="3" step="0.1" value={settings.rankingWeights?.audit?.anomalySigma || 2.0} onChange={(e) => updateNested('rankingWeights.audit.anomalySigma', parseFloat(e.target.value))} style={{width:'100%'}} />
+                            </SettingItem>
                         </SettingCard>
                     </div>
                 );

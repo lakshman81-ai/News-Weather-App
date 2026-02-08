@@ -228,19 +228,26 @@ function generateCriticsOneLiner(title, description, source) {
 }
 
 export function computeImpactScore(item, section) {
+    const scoringSettings = getSettings();
+    const w = scoringSettings.rankingWeights || {};
+
     // 1. Freshness Decay (Linear)
     // 24 hours = 0 score. 0 hours = 1 score.
     const ageInHours = (Date.now() - item.publishedAt) / (1000 * 60 * 60);
-    const freshness = Math.max(0, (26 - ageInHours) / 26) * 3; // Boost freshness importance
+    const decayHours = w.freshness?.decayHours || 26;
+    const maxBoost = w.freshness?.maxBoost || 3;
+    const freshness = Math.max(0, (decayHours - ageInHours) / decayHours) * maxBoost;
 
     // 2. Source Weight and Category Relevance (NEW)
     const sourceScore = calculateSourceScore(item.source);
     const categoryWeight = getSourceWeightForCategory(item.source, section);
     // Combined source component, scaled up
-    const sourceComponent = sourceScore * categoryWeight * 5;
+    const tierBoost = w.source?.tier1Boost || 5;
+    const sourceComponent = sourceScore * categoryWeight * tierBoost;
 
     // 3. Keyword Context Boost
-    const keywordBoost = checkKeywords(item.title, item.description) ? 2 : 0;
+    const kwMatchBoost = w.keyword?.matchBoost || 2;
+    const keywordBoost = checkKeywords(item.title, item.description) ? kwMatchBoost : 0;
 
     // 4. Section Priority
     const sectionPriority = section === "world" ? 1.5 : section === "business" ? 1.2 : 1;
@@ -248,8 +255,8 @@ export function computeImpactScore(item, section) {
     // 5. Sentiment Boost
     let sentimentBoost = 0;
     if (item.sentiment) {
-        if (item.sentiment.label === 'positive') sentimentBoost = 0.5;
-        else if (item.sentiment.label === 'negative') sentimentBoost = 0.3;
+        if (item.sentiment.label === 'positive') sentimentBoost = w.sentiment?.positiveBoost || 0.5;
+        else if (item.sentiment.label === 'negative') sentimentBoost = w.sentiment?.negativeBoost || 0.3;
     }
 
     // Breaking News Detection (Phase 5)
@@ -259,7 +266,6 @@ export function computeImpactScore(item, section) {
     const breakingBoost = breakingResult.multiplier;
 
     // --- NEW SCORING LOGIC CHECK ---
-    const scoringSettings = getSettings();
     if (scoringSettings.enableNewScoring === false) {
         // ORIGINAL SCORING (Status Quo)
         return (freshness + sourceComponent + keywordBoost + sentimentBoost) * sectionPriority * breakingBoost;
@@ -273,7 +279,7 @@ export function computeImpactScore(item, section) {
     // Note: passing null for keywords array as it's not currently extracted in normalizeItem
     const currencyMultiplier = calculateCurrencyScore(item.title, null);
     const humanInterestMultiplier = calculateHumanInterestScore(item.title, item.description);
-    const visualMultiplier = calculateVisualScore(item.imageUrl);
+    const visualMultiplier = calculateVisualScore(item.imageUrl, scoringSettings); // Pass settings!
 
     // Base Score (Sum of additive components)
     const baseScore = freshness + sourceComponent + keywordBoost + sentimentBoost;
@@ -583,6 +589,7 @@ async function rankAndFilter(items, section, limit, allowedSources) {
         const limitHours = settings.hideOlderThanHours || settings.freshnessLimitHours || 60;
         const MAX_AGE_MS = limitHours * 60 * 60 * 1000;
         const bypassFreshness = settings.strictFreshness === false; // If strict is off, bypass
+        const shouldScore = settings.rankingMode !== 'legacy'; // Optimization: Skip scoring in Legacy mode
 
         console.log(`[RSSDebug] filtering for ${section}: Limit=${limitHours}h. Items=${items.length}`);
 
@@ -610,10 +617,15 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 // Use the item's section (which might have been re-classified)
                 // or fallback to the requested section if missing
                 const itemSection = item.section || section;
+
+                // Optimization: In Legacy mode, skip expensive scoring
+                // Default to 0, sorting will rely on pubDate
+                const score = shouldScore ? computeImpactScore(item, itemSection) : 0;
+
                 return {
                     ...item,
                     section: itemSection,
-                    impactScore: computeImpactScore(item, itemSection)
+                    impactScore: score
                 };
             })
             .filter(item => {

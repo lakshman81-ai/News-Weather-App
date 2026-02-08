@@ -132,6 +132,11 @@ function NewsSection({
                                                 {auditResults[item.id].anomaly.badge}
                                             </span>
                                         )}
+                                        {auditResults[item.id].breakingVerified && (
+                                            <span title={auditResults[item.id].breakingVerified === '✅' ? 'Breaking Verified' : 'Unverified Source'} style={{ marginRight: '4px' }}>
+                                                {auditResults[item.id].breakingVerified}
+                                            </span>
+                                        )}
                                     </span>
                                 )}
 
@@ -182,12 +187,6 @@ function NewsSection({
                                     </span>
                                 )}
                                 <span className="news-item__source">{item.source}</span>
-                                <span
-                                    className="news-item__credibility"
-                                    title={`Source credibility: ${getCredibilityStars(item.source)}/5`}
-                                >
-                                    {'⭐'.repeat(getCredibilityStars(item.source))}
-                                </span>
                                 {item.sourceCount > 1 && (
                                     <span
                                         className="news-item__consensus"

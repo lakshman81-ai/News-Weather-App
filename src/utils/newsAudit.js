@@ -223,7 +223,6 @@ export function computeAnomalies(articles) {
  * @returns {Promise<AuditResultMap>} Comprehensive audit results
  */
 export async function runFullAudit(newsData, settings) {
-    console.log('[NewsAudit] Starting full audit...');
     const combinedAudit = {};
 
     // 1. Load Persistence History
@@ -257,11 +256,20 @@ export async function runFullAudit(newsData, settings) {
             const id = article.id;
             const persistenceBadge = (top10Ids.includes(id) && previousTop10.has(id)) ? '🌩️' : null;
 
+            // Breaking Verification (Feature 4d)
+            let breakingVerified = null;
+            if (article.isBreaking && consensus[id]?.count > 1) {
+                breakingVerified = '✅';
+            } else if (article.isBreaking) {
+                breakingVerified = '❓';
+            }
+
             combinedAudit[id] = {
                 consensus: consensus[id],
                 relevance: relevance[id],
                 anomaly: anomalies[id]?.badge ? anomalies[id] : (freshness[id]?.badge ? freshness[id] : { type: 'none', badge: null }),
-                persistenceBadge
+                persistenceBadge,
+                breakingVerified
             };
         });
     });
@@ -273,6 +281,5 @@ export async function runFullAudit(newsData, settings) {
         console.warn('Failed to save audit history', e);
     }
 
-    console.log(`[NewsAudit] Completed. Audited ${Object.keys(combinedAudit).length} items.`);
     return combinedAudit;
 }
