@@ -19,6 +19,7 @@ import { calculateVisualScore } from '../utils/visualScorer.js';
 import { classifySection } from '../utils/sectionClassifier.js';
 import { proxyManager } from './proxyManager.js';
 import logStore from '../utils/logStore.js';
+import { getSectionHealth, recordFetchCount, checkSingleSource } from '../utils/sectionHealth.js';
 
 /**
  * @typedef {Object} NewsItem
@@ -454,11 +455,32 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
 
     // Always apply filtering/ranking
     try {
-        return rankAndFilter(items, section, limit, allowedSources);
+        const rankedItems = await rankAndFilter(items, section, limit, allowedSources);
+
+        // Ensure sourceCount is populated (defensive check for consensus audit)
+        rankedItems.forEach(item => {
+            if (!item.sourceCount) item.sourceCount = 1;
+        });
+
+        // --- Section Health Monitoring ---
+        const health = getSectionHealth(section, rankedItems.length);
+        recordFetchCount(section, rankedItems.length);
+
+        // Attach health metadata to the array (avoid breaking array consumers)
+        rankedItems.health = health;
+        rankedItems.isSingleSource = checkSingleSource(rankedItems);
+
+        return rankedItems;
+
     } catch (error) {
         console.error(`[RSS] Ranking failed for ${section}:`, error);
         // Fallback: return unsorted items rather than crashing
-        return items.slice(0, limit);
+        const fallbackItems = items.slice(0, limit);
+
+        // Best effort health tracking for fallback
+        recordFetchCount(section, fallbackItems.length);
+
+        return fallbackItems;
     }
 }
 

@@ -6,6 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 import { discoverFeeds } from '../utils/feedDiscovery';
 import { APP_VERSION } from '../utils/version';
 import logStore from '../utils/logStore';
+import { getAllSectionHealth } from '../utils/sectionHealth';
 
 /**
  * Settings Page Component - Vertical Tabs Layout
@@ -748,11 +749,49 @@ function DebugTab() {
     );
     const stats = logStore.getStats();
     const services = stats.byService;
+    const sectionHealth = getAllSectionHealth();
 
     const levelColor = { info: '#88f', warn: '#fa0', error: '#f44', success: '#4f4' };
 
     return (
         <div className="settings-tab-content">
+            <SectionTitle icon="🩺" title="Section Health" />
+            <SettingCard>
+                {Object.keys(sectionHealth).length === 0 ? (
+                    <div style={{color:'var(--text-muted)', fontSize:'0.8rem'}}>No health data recorded yet.</div>
+                ) : (
+                    <table style={{width:'100%', fontSize:'0.75rem', borderCollapse:'collapse'}}>
+                        <thead>
+                            <tr style={{borderBottom:'1px solid var(--border-default)', color:'var(--text-muted)'}}>
+                                <th style={{textAlign:'left', padding:'4px'}}>Section</th>
+                                <th style={{textAlign:'center', padding:'4px'}}>History (3)</th>
+                                <th style={{textAlign:'center', padding:'4px'}}>Avg</th>
+                                <th style={{textAlign:'right', padding:'4px'}}>Health</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Object.entries(sectionHealth).map(([section, history]) => {
+                                const avg = history.length > 0 ? (history.reduce((a,b)=>a+b,0)/history.length).toFixed(1) : '-';
+                                const last = history.length > 0 ? history[0] : 0;
+                                const ratio = avg > 0 ? last / avg : 1;
+                                let status = '🟢';
+                                if (ratio < 0.1) status = '🔴';
+                                else if (ratio < 0.5) status = '🟠';
+
+                                return (
+                                    <tr key={section} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                                        <td style={{padding:'6px 4px', textTransform:'capitalize'}}>{section}</td>
+                                        <td style={{textAlign:'center', padding:'6px 4px', color:'var(--text-muted)'}}>{history.join(', ')}</td>
+                                        <td style={{textAlign:'center', padding:'6px 4px'}}>{avg}</td>
+                                        <td style={{textAlign:'right', padding:'6px 4px'}}>{status}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                )}
+            </SettingCard>
+
             <SectionTitle icon="📊" title="Fetch Summary" />
             <SettingCard>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '0.8rem' }}>

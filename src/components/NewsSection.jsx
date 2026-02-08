@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getCredibilityStars } from '../data/sourceMetrics';
 import { addReadArticle } from '../utils/storage';
+import { useNews } from '../context/NewsContext';
 
 /**
  * News Section Component
@@ -26,10 +27,15 @@ function NewsSection({
 }) {
     const [expanded, setExpanded] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { auditResults } = useNews();
 
     const displayCount = expanded ? news.length : Math.min(maxDisplay, news.length);
     const displayNews = news.slice(0, displayCount);
     const hasMore = news.length > maxDisplay;
+
+    // --- Section Health Badges ---
+    const health = news.health || { status: 'ok' };
+    const isSingleSource = news.isSingleSource;
 
     const getConfidenceClass = (confidence) => {
         switch (confidence?.toUpperCase()) {
@@ -102,6 +108,33 @@ function NewsSection({
                         >
                             <h3 className="news-item__headline">
                                 • {item.headline}
+
+                                {/* Audit Badges */}
+                                {auditResults[item.id] && (
+                                    <span className="audit-badges" style={{ marginLeft: '8px', fontSize: '0.8em' }}>
+                                        {auditResults[item.id].consensus?.badge && (
+                                            <span title={`Corroborated by ${auditResults[item.id].consensus.count} sources`} style={{ marginRight: '4px' }}>
+                                                {auditResults[item.id].consensus.badge}
+                                            </span>
+                                        )}
+                                        {auditResults[item.id].persistenceBadge && (
+                                            <span title="Persisted from previous fetch" style={{ marginRight: '4px' }}>
+                                                {auditResults[item.id].persistenceBadge}
+                                            </span>
+                                        )}
+                                        {auditResults[item.id].relevance?.badge && (
+                                            <span title="Matches your filters" style={{ marginRight: '4px' }}>
+                                                {auditResults[item.id].relevance.badge}
+                                            </span>
+                                        )}
+                                        {auditResults[item.id].anomaly?.badge && (
+                                            <span title={`Anomaly: ${auditResults[item.id].anomaly.type}`} style={{ marginRight: '4px' }}>
+                                                {auditResults[item.id].anomaly.badge}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
+
                                 {item.url && (
                                     <span style={{
                                         fontSize: '0.7rem',
@@ -199,10 +232,16 @@ function NewsSection({
                 className={`news-section__title ${colorClass}`}
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 style={{ cursor: 'pointer' }}
-                title="Tap to fold/unfold"
+                title={`Tap to fold/unfold. Health: ${health.status.toUpperCase()}`}
             >
                 <span>{icon}</span>
                 {title}
+
+                {/* Health Indicators */}
+                {health.status === 'critical' && <span title="Critical: Feed yield < 10% of average" style={{ marginLeft: '8px' }}>🔴</span>}
+                {health.status === 'warning' && <span title="Warning: Feed yield < 50% of average" style={{ marginLeft: '8px' }}>⚠️</span>}
+                {isSingleSource && news.length > 3 && <span title="Single Source: Potential echo chamber" style={{ marginLeft: '8px' }}>📡</span>}
+
                 {news.length > 0 && (
                     <span style={{ opacity: 0.6, fontSize: '0.9em', marginLeft: '6px' }}>({news.length})</span>
                 )}
