@@ -75,18 +75,6 @@ function UpAheadPage() {
         };
     }, [settings.upAhead]);
 
-    if (loading) {
-        return (
-            <div className="page-container">
-                <Header title="Up Ahead" icon="🗓️" />
-                <div className="loading">
-                    <div className="loading__spinner"></div>
-                    <p>Scanning horizon for {settings.upAhead?.locations?.join(', ') || 'events'}...</p>
-                </div>
-            </div>
-        );
-    }
-
     const handleRetry = () => {
         const upAheadSettings = settings.upAhead || {};
         const hash = JSON.stringify(upAheadSettings);
@@ -129,6 +117,18 @@ function UpAheadPage() {
             return () => { cancelled = true; };
         }
     }, [loading, data, settings.upAhead]);
+
+    if (loading) {
+        return (
+            <div className="page-container">
+                <Header title="Up Ahead" icon="🗓️" />
+                <div className="loading">
+                    <div className="loading__spinner"></div>
+                    <p>Scanning horizon for {settings.upAhead?.locations?.join(', ') || 'events'}...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!data || !data.timeline || data.timeline.length === 0) {
          return (
