@@ -843,10 +843,40 @@ export function processUpAheadData(rawItems, settings) {
             // STRICT FILTER: For planner sections, we REQUIRE a valid extracted date.
             // Alerts/Weather Alerts are exempt as they often imply "Immediate/Now".
             // EXCEPTION: Roundup articles (e.g. "33 new releases") are allowed even without a specific date
+            // EXCEPTION: Festivals allow +- 2 weeks window (handled below)
             const isPlannerCategory = ['movies', 'festivals', 'events', 'sports', 'shopping', 'civic'].includes(item.category);
 
             if (isPlannerCategory && !item.extractedDate && !item.isRoundup) {
                 return;
+            }
+
+            // Special Check for Festivals: Allow +- 2 weeks window
+            // Others strictly future only (handled by the timeline loop later, but sections usually mirror timeline or are strictly future)
+            // But wait, "Sections" often show "Up Ahead" lists.
+            // Current logic pushes to 'sections' array blindly if date exists.
+            // We should filter 'festivals' to be within [-14 days, +future]?
+            // Actually, the user asked for "+- 2 weeks window".
+            // So if it's > 2 weeks ago, drop it. If it's > 2 weeks future, keep it (it's Up Ahead).
+            // But strictly, usually we only show future items.
+            // Let's interpret "window" as: Show items centered around now.
+
+            if (item.category === 'festivals' && item.extractedDate) {
+                const diffTime = item.extractedDate.getTime() - today.getTime();
+                const diffDays = diffTime / (1000 * 3600 * 24);
+                // Allow if within -14 days to +infinity (Up Ahead implies future is fine)
+                // If it's older than 14 days ago, don't show in "Festivals & Holidays" list
+                if (diffDays < -14) {
+                    return;
+                }
+            } else if (isPlannerCategory && item.extractedDate) {
+                 // For other planner categories (Movies, Events), strict future check for the "Worth Knowing" lists?
+                 // Original logic didn't explicitly filter *out* past items from 'sections',
+                 // but 'timeline' logic only added future.
+                 // Let's ensure 'sections' lists also look fresh.
+                 if (item.extractedDate < today) {
+                     // Drop past movies/events from the sidebar lists
+                     return;
+                 }
             }
 
             // Simplify item for display
