@@ -726,9 +726,11 @@ export function processUpAheadData(rawItems, settings) {
     // Category-specific strict freshness limits (in hours)
     // Weather alerts decay very fast (6h) to avoid "Heavy Rain" warning on a sunny day.
     // General alerts decay fast (12h).
+    // Festivals allow a very wide window (2 weeks = 336h) to catch announcements made well in advance.
     const CATEGORY_MAX_AGE_HOURS = {
         weather_alerts: 6,
-        alerts: 12
+        alerts: 12,
+        festivals: 336
     };
 
     // Pre-compute merged keyword lists ONCE (not per-item)
@@ -850,22 +852,18 @@ export function processUpAheadData(rawItems, settings) {
                 return;
             }
 
-            // Special Check for Festivals: Allow +- 2 weeks window
-            // Others strictly future only (handled by the timeline loop later, but sections usually mirror timeline or are strictly future)
-            // But wait, "Sections" often show "Up Ahead" lists.
-            // Current logic pushes to 'sections' array blindly if date exists.
-            // We should filter 'festivals' to be within [-14 days, +future]?
-            // Actually, the user asked for "+- 2 weeks window".
-            // So if it's > 2 weeks ago, drop it. If it's > 2 weeks future, keep it (it's Up Ahead).
-            // But strictly, usually we only show future items.
-            // Let's interpret "window" as: Show items centered around now.
+            // Special Check for Festivals: Relaxed freshness + Recent Past Window
+            // Publication Freshness: Allowed up to 14 days old (via CATEGORY_MAX_AGE_HOURS above).
+            // Event Date Window: User requested "-3 days to Future".
+            // So if an event happened > 3 days ago, drop it.
 
             if (item.category === 'festivals' && item.extractedDate) {
                 const diffTime = item.extractedDate.getTime() - today.getTime();
                 const diffDays = diffTime / (1000 * 3600 * 24);
-                // Allow if within -14 days to +infinity (Up Ahead implies future is fine)
-                // If it's older than 14 days ago, don't show in "Festivals & Holidays" list
-                if (diffDays < -14) {
+
+                // Allow if within -3 days to +infinity (Up Ahead implies future is fine)
+                // If it's older than 3 days ago, don't show in "Festivals & Holidays" list
+                if (diffDays < -3) {
                     return;
                 }
             } else if (isPlannerCategory && item.extractedDate) {
