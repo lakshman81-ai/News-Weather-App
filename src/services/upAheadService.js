@@ -723,6 +723,14 @@ export function processUpAheadData(rawItems, settings) {
     const maxAgeHours = settings?.hideOlderThanHours || 60;
     const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
+    // Category-specific strict freshness limits (in hours)
+    // Weather alerts decay very fast (6h) to avoid "Heavy Rain" warning on a sunny day.
+    // General alerts decay fast (12h).
+    const CATEGORY_MAX_AGE_HOURS = {
+        weather_alerts: 6,
+        alerts: 12
+    };
+
     // Pre-compute merged keyword lists ONCE (not per-item)
     const userKeywords = settings?.upAhead?.keywords || {};
     const mergedNegatives = [...ALL_NEGATIVE_KEYWORDS, ...(userKeywords.negative || [])];
@@ -745,7 +753,18 @@ export function processUpAheadData(rawItems, settings) {
         }
 
         const ageMs = Date.now() - item.pubDate.getTime();
-        if (ageMs > maxAgeMs) {
+
+        // Determine effective max age for this item
+        let effectiveMaxAgeMs = maxAgeMs;
+        if (CATEGORY_MAX_AGE_HOURS[item.category]) {
+            // Use the stricter of the two: Global setting vs Category limit
+            // e.g. if global is 60h but weather is 6h, use 6h.
+            // e.g. if global is 2h (user pref), use 2h.
+            const catLimitMs = CATEGORY_MAX_AGE_HOURS[item.category] * 60 * 60 * 1000;
+            effectiveMaxAgeMs = Math.min(maxAgeMs, catLimitMs);
+        }
+
+        if (ageMs > effectiveMaxAgeMs) {
             return;
         }
 
