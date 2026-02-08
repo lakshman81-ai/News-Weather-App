@@ -1,22 +1,18 @@
 # News Rating & Audit System Architecture
 
-This document visualizes the data flow for the News Rating, Section Health, and Audit System.
+This document visualizes the three distinct ranking and auditing systems working in tandem to surface high-quality news.
 
-## Architecture Flowchart
+## System Interaction Flowchart
 
 ```mermaid
 flowchart TD
     %% --- External Sources ---
     RSS[RSS Feeds] -->|Raw XML| Fetcher[RSS Aggregator]
-
-    %% --- Fetch & Normalize ---
     Fetcher -->|Parse| Normalize[Normalize Item]
-    Normalize -->|Extract| Metadata[Title, Source, Date, Image]
-    Normalize -->|Classify| Section[Section Classifier]
 
-    %% --- Section Health Monitoring (Synchronous) ---
-    subgraph "Section Health Monitor"
-        Section --> Count{Count Items}
+    %% --- SYSTEM 1: SECTION HEALTH (Reliability) ---
+    subgraph "System 1: Section Health Monitor (Reliability)"
+        Normalize --> Count{Count Items}
         Count -->|Record| History[LocalStorage History]
         History -->|Avg(3)| CalcHealth[Calculate Ratio]
         CalcHealth -->|Ratio < 0.5| Warn[⚠️ Warning]
@@ -26,57 +22,63 @@ flowchart TD
         Crit --> UI_Header
     end
 
-    %% --- Pre-Processing ---
-    Section --> Filter[Filter & Rank]
-    Filter -->|1. Freshness| FreshnessCheck{Age < Limit?}
-    Filter -->|2. Keyword/Source| FilterMode{Check Settings}
+    %% --- SYSTEM 2: CORE RANKING ENGINE (Relevance) ---
+    subgraph "System 2: Core Ranking Engine (Relevance)"
+        Normalize --> Filter[Filter]
+        Filter -->|Freshness + Keywords| CheckMode{Ranking Mode?}
 
-    %% --- Scoring System ---
-    subgraph "Scoring Engine"
-        FilterMode --> BaseScore[Base Score]
+        %% Path A: Legacy (Fast Path)
+        CheckMode -->|Legacy| SkipScore[Skip Scoring]
+        SkipScore -->|Score = 0| Cluster
+
+        %% Path B: Smart/Context (Scoring Path)
+        CheckMode -->|Smart/Context| BaseScore[Base Score]
         BaseScore -->|Source Credibility| Stars[⭐ Credibility]
         BaseScore -->|Impact Keywords| Impact[Impact Score]
         BaseScore -->|Sentiment| Senti[Sentiment Analysis]
         BaseScore -->|Visuals| Vis[Visual Score]
-        BaseScore -->|Proximity| Prox[Local Boost]
 
-        Stars & Impact & Senti & Vis & Prox --> TotalScore[Final ImpactScore]
+        Stars & Impact & Senti & Vis --> TotalScore[Final ImpactScore]
+        TotalScore --> Cluster[Deduplicate & Cluster]
+
+        %% Clustering (Unified)
+        Cluster -->|Similiarity > 0.75| Group[Group Articles]
+        Group -->|Count Unique Sources| SourceCount[Source Count]
+        SourceCount -->|Apply Boost| BoostedScore[Boosted ImpactScore]
+
+        %% Final Sort
+        BoostedScore --> SortDecide{Sort Mode?}
+        SortDecide -->|Legacy| SortDate[Sort by Date]
+        SortDecide -->|Smart/Context| SortScore[Sort by Score]
     end
 
-    %% --- Clustering (Consensus) ---
-    TotalScore --> Cluster[Deduplicate & Cluster]
-    Cluster -->|Similiarity > 0.75| Group[Group Articles]
-    Group -->|Count Unique Sources| SourceCount[Source Count]
-    SourceCount -->|Apply Boost| BoostedScore[Boosted ImpactScore]
-
     %% --- Data State Update ---
-    BoostedScore --> Context[NewsContext State]
+    SortDate & SortScore --> Context[NewsContext State]
     Context --> UI_List[Render News List]
 
-    %% --- Audit Loop (Asynchronous / Idle Time) ---
-    subgraph "Audit System (Post-Processing)"
-        Context -->|Wait 3s| Audit[Run Full Audit]
+    %% --- SYSTEM 3: AUDIT & BADGING (Verification) ---
+    subgraph "System 3: Audit & Badging System (Verification)"
+        Context -->|Wait 3s (Idle Time)| Audit[Run Full Audit]
 
         %% 1. Consensus
         Audit -->|Check SourceCount > 1| Lightning{Consensus?}
-        Lightning -->|Yes| BadgeBolt[⚡ Badge]
+        Lightning -->|Yes| BadgeBolt[⚡ Consensus Badge]
 
         %% 2. Persistence
-        Audit -->|Check Previous Top 10| Persist{In History?}
-        Persist -->|Yes| BadgeCloud[🌩️ Badge]
+        Audit -->|Check Previous Top 10| Persist{Persisted?}
+        Persist -->|Yes| BadgeCloud[🌩️ Persistence Badge]
 
         %% 3. Relevance
-        Audit -->|Check User Keywords| Relevance{Match?}
-        Relevance -->|Keyword + Source| BadgeTarget[🎯 Badge]
-        Relevance -->|Keyword Only| BadgePin[📌 Badge]
+        Audit -->|Check User Keywords| Relevance{User Match?}
+        Relevance -->|Keyword + Source| BadgeTarget[🎯 Target Badge]
+        Relevance -->|Keyword Only| BadgePin[📌 Pin Badge]
 
         %% 4. Anomalies
         Audit -->|Age > 2x Median| Old{Stale?}
-        Old -->|Yes| BadgeClock[🕰️ Badge]
+        Old -->|Yes| BadgeClock[🕰️ Stale Badge]
 
         Audit -->|Score Deviation| Outlier{Sigma > 2?}
-        Outlier -->|High| BadgeUp[📊↑ Badge]
-        Outlier -->|Low| BadgeDown[📊↓ Badge]
+        Outlier -->|High| BadgeUp[📊↑ Outlier Badge]
     end
 
     %% --- Visual Updates ---
@@ -86,26 +88,28 @@ flowchart TD
 
 ## Logic Breakdown
 
-### 1. Section Health (Synchronous)
+### System 1: Section Health (Synchronous)
 *   **Trigger**: Immediately after fetching a section.
 *   **Logic**: `Ratio = CurrentCount / Avg(Last 3 Fetches)`
 *   **Output**: `newsData.health` object attached to the array.
+*   **Purpose**: Ensures the *reliability* of the feed itself.
 
-### 2. Scoring & Ranking (Synchronous)
+### System 2: Core Ranking Engine (Synchronous)
 *   **Trigger**: During `fetchSectionNews`.
-*   **Factors**: Freshness, Source Tier, Keywords, Sentiment, Breaking Status.
-*   **Output**: `impactScore` used for sorting.
+*   **Optimization**: In `Legacy` mode, expensive scoring (`computeImpactScore`) is skipped entirely for performance.
+*   **Modes**:
+    *   **Legacy**: Purely chronological (newest first). Score = 0.
+    *   **Smart Mix (Default)**: Uses 9-factor scoring (Freshness, Source Tier, Keywords, Sentiment, Visuals, etc.) to calculate `ImpactScore`.
+    *   **Context-Aware**: Uses Smart Mix scoring but *interleaves* high-proximity (local) stories at fixed intervals.
+*   **Output**: Sorted array.
+*   **Purpose**: Determines the *order* and *relevance* of stories.
 
-### 3. Consensus (Clustering)
-*   **Trigger**: `deduplicateAndCluster` utility.
-*   **Logic**: stringSimilarity > 0.75.
-*   **Output**: `item.sourceCount`. If > 1, it boosts the score but doesn't show badge *yet*.
-
-### 4. Audit System (Asynchronous)
-*   **Trigger**: 3 seconds after `NewsContext` updates.
-*   **Reason**: To avoid blocking the main thread during initial render.
+### System 3: Audit & Badging System (Asynchronous)
+*   **Trigger**: 3 seconds after `NewsContext` updates (Idle Time).
 *   **Logic**:
-    *   **Consensus**: Checks `item.sourceCount` (calculated in step 3).
-    *   **Persistence**: Compares ID against `localStorage` history of previous fetch.
-    *   **Relevance**: Regex match against user settings.
+    *   **Consensus (⚡)**: Checks `item.sourceCount` (calculated in System 2).
+    *   **Persistence (🌩️)**: Compares ID against `localStorage` history of previous fetch.
+    *   **Relevance (🎯)**: Regex match against user settings.
+    *   **Anomalies (🕰️/📊)**: Statistical analysis of age and score distribution.
 *   **Output**: `auditResults` state in Context, which re-renders specific badges.
+*   **Purpose**: Provides *verification* and *context* without altering the sort order determined by System 2.

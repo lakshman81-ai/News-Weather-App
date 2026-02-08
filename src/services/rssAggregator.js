@@ -583,6 +583,7 @@ async function rankAndFilter(items, section, limit, allowedSources) {
         const limitHours = settings.hideOlderThanHours || settings.freshnessLimitHours || 60;
         const MAX_AGE_MS = limitHours * 60 * 60 * 1000;
         const bypassFreshness = settings.strictFreshness === false; // If strict is off, bypass
+        const shouldScore = settings.rankingMode !== 'legacy'; // Optimization: Skip scoring in Legacy mode
 
         console.log(`[RSSDebug] filtering for ${section}: Limit=${limitHours}h. Items=${items.length}`);
 
@@ -610,10 +611,15 @@ async function rankAndFilter(items, section, limit, allowedSources) {
                 // Use the item's section (which might have been re-classified)
                 // or fallback to the requested section if missing
                 const itemSection = item.section || section;
+
+                // Optimization: In Legacy mode, skip expensive scoring
+                // Default to 0, sorting will rely on pubDate
+                const score = shouldScore ? computeImpactScore(item, itemSection) : 0;
+
                 return {
                     ...item,
                     section: itemSection,
-                    impactScore: computeImpactScore(item, itemSection)
+                    impactScore: score
                 };
             })
             .filter(item => {
