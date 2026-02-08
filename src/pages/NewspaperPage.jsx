@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { FaNewspaper, FaSync, FaLanguage, FaMagic, FaExclamationTriangle } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import NewspaperCard from '../components/NewspaperCard';
 import { geminiService } from '../services/geminiService';
-import '../components/NewspaperLayout.css'; // Reusing layout styles for grid
+import { extractArticleText } from '../utils/articleExtractor';
+import { summarizeText } from '../utils/extractiveSummary';
+import '../components/NewspaperLayout.css';
 
 const DATA_URL = '/News-Weather-App/data/epaper_data.json';
 
@@ -29,10 +31,12 @@ const NewspaperPage = () => {
 
     // Translation & AI State
     const [isTranslated, setIsTranslated] = useState(false);
-    const [dynamicSummaries, setDynamicSummaries] = useState({}); // { "SectionName": "Summary" }
-    const [dynamicTitles, setDynamicTitles] = useState({}); // { "ArticleURL": "TranslatedTitle" }
+    const [dynamicSummaries, setDynamicSummaries] = useState({});
+    const [dynamicTitles, setDynamicTitles] = useState({});
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [isTranslatingTitles, setIsTranslatingTitles] = useState(false);
+    const [digestMode, setDigestMode] = useState(false);
+    const [clientSummaries, setClientSummaries] = useState({});
 
     const summaryLineLimit = settings.newspaper?.summaryLineLimit || 50;
 
@@ -94,6 +98,29 @@ const NewspaperPage = () => {
         generateMissingSummaries();
     }, [data, activeSource, settings.geminiKey, dynamicSummaries, isGeneratingSummary]);
 
+    // Effect: Client-side extractive summary fallback (no API key needed)
+    const generateClientSummary = useCallback(async (sectionPage, articles) => {
+        if (clientSummaries[sectionPage]) return;
+        const key = `${activeSource}_${sectionPage}`;
+        if (clientSummaries[key]) return;
+
+        // Try to extract text from the first article
+        const firstArticle = articles?.[0];
+        if (!firstArticle?.link) return;
+
+        try {
+            const text = await extractArticleText(firstArticle.link);
+            if (text && text.length > 200) {
+                const summary = await summarizeText(text, 6);
+                if (summary) {
+                    setClientSummaries(prev => ({ ...prev, [key]: summary }));
+                }
+            }
+        } catch {
+            // Silent fail
+        }
+    }, [activeSource, clientSummaries]);
+
     // Effect: Handle Title Translation
     useEffect(() => {
         const translateVisibleTitles = async () => {
@@ -152,27 +179,34 @@ const NewspaperPage = () => {
     }, [isTranslated, data, activeSource, settings.geminiKey, dynamicTitles, isTranslatingTitles]);
 
 
-    // Helper to get correct summary text
+    // Helper to get correct summary text (4-tier)
     const getSectionSummary = (section) => {
-        // 1. Dynamic Fallback
+        // 1. Dynamic Gemini Fallback
         const dynamic = dynamicSummaries[section.page];
         if (dynamic) {
-            if (isTranslated && dynamic.summary) return dynamic.summary; // English
-            if (!isTranslated && dynamic.summary_ta) return dynamic.summary_ta; // Tamil
-            if (dynamic.summary) return dynamic.summary; // Default
+            if (isTranslated && dynamic.summary) return { text: dynamic.summary, method: 'gemini' };
+            if (!isTranslated && dynamic.summary_ta) return { text: dynamic.summary_ta, method: 'gemini' };
+            if (dynamic.summary) return { text: dynamic.summary, method: 'gemini' };
         }
 
         // 2. Server Data
         if (isTranslated) {
-            // User wants English
-            if (section.summary) return section.summary;
-            // If server only has Tamil (unlikely for Dinamani logic, but possible), return it
-            if (section.summary_ta) return section.summary_ta;
+            if (section.summary) return { text: section.summary, method: section.summary_method || 'server' };
+            if (section.summary_ta) return { text: section.summary_ta, method: section.summary_method || 'server' };
         } else {
-            // User wants Original (Tamil)
-            if (section.summary_ta) return section.summary_ta;
-            // Fallback to English if Tamil missing
-            if (section.summary) return section.summary;
+            if (section.summary_ta) return { text: section.summary_ta, method: section.summary_method || 'server' };
+            if (section.summary) return { text: section.summary, method: section.summary_method || 'server' };
+        }
+
+        // 3. Client-side extractive summary
+        const clientKey = `${activeSource}_${section.page}`;
+        if (clientSummaries[clientKey]) {
+            return { text: clientSummaries[clientKey], method: 'extractive' };
+        }
+
+        // 4. Trigger client-side extraction if nothing available
+        if (!section.error || section.error === 'API Key Missing') {
+            generateClientSummary(section.page, section.articles);
         }
 
         return null;
@@ -190,7 +224,15 @@ const NewspaperPage = () => {
                     <FaNewspaper className="header__title-icon" />
                     <span>Daily Brief</span>
                 </div>
-                <div className="header__actions" style={{ gap: '12px' }}>
+                <div className="header__actions" style={{ gap: '8px' }}>
+                    <button
+                        onClick={() => setDigestMode(!digestMode)}
+                        className={`btn-icon ${digestMode ? 'active' : ''}`}
+                        title={digestMode ? "Card View" : "Digest View"}
+                        style={{ color: digestMode ? 'var(--accent-primary)' : 'var(--text-secondary)', fontSize: '1.1rem' }}
+                    >
+                        {digestMode ? '📰' : '📖'}
+                    </button>
                     {showTranslationControls && (
                          <button
                             onClick={() => setIsTranslated(!isTranslated)}
@@ -248,7 +290,14 @@ const NewspaperPage = () => {
                             </div>
                         ) : (
                             currentSections.map((section, idx) => {
-                                const summaryText = getSectionSummary(section);
+                                const summaryResult = getSectionSummary(section);
+
+                                const methodLabels = {
+                                    gemini: 'AI Summary',
+                                    server: 'Summary',
+                                    extractive: 'Auto-Summary',
+                                    headlines: 'Headlines'
+                                };
 
                                 return (
                                     <div key={idx} className="newspaper-section" style={{ marginBottom: '32px' }}>
@@ -262,7 +311,7 @@ const NewspaperPage = () => {
                                         </h2>
 
                                         {/* Summary Box */}
-                                        {summaryText ? (
+                                        {summaryResult ? (
                                             <div style={{
                                                 background: 'var(--bg-secondary)',
                                                 padding: '16px',
@@ -272,7 +321,12 @@ const NewspaperPage = () => {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-primary)', fontWeight: 'bold', marginBottom: '8px' }}>
                                                     <FaMagic />
-                                                    <span>AI Summary</span>
+                                                    <span>{methodLabels[summaryResult.method] || 'Summary'}</span>
+                                                    {summaryResult.method === 'extractive' && (
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                                                            (no API key needed)
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div style={{
                                                     whiteSpace: 'pre-line',
@@ -284,7 +338,7 @@ const NewspaperPage = () => {
                                                     WebkitBoxOrient: 'vertical',
                                                     overflow: 'hidden'
                                                 }}>
-                                                    {summaryText}
+                                                    {summaryResult.text}
                                                 </div>
                                             </div>
                                         ) : (
@@ -321,29 +375,50 @@ const NewspaperPage = () => {
                                             </div>
                                         )}
 
-                                        {/* Grid of Cards */}
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                            gap: '16px'
-                                        }}>
-                                            {section.articles.map((article, aIdx) => {
-                                                // Inject dynamic translation if available
-                                                const articleWithTranslation = {
-                                                    ...article,
-                                                    title_en: dynamicTitles[article.link] || article.title_en
-                                                };
-
-                                                return (
-                                                    <NewspaperCard
-                                                        key={aIdx}
-                                                        article={articleWithTranslation}
-                                                        sourceName={SOURCES[activeSource].label}
-                                                        isTranslated={isTranslated}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
+                                        {/* Articles — Grid or Digest mode */}
+                                        {digestMode ? (
+                                            <div style={{ fontSize: '0.9rem', lineHeight: '1.7' }}>
+                                                {section.articles.map((article, aIdx) => {
+                                                    const title = (isTranslated && (dynamicTitles[article.link] || article.title_en)) || article.title;
+                                                    return (
+                                                        <div key={aIdx} style={{
+                                                            padding: '8px 0',
+                                                            borderBottom: '1px solid var(--border-default)'
+                                                        }}>
+                                                            <a
+                                                                href={article.link}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 500 }}
+                                                            >
+                                                                {title}
+                                                            </a>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                                gap: '16px'
+                                            }}>
+                                                {section.articles.map((article, aIdx) => {
+                                                    const articleWithTranslation = {
+                                                        ...article,
+                                                        title_en: dynamicTitles[article.link] || article.title_en
+                                                    };
+                                                    return (
+                                                        <NewspaperCard
+                                                            key={aIdx}
+                                                            article={articleWithTranslation}
+                                                            sourceName={SOURCES[activeSource].label}
+                                                            isTranslated={isTranslated}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })

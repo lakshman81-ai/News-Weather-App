@@ -2,6 +2,7 @@
  * Proxy Manager - Handles failover between multiple RSS proxies
  * Industry Best Practice: Round-robin with failure tracking
  */
+import logStore from '../utils/logStore.js';
 
 const PROXIES = [
     {
@@ -146,9 +147,8 @@ class ProxyManager {
                 // Success!
                 this.failureCounts.set(proxy.name, 0);
                 this.lastSuccess.set(proxy.name, Date.now());
-
-                // Update index to point to this successful proxy (optimization: stickiness)
                 this.currentIndex = index;
+                logStore.info('proxy', `${proxy.name} OK (${result.items.length} items)`);
 
                 return result;
 
@@ -161,6 +161,7 @@ class ProxyManager {
             }
         }
 
+        logStore.error('proxy', `All proxies failed: ${lastError?.message}`);
         throw new Error(`All proxies failed. Last error: ${lastError?.message}`);
     }
 

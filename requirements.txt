@@ -2,3 +2,6 @@ requests
 beautifulsoup4
 feedparser
 google-generativeai
+trafilatura
+sumy
+nltk

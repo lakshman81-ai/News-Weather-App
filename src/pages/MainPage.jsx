@@ -20,19 +20,9 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import LazySection from '../components/LazySection';
 import SidebarNews from '../components/SidebarNews';
 
-// DEBUG LOGGING SYSTEM
-const logs = [];
-const logSubscribers = new Set();
-const addLog = (msg) => {
-    logs.push(msg);
-    if (logs.length > 200) logs.shift();
-    logSubscribers.forEach(sub => sub([...logs]));
-};
-
 const MainPage = () => {
     const { settings } = useSettings();
     const { currentSegment } = useSegment();
-    const [vLog, setVLog] = useState([...logs]);
     const [notifPermission, setNotifPermission] = useState(Notification.permission);
     const [toplineContent, setToplineContent] = useState(null);
 
@@ -68,44 +58,6 @@ const MainPage = () => {
         setNotifPermission(granted ? 'granted' : 'denied');
     };
 
-    // Update logs Reactively
-    useEffect(() => {
-        const sub = (newLogs) => setVLog(newLogs);
-        logSubscribers.add(sub);
-        return () => logSubscribers.delete(sub);
-    }, []);
-
-    // Handle Console Patching based on settings
-    useEffect(() => {
-        if (!settings.debugLogs) return;
-
-        const originals = {
-            log: console.log,
-            error: console.error,
-            warn: console.warn
-        };
-
-        const patch = (type) => {
-            const original = console[type];
-            console[type] = (...args) => {
-                const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-                const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
-                addLog(`${prefix} ${new Date().toLocaleTimeString()} - ${msg}`);
-                original(...args);
-            };
-        };
-
-        patch('log');
-        patch('error');
-        patch('warn');
-
-        return () => {
-            // Restore originals on cleanup or when disabled
-            console.log = originals.log;
-            console.error = originals.error;
-            console.warn = originals.warn;
-        };
-    }, [settings.debugLogs]);
 
     // Back to Top Logic
     const [showBackToTop, setShowBackToTop] = useState(false);
@@ -362,49 +314,22 @@ const MainPage = () => {
                         </div>
                     )}
 
-                    {/* System Status / Debug - Gated by debugLogs setting */}
+                    {/* Compact System Status Strip */}
                     {settings.debugLogs && (
-                        <>
-                            <div className="card" style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-xs)' }}>
-                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)', color: 'var(--accent-primary)' }}>
-                                    SYSTEM STATUS
-                                </div>
-                                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                                    Segment: {currentSegment.label}<br />
-                                    Notifications: {notifPermission}<br />
-                                    UI Mode: {uiMode}<br />
-                                    Strict Mode: {settings.strictFreshness ? 'Active' : 'Off'}<br />
-                                </div>
-                            </div>
-
-                            {/* DEBUG CONSOLE */}
-                            <div style={{
-                                marginTop: '20px',
-                                padding: '15px',
-                                background: '#0a0a0a',
-                                border: '1px solid #333',
-                                borderRadius: '8px',
-                                fontFamily: 'monospace',
-                                fontSize: '11px',
-                                color: '#00ff41',
-                                height: '200px',
-                                overflowY: 'auto',
-                                boxShadow: '0 0 20px rgba(0,255,65,0.1)'
-                            }}>
-                                <div style={{ borderBottom: '1px solid #333', paddingBottom: '5px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>SYSTEM DEBUG LOGS (REAL-TIME)</span>
-                                    <div>
-                                        <button onClick={() => refreshNews()} style={{ background: '#00ff41', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px', marginRight: '5px' }}>RE-FETCH</button>
-                                        <button onClick={() => window.location.reload()} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '10px' }}>RELOAD</button>
-                                    </div>
-                                </div>
-                                {vLog?.map((msg, i) => (
-                                    <div key={i} style={{ marginBottom: '4px', borderLeft: msg.includes('❌') ? '2px solid red' : 'none', paddingLeft: '5px' }}>
-                                        <span style={{ color: '#888' }}>[{i}]</span> {msg}
-                                    </div>
-                                ))}
-                            </div>
-                        </>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            marginTop: 'var(--spacing-md)', padding: '8px 12px',
+                            background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.7rem', color: 'var(--text-muted)', flexWrap: 'wrap'
+                        }}>
+                            <span title="Segment">{currentSegment.icon} {currentSegment.label}</span>
+                            <span title="Notifications">{notifPermission === 'granted' ? '🔔' : '🔕'}</span>
+                            <span title="UI Mode">📱 {uiMode}</span>
+                            <span title="Strict Mode">{settings.strictFreshness ? '🛡️' : '🔓'}</span>
+                            <Link to="/settings" onClick={() => {}} style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontSize: '0.7rem' }}>
+                                Debug →
+                            </Link>
+                        </div>
                     )}
                 </div>
             </main>

@@ -18,6 +18,7 @@ import { calculateHumanInterestScore } from '../utils/humanInterestScorer.js';
 import { calculateVisualScore } from '../utils/visualScorer.js';
 import { classifySection } from '../utils/sectionClassifier.js';
 import { proxyManager } from './proxyManager.js';
+import logStore from '../utils/logStore.js';
 
 /**
  * @typedef {Object} NewsItem
@@ -331,6 +332,7 @@ function isSourceAllowed(sourceName, allowedSources) {
  * Fetches news for a given section.
  */
 export async function fetchSectionNews(section, limit = 10, allowedSources = null) {
+    const _t0 = Date.now();
     // Optimization: If limit is 0, don't fetch anything
     if (limit === 0) return [];
 
@@ -418,12 +420,14 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
 
         items = successfulResults.flat();
 
+        const _dur = Date.now() - _t0;
         console.log(`[RSS] Section '${section}' stats:`, {
             totalFeeds: feeds.length,
             successCount: successfulResults.length,
             failureCount: feeds.length - successfulResults.length,
             totalItems: items.length
         });
+        logStore.success('rss', `${section}: ${items.length} items from ${successfulResults.length}/${feeds.length} feeds`, { durationMs: _dur });
 
         // Only cache if enabled (Phase 6)
         if (settings.enableCache !== false) {
@@ -441,6 +445,7 @@ export async function fetchSectionNews(section, limit = 10, allowedSources = nul
             errorStack: error.stack,
             section
         });
+        logStore.error('rss', `${section}: ${error.message}`, { durationMs: Date.now() - _t0 });
 
         // Return partial results if some succeeded
         if (items.length > 0) return items;

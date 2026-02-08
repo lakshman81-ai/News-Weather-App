@@ -1,20 +1,22 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { fetchSectionNews, clearNewsCache } from '../services/rssAggregator';
 import { composeBalancedFeed } from '../services/frontPageComposer';
 import { getSettings } from '../utils/storage';
+import { useSettings } from './SettingsContext';
 
 const NewsContext = createContext();
 
 const PRIORITY_SECTIONS = ['world', 'india', 'chennai', 'trichy'];
 
 export function NewsProvider({ children }) {
+    const { settingsVersion } = useSettings();
+    const prevVersion = useRef(settingsVersion);
     const [newsData, setNewsData] = useState({});
     const [breakingNews, setBreakingNews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadedSections, setLoadedSections] = useState([]);
     const [errors, setErrors] = useState({});
     const [lastFetch, setLastFetch] = useState(0);
-    const [settingsHash, setSettingsHash] = useState(''); // NEW - Phase 6: Track settings changes
 
 
     const loadSection = useCallback(async (section) => {
@@ -76,7 +78,7 @@ export function NewsProvider({ children }) {
                 console.log(`[NewsContext] Fetching batch: ${batch.join(', ')}`);
 
                 await Promise.all(batch.map(async (key) => {
-                    if (settings.sections[key]?.enabled) {
+                    if (settings.sections[key]?.enabled !== false) {
                         try {
                             const count = settings.sections[key]?.count || 10;
                             const articles = await fetchSectionNews(key, count + 5, settings.newsSources);
@@ -170,23 +172,15 @@ export function NewsProvider({ children }) {
         }
     }, []);
 
-    // Watch for settings changes and invalidate cache (Phase 6)
+    // Refresh when settings are saved (settingsVersion bumps)
     useEffect(() => {
-        const settings = getSettings();
-        const newHash = JSON.stringify({
-            sources: settings.newsSources,
-            freshness: settings.freshnessLimitHours,
-            enableCache: settings.enableCache
-        });
-
-        if (settingsHash && settingsHash !== newHash) {
-            console.log('[NewsContext] ⚙️ Settings changed - clearing cache and refreshing');
+        if (prevVersion.current !== settingsVersion) {
+            console.log('[NewsContext] Settings changed (v' + settingsVersion + ') - refreshing');
             clearNewsCache();
-            // Full refresh on settings change to be safe
+            prevVersion.current = settingsVersion;
             refreshNews();
         }
-        setSettingsHash(newHash);
-    }, [refreshNews, settingsHash]); // Only run when hash changes
+    }, [settingsVersion, refreshNews]);
 
     useEffect(() => {
         console.log('[NewsContext] Mounting - Initial fetch (Priority Only)');

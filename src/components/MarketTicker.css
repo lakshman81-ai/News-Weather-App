@@ -1,29 +1,29 @@
 .market-ticker-container {
-    flex: 1; /* Allow it to take available space */
-    min-width: 0; /* Crucial for flex child truncation/scrolling */
-    background: transparent; /* Blend with header */
+    flex: 1;
+    min-width: 0;
+    background: transparent;
     color: #e2e8f0;
-    height: 32px; /* Reduce height to fit in header */
+    height: 28px;
     display: flex;
     align-items: center;
     position: relative;
     overflow: hidden;
     font-family: 'Inter', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     z-index: 10;
-    margin: 0 12px; /* Add spacing from title/actions */
-    border-radius: 4px; /* Slight rounding */
-    background: rgba(0, 0, 0, 0.2); /* Subtle background for contrast */
+    margin: 0 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .ticker-label {
-    background: #dc2626; /* Red background */
-    padding: 0 8px;
+    background: #dc2626;
+    padding: 0 6px;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.85rem;
     color: #ffffff;
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
     z-index: 2;
@@ -86,19 +86,19 @@
 .ticker-name {
     color: #cbd5e1;
     font-weight: 500;
-    margin-right: 6px;
-    font-size: 0.8rem;
+    margin-right: 4px;
+    font-size: 0.72rem;
 }
 
 .ticker-price {
     font-weight: 600;
     color: #f8fafc;
-    margin-right: 4px;
-    font-size: 0.8rem;
+    margin-right: 3px;
+    font-size: 0.72rem;
 }
 
 .ticker-change {
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     font-weight: 500;
 }
 

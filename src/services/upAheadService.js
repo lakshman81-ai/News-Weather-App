@@ -1,4 +1,7 @@
 import { proxyManager } from './proxyManager.js';
+import logStore from '../utils/logStore.js';
+import { extractDate, expandDateKeys } from '../utils/dateExtractor.js';
+import plannerStorage from '../utils/plannerStorage.js';
 
 // ============================================================
 // SMART KEYWORD FILTERS FOR PLANNING
@@ -347,6 +350,7 @@ const STATIC_FEEDS = {
  * @param {Object} settings - { categories: { movies: true... }, locations: ['Chennai', 'Muscat'], hideOlderThanHours: 60 }
  */
 export async function fetchUpAheadData(settings) {
+    const _t0 = Date.now();
     console.log('[UpAheadService] Fetching data with settings:', settings);
 
     const categories = settings?.categories || { movies: true, events: true, festivals: true, alerts: true, sports: true };
@@ -423,6 +427,30 @@ export async function fetchUpAheadData(settings) {
     // 3. Process, Deduplicate, and Organize
     const organizedData = processUpAheadData(allItems, settings);
 
+    // 4. Persist items with extracted dates into planner storage
+    try {
+        for (const item of allItems) {
+            if (item.extractedDate) {
+                const dateResult = extractDate(
+                    `${item.title} ${item.description || ''}`,
+                    item.pubDate
+                );
+                if (dateResult) {
+                    const keys = expandDateKeys(dateResult);
+                    if (keys.length > 0) {
+                        plannerStorage.merge(keys, [{ id: item.id, title: item.title, category: item.category, link: item.link }]);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[UpAhead] Planner storage write failed', e);
+    }
+
+    const _dur = Date.now() - _t0;
+    const timelineCount = organizedData?.timeline?.reduce((s, d) => s + (d.items?.length || 0), 0) || 0;
+    logStore.success('upAhead', `${timelineCount} items from ${uniqueUrls.length} feeds`, { durationMs: _dur });
+
     return organizedData;
 }
 
@@ -469,8 +497,14 @@ export function normalizeUpAheadItem(item, config) {
         pubDate = null;
     }
 
-    // Attempt to extract a date, using pubDate as context
-    const extractedDate = extractFutureDate(fullText, pubDate);
+    // 5-layer date extraction (new engine), with legacy fallback
+    let extractedDate = null;
+    const newDateResult = extractDate(fullText, pubDate);
+    if (newDateResult?.start) {
+        extractedDate = newDateResult.start;
+    } else {
+        extractedDate = extractFutureDate(fullText, pubDate);
+    }
 
     // Determine Category (if not already known from config)
     let category = config.category;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
+import WeatherIcon from './WeatherIcons';
 
 // --- SVG ICONS ---
 const HumidityIcon = ({ size = '1em' }) => (
@@ -58,6 +59,7 @@ const QuickWeather = () => {
     // Check if rain is coming in the next 24h for the active city
     const activeCityData = weatherData[activeCity];
     const headsUp = getHeadsUp(activeCityData);
+    const severeWarning = getSevereWarning(activeCityData);
 
     return (
         <section className={`quick-weather-card ${bgClass}`}>
@@ -81,7 +83,9 @@ const QuickWeather = () => {
                             </div>
                             <div className="qw-city-temp-row">
                                 <span className="qw-city-temp">{c.temp}°</span>
-                                <span className="qw-city-weather-icon">{c.icon}</span>
+                                <span className="qw-city-weather-icon">
+                                    {c.iconId ? <WeatherIcon id={c.iconId} size={28} /> : c.icon}
+                                </span>
                             </div>
                             <div className="qw-city-condition">{c.condition}</div>
                             <div className="qw-city-meta">
@@ -97,13 +101,15 @@ const QuickWeather = () => {
             {activeCityData?.hourly24 && (
                 <div className="qw-timeline-section">
                     <div className="qw-timeline-label">
-                        Next 24h &middot; {cityLabels[activeCity]}
+                        {getTimelineSummary(activeCityData, cityLabels[activeCity])}
                     </div>
                     <div className="qw-timeline-strip">
                         {activeCityData.hourly24.map((slot, i) => (
                             <div key={i} className="qw-timeline-slot">
                                 <div className="qw-slot-time">{slot.label}</div>
-                                <div className="qw-slot-icon">{slot.icon}</div>
+                                <div className="qw-slot-icon">
+                                    {slot.iconId ? <WeatherIcon id={slot.iconId} size={22} /> : slot.icon}
+                                </div>
                                 <div className="qw-slot-temp">{slot.temp}°</div>
                                 {slot.precip > 0.5 && (
                                     <div className="qw-slot-rain">{slot.precip}mm</div>
@@ -122,9 +128,56 @@ const QuickWeather = () => {
                 </div>
             )}
 
+            {/* Severe Weather Warning */}
+            {severeWarning && (
+                <div className="qw-severe" style={{
+                    background: 'rgba(220,38,38,0.15)',
+                    border: '1px solid rgba(220,38,38,0.4)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    margin: '8px 0 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.78rem',
+                    color: '#fca5a5'
+                }}>
+                    <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                    <span>{severeWarning}</span>
+                </div>
+            )}
+
         </section>
     );
 };
+
+/**
+ * Descriptive summary for the 24h timeline section.
+ * Replaces the old "Next 24h · {city}" with meaningful text.
+ */
+function getTimelineSummary(cityData, cityName) {
+    if (!cityData?.hourly24) return `${cityName} — 24h Forecast`;
+
+    const slots = cityData.hourly24;
+    const temps = slots.map(s => s.temp).filter(t => t != null);
+    const rainSlots = slots.filter(s => s.precip > 0.5 || s.prob > 40);
+
+    const minT = temps.length > 0 ? Math.min(...temps) : null;
+    const maxT = temps.length > 0 ? Math.max(...temps) : null;
+    const tempRange = minT != null && maxT != null ? `${minT}°–${maxT}°` : '';
+
+    if (rainSlots.length >= 3) {
+        return `${cityName} ${tempRange} — Rainy spells ahead`;
+    }
+    if (rainSlots.length > 0) {
+        return `${cityName} ${tempRange} — Scattered showers`;
+    }
+    const current = cityData.current;
+    if (current?.condition) {
+        return `${cityName} ${tempRange} — ${current.condition}`;
+    }
+    return `${cityName} ${tempRange}`;
+}
 
 /**
  * Generates a plain-English heads-up from the 24h forecast.
@@ -169,6 +222,32 @@ function getHeadsUp(cityData) {
         icon,
         message: `${intensity} expected ${timeRange}${mmText}`
     };
+}
+
+/**
+ * Checks for severe weather conditions across the 24h forecast.
+ * Returns a warning string or null.
+ */
+function getSevereWarning(cityData) {
+    if (!cityData?.hourly24) return null;
+
+    const slots = cityData.hourly24;
+    const heavyRainSlots = slots.filter(s => s.precip >= 10);
+    const stormSlots = slots.filter(s => s.prob >= 80);
+    const temps = slots.map(s => s.temp).filter(t => t != null);
+    const maxTemp = temps.length > 0 ? Math.max(...temps) : null;
+
+    if (heavyRainSlots.length > 0) {
+        const totalMm = heavyRainSlots.reduce((s, h) => s + h.precip, 0);
+        return `Heavy rainfall warning: ${totalMm.toFixed(1)}mm expected in the next 24 hours`;
+    }
+    if (stormSlots.length >= 2) {
+        return 'Thunderstorm activity likely in the next 24 hours';
+    }
+    if (maxTemp != null && maxTemp >= 42) {
+        return `Extreme heat warning: Temperatures may reach ${maxTemp}°C`;
+    }
+    return null;
 }
 
 export default QuickWeather;

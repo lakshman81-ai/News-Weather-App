@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { downloadCalendarEvent } from '../utils/calendar';
@@ -48,6 +49,7 @@ function UpAheadPage() {
                 if (isMounted) {
                     setData(fetchedData);
                     setLoading(false);
+                    hasFetched.current = true;
                     // Update Cache
                     dataCache[settingsHash] = {
                         data: fetchedData,
@@ -58,6 +60,7 @@ function UpAheadPage() {
                 if (isMounted) {
                     console.error("Failed to load Up Ahead data", err);
                     setLoading(false);
+                    hasFetched.current = true;
                 }
             }
         };
@@ -84,6 +87,49 @@ function UpAheadPage() {
         );
     }
 
+    const handleRetry = () => {
+        const upAheadSettings = settings.upAhead || {};
+        const hash = JSON.stringify(upAheadSettings);
+        delete dataCache[hash];
+        setData(null);
+        setLoading(true);
+    };
+
+    // Re-trigger fetch when data is cleared for retry
+    useEffect(() => {
+        if (loading && !data) {
+            // The main loadData effect re-runs via settings.upAhead dep,
+            // but for retry we need a manual trigger since settings didn't change.
+            // The setLoading(true) + setData(null) will re-render to the loading state,
+            // and the main effect won't re-run (deps unchanged).
+            // So we fire a one-off fetch here.
+            let cancelled = false;
+            const retryFetch = async () => {
+                const upAheadSettings = settings.upAhead || {
+                    categories: { movies: true, events: true, festivals: true, alerts: true, sports: true },
+                    locations: ['Chennai']
+                };
+                try {
+                    const fetchedData = await fetchUpAheadData(upAheadSettings);
+                    if (!cancelled) {
+                        setData(fetchedData);
+                        setLoading(false);
+                        const hash = JSON.stringify(upAheadSettings);
+                        dataCache[hash] = { data: fetchedData, timestamp: Date.now() };
+                    }
+                } catch (err) {
+                    if (!cancelled) {
+                        console.error('[UpAhead] Retry failed', err);
+                        setLoading(false);
+                    }
+                }
+            };
+            // Only run if hasFetched is true (i.e. initial load already happened)
+            if (hasFetched.current) retryFetch();
+            return () => { cancelled = true; };
+        }
+    }, [loading, data, settings.upAhead]);
+
     if (!data || !data.timeline || data.timeline.length === 0) {
          return (
             <div className="page-container">
@@ -91,9 +137,16 @@ function UpAheadPage() {
                 <div className="empty-state">
                     <span style={{ fontSize: '3rem' }}>🔭</span>
                     <h3>Nothing on the radar</h3>
-                    <p>No upcoming events found for your selected locations.</p>
-                    <div style={{ marginTop: '1rem' }}>
-                         <small>Try adding more locations in Settings.</small>
+                    <p>No upcoming events found for {settings.upAhead?.locations?.join(', ') || 'your locations'}.</p>
+                    <button
+                        onClick={handleRetry}
+                        className="btn btn--primary"
+                        style={{ marginTop: '1rem' }}
+                    >
+                        Retry
+                    </button>
+                    <div style={{ marginTop: '0.75rem' }}>
+                         <small>Try adding more locations or categories in <Link to="/settings" style={{ color: 'var(--accent-primary)' }}>Settings</Link>.</small>
                     </div>
                 </div>
             </div>

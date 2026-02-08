@@ -11,6 +11,7 @@ import RefreshPage from './pages/RefreshPage';
 import FollowingPage from './pages/FollowingPage';
 import TopicDetail from './pages/TopicDetail';
 import BottomNav from './components/BottomNav';
+import ScrollToTop from './components/ScrollToTop';
 import { WeatherProvider } from './context/WeatherContext';
 import { NewsProvider } from './context/NewsContext';
 import { MarketProvider } from './context/MarketContext';
@@ -28,6 +29,7 @@ function App() {
             <MarketProvider>
               <TopicProvider>
                 <HashRouter>
+                <ScrollToTop />
                 <div className="app">
                   <Routes>
                     <Route path="/" element={<MainPage />} />

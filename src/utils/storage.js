@@ -421,10 +421,14 @@ function deepMerge(target, source) {
     const result = { ...target };
 
     for (const key in source) {
-        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-            result[key] = deepMerge(target[key] || {}, source[key]);
+        const val = source[key];
+        // Skip null/undefined from stored settings — keep the default
+        if (val === null || val === undefined) continue;
+
+        if (typeof val === 'object' && !Array.isArray(val)) {
+            result[key] = deepMerge(target[key] || {}, val);
         } else {
-            result[key] = source[key];
+            result[key] = val;
         }
     }
 
