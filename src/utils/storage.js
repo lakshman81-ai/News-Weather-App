@@ -26,9 +26,10 @@ export const DEFAULT_SETTINGS = {
     rankingMode: 'smart',    // 'smart' | 'legacy'
 
     // ========================================
-    // RANKING WEIGHTS (NEW)
+    // RANKING WEIGHTS (CUSTOM RANKING SYSTEM)
     // ========================================
     rankingWeights: {
+        // Temporal / Context
         temporal: {
             weekendBoost: 2.0,
             entertainmentBoost: 2.5
@@ -36,6 +37,33 @@ export const DEFAULT_SETTINGS = {
         geo: {
             cityMatch: 1.5,
             maxScore: 5.0
+        },
+
+        // Impact Factors (Exposed for Custom Ranking)
+        freshness: {
+            decayHours: 26,     // Linear decay over X hours
+            maxBoost: 3.0       // Maximum score for 0-minute old news
+        },
+        visual: {
+            videoBoost: 1.3,    // Multiplier for video content
+            imageBoost: 1.15    // Multiplier for standard images
+        },
+        sentiment: {
+            positiveBoost: 0.5, // Additive score for positive sentiment
+            negativeBoost: 0.3  // Additive score for negative sentiment
+        },
+        keyword: {
+            matchBoost: 2.0     // Additive score for keyword match
+        },
+        source: {
+            tier1Boost: 5.0,    // Multiplier/Base for high-tier sources
+            tier2Boost: 3.0     // Multiplier/Base for mid-tier sources
+        },
+
+        // Audit Thresholds (System 3)
+        audit: {
+            consensusThreshold: 2,   // Min sources for Consensus (⚡)
+            anomalySigma: 2.0        // StdDev multiplier for Anomaly (📊)
         }
     },
 
