@@ -770,6 +770,33 @@ export function processUpAheadData(rawItems, settings) {
 
         const fullText = (item.title + " " + item.description).toLowerCase();
 
+        // --- FRESHNESS HEURISTICS: Detect "Stale content scraped as new" ---
+        // Common in aggregated feeds (e.g. MSN, Yahoo) where "Story by ... 2mo" appears.
+        // We drop anything > 2 days old (approx 48h) or clearly marked as months/years old.
+        // "2 min read" is fine, but "2 min ago" is also fine. "2mo" or "2 mo" is bad.
+        // "2y" or "2 y" is bad.
+
+        // Regex to find age indicators:
+        // Matches: "• 2mo", "• 2 mo", "- 5 months ago", "published 3 weeks ago"
+        // Avoids: "2 min read", "2 minutes read"
+        const staleRegex = /(?:•|-|published)\s*(\d+)\s*(mo|month|months|w|week|weeks|y|year|years)\s*(?:ago)?/i;
+        const staleMatch = fullText.match(staleRegex);
+
+        if (staleMatch) {
+            const qty = parseInt(staleMatch[1]);
+            const unit = staleMatch[2].toLowerCase();
+
+            // If it matches months or years, it's definitely stale
+            if (unit.startsWith('mo') || unit.startsWith('y')) {
+                return;
+            }
+            // If it matches weeks, > 1 week is stale for "Up Ahead" (which is usually next 7-14 days)
+            // But specifically for alerts, even 1 week is too old.
+            if (unit.startsWith('w') && qty >= 1) {
+                return;
+            }
+        }
+
         // --- SMART KEYWORD FILTERING ---
         // Uses matchesKeyword() for word-boundary safety on single words.
         // Multi-word phrases use includes() (no substring collision risk).
