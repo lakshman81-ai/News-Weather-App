@@ -56,6 +56,11 @@ export const mergeCluster = (cluster) => {
     // Apply consensus boost: multiple sources = higher relevance
     const consensusBoost = 1 + ((sourceCount - 1) * 0.1); // 1.0 for 1 source, 1.1 for 2, 1.2 for 3, etc.
 
+    // Force consensus data if missing
+    if (sourceCount > 1) {
+        console.log(`[Similarity] Consensus found for "${representative.title}": ${sourceCount} sources`);
+    }
+
     return {
         ...representative,
         sourceCount,
